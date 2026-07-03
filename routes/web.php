@@ -6,6 +6,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\LiveCamera\Index as LiveCameraIndex;
 use App\Livewire\Logs\Index as LogsIndex;
 use App\Livewire\Products\Index as ProductsIndex;
+use App\Livewire\PublicProduct;
 use App\Livewire\Roles\Index as RolesIndex;
 use App\Livewire\Settings\Index as SettingsIndex;
 use App\Livewire\Training\Index as TrainingIndex;
@@ -15,6 +16,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return redirect()->route(auth()->check() ? 'dashboard' : 'login');
 });
+
+// Public QC verdict page reached by scanning a product QR code (no auth).
+Route::get('/p/{token}', PublicProduct::class)->name('public.product');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', Dashboard::class)->name('dashboard');

@@ -3,35 +3,125 @@
 namespace App\Livewire\LiveCamera;
 
 use App\Models\Detection;
+use App\Models\Product;
+use App\Models\Setting;
+use App\Models\SystemLog;
+use App\Services\MlClient;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app', ['title' => 'Live Camera'])]
 class Index extends Component
 {
-    #[Url]
-    public string $camera = '';
+    use WithFileUploads;
+
+    /** Captured JPEG frame uploaded from the browser canvas. */
+    public $frame;
+
+    /** Result of the last inference, for the on-screen verdict. */
+    public ?array $lastResult = null;
+
+    public string $camera = 'CAM-01';
+
+    public string $conveyor = 'LINE-A';
+
+    /**
+     * Receive a captured frame, run it through the ML service, and persist a
+     * Detection built from the model's verdict.
+     */
+    public function inferFrame(): void
+    {
+        $this->validate([
+            'frame' => ['required', 'image', 'max:4096'],
+        ]);
+
+        $setting = Setting::current();
+        $ml = app(MlClient::class);
+
+        // Persist the frame on the public disk so it can be annotated/trained later.
+        $framePath = $this->frame->store('frames', 'public');
+        $absolute = Storage::disk('public')->path($framePath);
+
+        $activeModel = optional($setting->activeRun())->model_path;
+
+        $result = $ml->infer($absolute, $activeModel, (float) $setting->confidence_threshold, [
+            'camera' => $this->camera,
+            'conveyor' => $this->conveyor,
+        ]);
+
+        if (! $result) {
+            // Keep the frame but tell the user the service is unreachable.
+            $this->lastResult = ['status' => 'error', 'confidence' => 0];
+            $this->addError('frame', 'ML service tidak merespons. Pastikan service berjalan di port 8001.');
+
+            return;
+        }
+
+        $status = $result['status'] ?? 'recheck';
+
+        // Auto-reject setting: flag defects distinctly in the log.
+        $isDefect = in_array($status, Detection::FAILED_STATUSES, true);
+
+        $detection = Detection::create([
+            'code' => 'SCN-'.strtoupper(\Illuminate\Support\Str::random(6)),
+            'product_id' => Product::inRandomOrder()->value('id'),
+            'camera' => $this->camera,
+            'conveyor' => $this->conveyor,
+            'status' => $status,
+            'qr_value' => $result['qr_value'] ?? null,
+            'frame_path' => $framePath,
+            'confidence' => $result['confidence'] ?? 0,
+            'detected_at' => now(),
+        ]);
+
+        SystemLog::create([
+            'level' => $isDefect && $setting->auto_reject_on_damage ? 'warning' : 'info',
+            'source' => 'ai',
+            'message' => "Live inference: {$detection->statusLabel()} ({$detection->confidence}%) on {$this->camera}.",
+            'context' => ['detection_id' => $detection->id, 'boxes' => $result['boxes'] ?? []],
+            'logged_at' => now(),
+        ]);
+
+        $this->lastResult = [
+            'status' => $status,
+            'label' => $detection->statusLabel(),
+            'color' => $detection->statusColor(),
+            'confidence' => $detection->confidence,
+            'rejected' => $isDefect && $setting->auto_reject_on_damage,
+        ];
+
+        $this->reset('frame');
+    }
 
     public function render()
     {
-        $cameras = Detection::query()
-            ->where('detected_at', '>=', now()->subDay())
-            ->selectRaw('camera, conveyor, count(*) as total, max(detected_at) as last_seen')
-            ->groupBy('camera', 'conveyor')
-            ->orderBy('camera')
-            ->get();
+        // Single webcam that syncs with the dashboard — one aggregate card plus
+        // the live detection feed (no multi-camera grid).
+        $today = Detection::query()->where('detected_at', '>=', now()->startOfDay());
+
+        $stats = [
+            'total' => (clone $today)->count(),
+            'passed' => (clone $today)->where('status', 'passed')->count(),
+            'failed' => (clone $today)->whereIn('status', Detection::FAILED_STATUSES)->count(),
+            'last_seen' => (clone $today)->max('detected_at'),
+        ];
 
         $feed = Detection::query()
-            ->when($this->camera, fn ($q) => $q->where('camera', $this->camera))
             ->with('product')
             ->latest('detected_at')
-            ->limit(12)
+            ->limit(15)
             ->get();
 
+        // Cache the health probe so wire:poll doesn't hammer the ML service.
+        $mlOnline = Cache::remember('ml.health', now()->addSeconds(10), fn () => app(MlClient::class)->healthy());
+
         return view('livewire.live-camera.index', [
-            'cameras' => $cameras,
+            'stats' => $stats,
             'feed' => $feed,
+            'mlOnline' => $mlOnline,
         ]);
     }
 }
