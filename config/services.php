@@ -31,4 +31,10 @@ return [
         ],
     ],
 
+    // Python FastAPI computer-vision service (Ultralytics YOLO).
+    'ml' => [
+        'url' => env('ML_SERVICE_URL', 'http://127.0.0.1:8001'),
+        'secret' => env('ML_CALLBACK_SECRET', ''),
+    ],
+
 ];

@@ -17,6 +17,7 @@ class Detection extends Model
         'conveyor',
         'status',
         'qr_value',
+        'frame_path',
         'confidence',
         'detected_at',
     ];
