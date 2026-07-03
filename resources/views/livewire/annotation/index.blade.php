@@ -67,7 +67,7 @@
                                     <button @click="relabel = false" class="text-xs text-gray-400 hover:text-gray-600">Batal</button>
                                 </div>
                                 <div class="flex flex-wrap gap-1.5">
-                                    @foreach ($statuses as $key => $meta)
+                                    @foreach ($trainable as $key => $meta)
                                         <button wire:click="relabel({{ $item->id }}, '{{ $key }}')" @click="relabel = false"
                                                 class="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-brand-50 hover:text-brand-700 dark:border-gray-700 dark:text-gray-300">
                                             {{ $meta['label'] }}

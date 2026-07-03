@@ -51,6 +51,15 @@ class Detection extends Model
      */
     public const FAILED_STATUSES = ['unreadable', 'damaged', 'scratched'];
 
+    /**
+     * Statuses that are valid visual QC classes for training. Workflow-only
+     * states ('returned', 'recheck') are excluded — they are not something the
+     * vision model can learn to recognise from a frame.
+     *
+     * @var array<int, string>
+     */
+    public const TRAINABLE_STATUSES = ['passed', 'unreadable', 'damaged', 'scratched'];
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
