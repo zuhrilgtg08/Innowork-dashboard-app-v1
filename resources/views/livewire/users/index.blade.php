@@ -111,8 +111,8 @@
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ $editingId ? 'Edit User' : 'Add User' }}</h3>
                         <p class="text-xs text-gray-400">{{ $editingId ? 'Perbarui data member.' : 'Tambah member baru ke sistem.' }}</p>
                     </div>
-                    <button wire:click="closeModal" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                    <button wire:click="closeModal" aria-label="Tutup" class="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-700">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 

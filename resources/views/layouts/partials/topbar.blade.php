@@ -11,7 +11,7 @@
     $alertCount = $alertLogs->count();
 @endphp
 
-<header class="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-gray-900/80">
+<header x-data="{ mobileSearch: false }" class="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-gray-900/80">
     <div class="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
         <!-- Mobile hamburger -->
         <button @click="sidebarOpen = true" aria-label="Buka menu navigasi" class="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-800 lg:hidden">
@@ -28,6 +28,14 @@
                 <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
                 <input id="topbar-search" name="search" type="search" value="{{ request('search') }}" placeholder="Cari produk..." class="w-52 rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 lg:w-64" />
             </form>
+
+            <!-- Mobile search toggle -->
+            <button @click="mobileSearch = !mobileSearch; $nextTick(() => mobileSearch && $refs.mobileSearchInput.focus())"
+                    :aria-expanded="mobileSearch"
+                    aria-label="Cari produk"
+                    class="rounded-xl border border-gray-200 bg-white p-2.5 text-gray-500 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 md:hidden">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+            </button>
 
             <!-- Dark mode toggle -->
             <button
@@ -92,5 +100,14 @@
                 {{ $user->initials() }}
             </a>
         </div>
+    </div>
+
+    <!-- Mobile search row (collapsible) -->
+    <div x-show="mobileSearch" x-collapse style="display:none;" class="border-t border-gray-200 px-4 pb-3 pt-2 dark:border-gray-800 md:hidden">
+        <form action="{{ route('products') }}" method="GET" role="search" class="relative">
+            <label for="topbar-search-mobile" class="sr-only">Cari produk</label>
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+            <input id="topbar-search-mobile" x-ref="mobileSearchInput" name="search" type="search" value="{{ request('search') }}" placeholder="Cari produk..." class="w-full rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+        </form>
     </div>
 </header>

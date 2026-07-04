@@ -25,6 +25,12 @@ class Index extends Component
 
     public function mount(): void
     {
+        $this->load();
+    }
+
+    /** Load the persisted settings into the form fields. */
+    protected function load(): void
+    {
         $s = Setting::current();
 
         $this->appName = $s->app_name ?? 'SortVision';
@@ -33,6 +39,14 @@ class Index extends Component
         $this->autoRetrain = (bool) $s->auto_retrain;
         $this->emailAlerts = (bool) $s->email_alerts;
         $this->rejectOnDamage = (bool) $s->auto_reject_on_damage;
+    }
+
+    /** Discard unsaved edits and restore the last-saved values. */
+    public function resetForm(): void
+    {
+        $this->load();
+        $this->resetErrorBag();
+        $this->saved = '';
     }
 
     protected function rules(): array

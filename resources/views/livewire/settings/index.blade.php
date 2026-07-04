@@ -74,11 +74,11 @@
                 <p class="text-xs text-gray-400">Perubahan diterapkan ke seluruh stasiun.</p>
             </div>
             <div class="mt-5 flex gap-3">
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
                     <span wire:loading.remove wire:target="save">Save Settings</span>
                     <span wire:loading wire:target="save">Saving…</span>
                 </button>
-                <button type="button" class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Reset</button>
+                <button type="button" wire:click="resetForm" class="btn-secondary">Reset</button>
             </div>
         </div>
     </form>

@@ -95,8 +95,8 @@
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Edit Permission</h3>
                         <p class="text-xs text-gray-400">Peran: <span class="font-semibold text-brand-600 dark:text-brand-400">{{ $roles[$editingRole] ?? $editingRole }}</span></p>
                     </div>
-                    <button wire:click="cancel" class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                    <button wire:click="cancel" aria-label="Tutup" class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-700">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
@@ -115,8 +115,7 @@
                 </div>
 
                 <div class="flex justify-end gap-3 border-t border-gray-100 p-5 dark:border-gray-700">
-                    <button wire:click="cancel" type="button"
-                            class="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700">
+                    <button wire:click="cancel" type="button" class="btn-secondary">
                         Cancel
                     </button>
                     <button wire:click="save" type="button" class="btn-primary">
