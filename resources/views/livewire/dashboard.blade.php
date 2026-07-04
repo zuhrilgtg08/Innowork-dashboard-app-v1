@@ -114,7 +114,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-5 py-10 text-center text-gray-400">No detections for this filter.</td>
+                            <td colspan="7"><x-empty-state title="Belum ada deteksi" message="Tidak ada deteksi untuk rentang waktu atau filter ini." /></td>
                         </tr>
                     @endforelse
                 </tbody>

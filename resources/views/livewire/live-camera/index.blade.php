@@ -129,7 +129,7 @@
                         <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ number_format((float) $item->confidence * 100) }}%</span>
                     </div>
                 @empty
-                    <div class="p-10 text-center text-gray-400">Belum ada deteksi.</div>
+                    <x-empty-state title="Belum ada deteksi" message="Deteksi akan muncul di sini saat kamera memindai produk." />
                 @endforelse
             </div>
         </div>

@@ -94,7 +94,7 @@
                 </div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" title="Log out" class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-700">
+                    <button type="submit" title="Log out" aria-label="Keluar dari akun" class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-700">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>
                     </button>
                 </form>

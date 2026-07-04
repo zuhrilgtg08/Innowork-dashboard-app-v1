@@ -80,7 +80,9 @@
                 </div>
             </div>
         @empty
-            <div class="card col-span-full p-10 text-center text-gray-400">Antrian kosong — semua sudah dilabeli.</div>
+            <div class="card col-span-full">
+                <x-empty-state title="Antrian kosong" message="Semua deteksi sudah dilabeli. Kerja bagus!" />
+            </div>
         @endforelse
     </div>
 
