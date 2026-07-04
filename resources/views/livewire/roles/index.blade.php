@@ -27,12 +27,12 @@
                 </div>
                 <p class="mt-3 text-xs text-gray-400">member dengan peran ini</p>
                 <div class="mt-4 flex gap-2">
-                    <a href="{{ route('roles', ['role' => $key]) }}" wire:navigate
-                       class="flex-1 rounded-lg bg-gray-100 py-2 text-center text-xs font-semibold text-gray-600 transition hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                    <a href="{{ route('roles', ['role' => $key]) }}" wire:navigate aria-label="Lihat permission {{ $label }}"
+                       class="flex-1 rounded-lg bg-gray-100 py-2 text-center text-xs font-semibold text-gray-600 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
                         View
                     </a>
-                    <button wire:click="edit('{{ $key }}')"
-                            class="flex-1 rounded-lg bg-brand-50 py-2 text-center text-xs font-semibold text-brand-700 transition hover:bg-brand-100 dark:bg-brand-600/15 dark:text-brand-400 dark:hover:bg-brand-600/25">
+                    <button wire:click="edit('{{ $key }}')" aria-label="Edit permission {{ $label }}"
+                            class="flex-1 rounded-lg bg-brand-50 py-2 text-center text-xs font-semibold text-brand-700 transition hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-brand-600/15 dark:text-brand-400 dark:hover:bg-brand-600/25">
                         Edit
                     </button>
                 </div>
