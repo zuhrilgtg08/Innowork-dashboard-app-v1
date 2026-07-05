@@ -62,9 +62,11 @@ class AuthenticationTest extends TestCase
 
         $response = $this->get('/dashboard');
 
+        // This app uses a custom sidebar shell (layouts.partials.sidebar),
+        // not Breeze's Volt layout.navigation component.
         $response
             ->assertOk()
-            ->assertSeeVolt('layout.navigation');
+            ->assertSee('Main Menu');
     }
 
     public function test_users_can_logout(): void
