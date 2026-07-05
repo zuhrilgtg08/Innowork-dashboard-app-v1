@@ -181,6 +181,25 @@ Kalau muncul error `ModuleNotFoundError: No module named 'httpx'` (atau modul la
 
 ---
 
+## Kamera ICAM-300 (Advantech)
+
+Live Camera bisa memakai **webcam browser** (default, demo) atau **ICAM-300** (smart camera industri via RTSP). Inference tetap di ml-service (YOLO) — kamera hanya sumber video, jadi **tidak perlu kode di dalam kamera**.
+
+### Uji tanpa hardware (simulator)
+1. Pastikan ml-service jalan (Terminal 4). Biarkan `ICAM_RTSP_URL` kosong di `ml-service/.env` → mode simulator (frame sintetis / video sample).
+2. Buka `http://127.0.0.1:8001/camera/stream` di browser → harus muncul video MJPEG.
+3. Di dashboard: **Settings → Camera → Sumber Kamera = ICAM-300 (RTSP)** lalu Save. Buka **Live Camera** → video tampil dengan badge LIVE.
+4. (Opsional) Set `ICAM_AUTO_INFER=true` di `ml-service/.env` + restart ml-service + jalankan queue worker → deteksi otomatis mengalir ke feed & tabel `detections` tiap `ICAM_INFER_INTERVAL` detik.
+
+### Saat unit ICAM-300 tersedia
+1. Hubungkan kamera ke jaringan (GbE), set IP via web service bawaan, dan set kamera ke status **playing** (≥5fps) agar RTSP di port 8550 aktif.
+2. Di `ml-service/.env`: `ICAM_RTSP_URL=rtsp://<ip-kamera>:8550/video`, restart ml-service.
+3. Di dashboard Settings, isi juga **RTSP URL ICAM-300** (untuk referensi UI). Selesai — alur lainnya tak berubah.
+
+> Detail env & endpoint: lihat `ml-service/README.md`.
+
+---
+
 ## Troubleshooting
 
 | Gejala | Penyebab | Solusi |
@@ -193,3 +212,5 @@ Kalau muncul error `ModuleNotFoundError: No module named 'httpx'` (atau modul la
 | Live Camera / Training bilang "ML service offline" | ml-service belum dijalankan, atau `.venv` belum lengkap | Jalankan Terminal 4, cek `http://127.0.0.1:8001/health` |
 | `No module named 'httpx'` di ml-service | Dependency Python belum terinstall di venv yang benar | Ulangi setup ML Service di atas, pastikan pakai Python 3.12 |
 | Training callback gagal / run tidak pernah `completed` | `ML_CALLBACK_SECRET` beda antara `.env` Laravel dan `ml-service/.env` | Samakan persis nilainya di kedua file |
+| Video ICAM-300 tidak muncul di Live Camera | ml-service mati, atau Settings masih `webcam`, atau kamera belum "playing" | Cek `http://127.0.0.1:8001/camera/stream`; Settings → Camera → ICAM-300; pastikan kamera playing (≥5fps) |
+| Deteksi ICAM tidak masuk ke feed | `ICAM_AUTO_INFER` masih `false` atau queue worker mati | Set `ICAM_AUTO_INFER=true`, restart ml-service, jalankan `php artisan queue:work` |

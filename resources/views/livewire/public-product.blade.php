@@ -29,7 +29,7 @@
             <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
                 {{ $detection->detected_at?->translatedFormat('d M Y H:i') }}
                 @if ($detection->confidence)
-                    · confidence {{ number_format((float) $detection->confidence * 100, 1) }}%
+                    · confidence {{ number_format((float) $detection->confidence, 1) }}%
                 @endif
             </p>
             @if ($detection->camera)

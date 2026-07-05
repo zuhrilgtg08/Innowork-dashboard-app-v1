@@ -54,6 +54,28 @@
             </div>
         </div>
 
+        <!-- Camera -->
+        <div class="card p-5">
+            <h3 class="font-bold text-gray-900 dark:text-white">Camera</h3>
+            <p class="text-xs text-gray-400">Sumber Live Camera.</p>
+            <div class="mt-5 space-y-4">
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Sumber Kamera</label>
+                    <select wire:model.live="cameraSource" class="field py-2.5">
+                        <option value="webcam">Webcam Browser (demo)</option>
+                        <option value="icam">ICAM-300 (RTSP via AI service)</option>
+                    </select>
+                    @error('cameraSource') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                </div>
+                <div x-data x-show="$wire.cameraSource === 'icam'">
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">RTSP URL ICAM-300</label>
+                    <input wire:model="icamRtspUrl" type="text" class="field font-mono text-xs" placeholder="rtsp://192.168.0.100:8550/video" />
+                    <p class="mt-1 text-xs text-gray-400">Set juga <span class="font-mono">ICAM_RTSP_URL</span> di <span class="font-mono">ml-service/.env</span> agar service menarik streamnya.</p>
+                    @error('icamRtspUrl') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                </div>
+            </div>
+        </div>
+
         <!-- Notifications -->
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">Notifications</h3>

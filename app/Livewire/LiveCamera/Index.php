@@ -118,10 +118,16 @@ class Index extends Component
         // Cache the health probe so wire:poll doesn't hammer the ML service.
         $mlOnline = Cache::remember('ml.health', now()->addSeconds(10), fn () => app(MlClient::class)->healthy());
 
+        // Source mode: 'webcam' (browser getUserMedia) or 'icam' (ICAM-300 RTSP
+        // relayed as MJPEG by the ml-service).
+        $cameraSource = Setting::current()->camera_source ?? 'webcam';
+
         return view('livewire.live-camera.index', [
             'stats' => $stats,
             'feed' => $feed,
             'mlOnline' => $mlOnline,
+            'cameraSource' => $cameraSource,
+            'streamUrl' => config('services.ml.stream_url'),
         ]);
     }
 }
