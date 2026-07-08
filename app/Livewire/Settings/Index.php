@@ -21,9 +21,19 @@ class Index extends Component
 
     public bool $rejectOnDamage = true;
 
+    public string $cameraSource = 'webcam';
+
+    public ?string $icamRtspUrl = '';
+
     public string $saved = '';
 
     public function mount(): void
+    {
+        $this->load();
+    }
+
+    /** Load the persisted settings into the form fields. */
+    protected function load(): void
     {
         $s = Setting::current();
 
@@ -33,6 +43,16 @@ class Index extends Component
         $this->autoRetrain = (bool) $s->auto_retrain;
         $this->emailAlerts = (bool) $s->email_alerts;
         $this->rejectOnDamage = (bool) $s->auto_reject_on_damage;
+        $this->cameraSource = $s->camera_source ?? 'webcam';
+        $this->icamRtspUrl = $s->icam_rtsp_url ?? '';
+    }
+
+    /** Discard unsaved edits and restore the last-saved values. */
+    public function resetForm(): void
+    {
+        $this->load();
+        $this->resetErrorBag();
+        $this->saved = '';
     }
 
     protected function rules(): array
@@ -44,6 +64,8 @@ class Index extends Component
             'autoRetrain' => ['boolean'],
             'emailAlerts' => ['boolean'],
             'rejectOnDamage' => ['boolean'],
+            'cameraSource' => ['required', 'in:webcam,icam'],
+            'icamRtspUrl' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -58,6 +80,8 @@ class Index extends Component
             'auto_retrain' => $this->autoRetrain,
             'email_alerts' => $this->emailAlerts,
             'auto_reject_on_damage' => $this->rejectOnDamage,
+            'camera_source' => $this->cameraSource,
+            'icam_rtsp_url' => $this->icamRtspUrl,
         ]);
 
         $this->saved = now()->format('H:i:s');

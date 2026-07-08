@@ -36,9 +36,9 @@
         @forelse ($queue as $item)
             <div class="card flex flex-col overflow-hidden" wire:key="det-{{ $item->id }}">
                 <div class="relative flex aspect-video items-center justify-center bg-gray-100 dark:bg-gray-700/50">
-                    @php($img = $item->frame_path ?: $item->product?->image)
-                    @if ($img)
-                        <img src="{{ Storage::url($img) }}" alt="frame" class="h-full w-full object-cover" />
+                    @php($imgUrl = $item->imageUrl())
+                    @if ($imgUrl)
+                        <img src="{{ $imgUrl }}" alt="frame" class="h-full w-full object-cover" />
                     @else
                         <svg class="h-10 w-10 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                     @endif
@@ -67,7 +67,7 @@
                                     <button @click="relabel = false" class="text-xs text-gray-400 hover:text-gray-600">Batal</button>
                                 </div>
                                 <div class="flex flex-wrap gap-1.5">
-                                    @foreach ($statuses as $key => $meta)
+                                    @foreach ($trainable as $key => $meta)
                                         <button wire:click="relabel({{ $item->id }}, '{{ $key }}')" @click="relabel = false"
                                                 class="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-brand-50 hover:text-brand-700 dark:border-gray-700 dark:text-gray-300">
                                             {{ $meta['label'] }}
@@ -80,7 +80,9 @@
                 </div>
             </div>
         @empty
-            <div class="card col-span-full p-10 text-center text-gray-400">Antrian kosong — semua sudah dilabeli.</div>
+            <div class="card col-span-full">
+                <x-empty-state title="Antrian kosong" message="Semua deteksi sudah dilabeli. Kerja bagus!" />
+            </div>
         @endforelse
     </div>
 

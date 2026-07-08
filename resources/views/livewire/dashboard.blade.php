@@ -105,7 +105,7 @@
                     @forelse ($recent as $d)
                         <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/40">
                             <td class="px-5 py-3 font-mono text-xs font-semibold text-gray-900 dark:text-gray-100">{{ $d->code }}</td>
-                            <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->product?->name ?? '—' }}</td>
+                            <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->product?->name ?? '-' }}</td>
                             <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->camera }}</td>
                             <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->conveyor }}</td>
                             <td class="px-5 py-3"><x-status-badge :color="$d->statusColor()" :label="$d->statusLabel()" /></td>
@@ -114,7 +114,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-5 py-10 text-center text-gray-400">No detections for this filter.</td>
+                            <td colspan="7"><x-empty-state title="Belum ada deteksi" message="Tidak ada deteksi untuk rentang waktu atau filter ini." /></td>
                         </tr>
                     @endforelse
                 </tbody>

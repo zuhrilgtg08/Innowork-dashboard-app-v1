@@ -54,3 +54,8 @@ def complete(callback_url: str, model_path: str, metrics: dict,
 
 def fail(callback_url: str, error: str) -> None:
     _post(f"{callback_url}/fail", {"error": str(error)[:1000]})
+
+
+def post_detection(laravel_url: str, payload: dict) -> None:
+    """Send a stream-inference verdict to Laravel's signed ingest endpoint."""
+    _post(f"{laravel_url.rstrip('/')}/api/camera/detection", payload)

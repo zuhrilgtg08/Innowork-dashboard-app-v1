@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Products;
 
+use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -23,6 +24,9 @@ class Index extends Component
     #[Url]
     public string $status = '';
 
+    #[Url]
+    public string $categoryFilter = '';
+
     /** Modal state. */
     public bool $showModal = false;
 
@@ -33,7 +37,7 @@ class Index extends Component
 
     public string $name = '';
 
-    public string $category = '';
+    public ?int $category_id = null;
 
     public string $sku = '';
 
@@ -55,7 +59,7 @@ class Index extends Component
 
     public function updating($name): void
     {
-        if (in_array($name, ['search', 'status'])) {
+        if (in_array($name, ['search', 'status', 'categoryFilter'])) {
             $this->resetPage();
         }
     }
@@ -63,22 +67,34 @@ class Index extends Component
     protected function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:255', Rule::unique('products', 'code')->ignore($this->editingId)],
             'name' => ['required', 'string', 'max:255'],
-            'category' => ['nullable', 'string', 'max:255'],
-            'sku' => ['nullable', 'string', 'max:255'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'productStatus' => ['required', Rule::in(array_keys(Product::STATUSES))],
             'stock' => ['required', 'integer', 'min:0'],
             'description' => ['nullable', 'string'],
-            'photo' => ['nullable', 'image', 'max:2048'], // max 2MB foto produk susu
+            'photo' => ['nullable', 'image', 'max:2048'],
         ];
     }
 
     public function create(): void
     {
         $this->resetForm();
-        $this->code = 'PRD-'.str_pad((string) (Product::max('id') + 1), 5, '0', STR_PAD_LEFT);
         $this->showModal = true;
+    }
+
+    protected function generateCode(): string
+    {
+        return 'PRD-'.str_pad((string) ((Product::max('id') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
+    }
+
+    protected function generateSku(string $name): string
+    {
+        $words = preg_split('/[\s-]+/', $name);
+        $abbr = '';
+        foreach ($words as $w) {
+            if (!empty($w)) $abbr .= strtoupper($w[0]);
+        }
+        return $abbr.'-'.fake()->unique()->numerify('###');
     }
 
     public function edit(int $id): void
@@ -88,7 +104,7 @@ class Index extends Component
         $this->editingId = $product->id;
         $this->code = $product->code;
         $this->name = $product->name;
-        $this->category = (string) $product->category;
+        $this->category_id = $product->category_id;
         $this->sku = (string) $product->sku;
         $this->productStatus = $product->status;
         $this->stock = (int) $product->stock;
@@ -106,10 +122,10 @@ class Index extends Component
         $product = $this->editingId ? Product::findOrFail($this->editingId) : new Product();
 
         $product->fill([
-            'code' => $data['code'],
+            'code' => $this->editingId ? $product->code : $this->generateCode(),
             'name' => $data['name'],
-            'category' => $data['category'] ?: null,
-            'sku' => $data['sku'] ?: null,
+            'category_id' => $data['category_id'] ?? null,
+            'sku' => $this->editingId ? $product->sku : $this->generateSku($data['name']),
             'status' => $data['productStatus'],
             'stock' => $data['stock'],
             'description' => $data['description'] ?: null,
@@ -162,7 +178,7 @@ class Index extends Component
     protected function resetForm(): void
     {
         $this->reset([
-            'editingId', 'code', 'name', 'category', 'sku',
+            'editingId', 'name', 'category_id',
             'stock', 'description', 'photo', 'existingImage',
         ]);
         $this->productStatus = 'active';
@@ -172,13 +188,17 @@ class Index extends Component
 
     public function render()
     {
+        $categories = Category::where('is_active', true)->orderBy('name')->get();
+
         $products = Product::query()
             ->when($this->search, fn ($q) => $q->where(fn ($sub) => $sub
                 ->where('name', 'like', "%{$this->search}%")
                 ->orWhere('code', 'like', "%{$this->search}%")
                 ->orWhere('sku', 'like', "%{$this->search}%")))
             ->when($this->status, fn ($q) => $q->where('status', $this->status))
+            ->when($this->categoryFilter, fn ($q) => $q->where('category_id', $this->categoryFilter))
             ->withCount('detections')
+            ->with('category')
             ->latest()
             ->paginate(12);
 
@@ -186,6 +206,7 @@ class Index extends Component
             'products' => $products,
             'total' => Product::count(),
             'statuses' => Product::STATUSES,
+            'categories' => $categories,
         ]);
     }
 }

@@ -55,7 +55,7 @@
                             <td class="whitespace-nowrap px-5 py-3 text-gray-500 dark:text-gray-400">{{ $log->logged_at?->format('d M H:i:s') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="px-5 py-10 text-center text-gray-400">Tidak ada log ditemukan.</td></tr>
+                        <tr><td colspan="4"><x-empty-state title="Tidak ada log" message="Belum ada aktivitas sistem yang cocok dengan filter ini." /></td></tr>
                     @endforelse
                 </tbody>
             </table>

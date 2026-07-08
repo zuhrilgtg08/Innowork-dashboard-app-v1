@@ -35,6 +35,9 @@ return [
     'ml' => [
         'url' => env('ML_SERVICE_URL', 'http://127.0.0.1:8001'),
         'secret' => env('ML_CALLBACK_SECRET', ''),
+        // Browser-facing MJPEG stream of the ICAM-300 (served by ml-service).
+        'stream_url' => env('ML_STREAM_URL', 'http://127.0.0.1:8001/camera/stream'),
+        'status_url' => env('ML_STATUS_URL', 'http://127.0.0.1:8001/camera/status'),
     ],
 
 ];

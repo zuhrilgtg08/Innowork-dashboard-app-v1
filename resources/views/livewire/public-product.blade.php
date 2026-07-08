@@ -7,7 +7,7 @@
     </div>
 
     @if ($product->image)
-        <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}"
+        <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}"
              class="mx-auto mb-5 h-40 w-40 rounded-2xl object-cover ring-1 ring-black/5" />
     @endif
 
@@ -29,7 +29,7 @@
             <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
                 {{ $detection->detected_at?->translatedFormat('d M Y H:i') }}
                 @if ($detection->confidence)
-                    · confidence {{ number_format((float) $detection->confidence * 100, 1) }}%
+                    · confidence {{ number_format((float) $detection->confidence, 1) }}%
                 @endif
             </p>
             @if ($detection->camera)

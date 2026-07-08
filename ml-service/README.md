@@ -38,6 +38,33 @@ Check: `curl http://127.0.0.1:8001/health`
   returns 202 and trains in the background, POSTing progress back to Laravel.
 - `POST /infer`  — multipart `frame` (JPEG) + `conf`, `model_path`, context;
   returns `{status, confidence, boxes}`.
+- `GET  /camera/stream` — MJPEG (`multipart/x-mixed-replace`) of the live source,
+  displayable directly in a browser `<img>`.
+- `GET  /camera/status` — `{connected, mode, source, fps}`.
+
+## ICAM-300 camera integration
+
+The service can pull the Advantech **ICAM-300** RTSP stream
+(`rtsp://<ip>:8550/video`, available when the camera is "playing" at ≥5fps),
+re-serve it as browser-friendly MJPEG, and — with auto-infer on — run YOLO on
+it every few seconds and POST each verdict to Laravel (`/api/camera/detection`,
+HMAC-signed). **No code runs on the camera**; it just streams.
+
+`.env` keys:
+
+- `ICAM_RTSP_URL` — real camera URL. **Leave empty for simulator mode.**
+- `ICAM_SIM_SOURCE` — fallback when RTSP is empty/unreachable: a looped video
+  file path (`samples/conveyor.mp4`) or a webcam index (`"0"`). If neither is
+  available, synthetic conveyor frames are generated.
+- `ICAM_AUTO_INFER` — `true` to run the periodic infer→POST loop.
+- `ICAM_INFER_INTERVAL` — seconds between inferences (default 3).
+- `ICAM_CAMERA`, `ICAM_CONVEYOR` — labels stamped on detections.
+- `ICAM_MODEL_PATH` — optional `models/run-x/best.pt` (else base model).
+
+Test without hardware: leave `ICAM_RTSP_URL` empty, start the service, open
+`http://127.0.0.1:8001/camera/stream`. Set `ICAM_AUTO_INFER=true` (with Laravel
+running + matching `ML_CALLBACK_SECRET`) to see detections flow into the
+dashboard's Live Camera feed.
 
 ## Notes
 

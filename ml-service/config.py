@@ -18,5 +18,31 @@ class Settings(BaseSettings):
     # Base YOLO weights used when starting a fresh training run.
     base_model: str = "yolov8n.pt"
 
+    # --- ICAM-300 camera integration ---------------------------------------
+    # RTSP URL of the ICAM-300 when "playing" (rtsp://<ip>:8550/video). Empty
+    # string enables simulator mode (see icam_sim_source below).
+    icam_rtsp_url: str = ""
+
+    # Fallback video source used when icam_rtsp_url is empty or unreachable.
+    # A file path (looped) or a digit string like "0" for a local webcam.
+    icam_sim_source: str = "samples/conveyor.mp4"
+
+    # Seconds between automatic inference passes on the live stream.
+    icam_infer_interval: float = 3.0
+
+    # When true, the service runs the periodic infer→POST loop on startup.
+    icam_auto_infer: bool = False
+
+    # Context stamped onto detections created from the stream.
+    icam_camera: str = "ICAM-300"
+    icam_conveyor: str = "LINE-A"
+
+    # Relative model path (models/run-x/best.pt) for stream inference; empty
+    # falls back to the base model.
+    icam_model_path: str = ""
+
+    # Confidence threshold for stream inference.
+    icam_conf: float = 0.85
+
 
 settings = Settings()
