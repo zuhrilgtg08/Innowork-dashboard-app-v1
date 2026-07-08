@@ -34,6 +34,8 @@ class DatabaseSeeder extends Seeder
         // A handful of extra members for the Users table.
         User::factory(12)->create();
 
+        $this->call(CategorySeeder::class);
+
         // Catalogue of products moving through the line.
         Product::factory(40)->create();
 

@@ -6,16 +6,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -26,21 +22,11 @@ class User extends Authenticatable
         'is_active',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -50,11 +36,6 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Roles available in the system.
-     *
-     * @var array<string, string>
-     */
     public const ROLES = [
         'admin' => 'Administrator',
         'supervisor_qc' => 'Supervisor QC',
@@ -80,5 +61,39 @@ class User extends Authenticatable
             ->take(2)
             ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
             ->implode('');
+    }
+
+    /**
+     * Get the full URL for the user's avatar.
+     */
+    public function avatarUrl(): ?string
+    {
+        if (empty($this->avatar)) {
+            return null;
+        }
+
+        if (str_starts_with($this->avatar, 'assets/')) {
+            return asset($this->avatar);
+        }
+
+        return Storage::url($this->avatar);
+    }
+
+    public function canAccess(string $module): bool
+    {
+        if (in_array($this->role, ['admin', 'supervisor_qc', 'operator'])) {
+            $access = RolePermission::matrix()[$this->role][$module] ?? '-';
+            return $access !== '-';
+        }
+        return false;
+    }
+
+    public function canWrite(string $module): bool
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+        $access = RolePermission::matrix()[$this->role][$module] ?? '-';
+        return in_array($access, ['w', 'f'], true);
     }
 }

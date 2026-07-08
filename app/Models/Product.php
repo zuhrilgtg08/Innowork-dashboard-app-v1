@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -17,7 +18,7 @@ class Product extends Model
     protected $fillable = [
         'code',
         'name',
-        'category',
+        'category_id',
         'sku',
         'status',
         'stock',
@@ -55,12 +56,34 @@ class Product extends Model
         return $this->hasMany(Detection::class);
     }
 
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
     /**
      * The most recent detection for this product (drives the public QR page).
      */
     public function latestDetection(): HasOne
     {
         return $this->hasOne(Detection::class)->latestOfMany('detected_at');
+    }
+
+    /**
+     * Get the full URL for the product image.
+     * Handles both storage disk paths and public asset paths.
+     */
+    public function imageUrl(): ?string
+    {
+        if (empty($this->image)) {
+            return null;
+        }
+
+        if (str_starts_with($this->image, 'assets/')) {
+            return asset($this->image);
+        }
+
+        return Storage::url($this->image);
     }
 
     /**

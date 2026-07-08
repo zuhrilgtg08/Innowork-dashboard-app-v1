@@ -17,7 +17,7 @@ class RolePermission extends Model
      *
      * @var array<int, string>
      */
-    public const MODULES = ['Dashboard', 'Users', 'Product', 'Live Camera', 'Training', 'Annotation', 'Logs', 'Settings'];
+    public const MODULES = ['Dashboard', 'Users', 'Product', 'Categories', 'Live Camera', 'Training', 'Annotation', 'Logs', 'Settings'];
 
     /**
      * Access levels with UI metadata.
@@ -41,16 +41,16 @@ class RolePermission extends Model
         return [
             'admin' => array_fill_keys(self::MODULES, 'f'),
             'supervisor_qc' => [
-                'Dashboard' => 'f', 'Users' => 'r', 'Product' => 'w', 'Live Camera' => 'f',
-                'Training' => 'w', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => 'r',
+                'Dashboard' => 'f', 'Users' => 'r', 'Product' => 'w', 'Categories' => 'w',
+                'Live Camera' => 'f', 'Training' => 'w', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => 'r',
             ],
             'operator' => [
-                'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Live Camera' => 'w',
-                'Training' => 'r', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => '-',
+                'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Categories' => '-',
+                'Live Camera' => 'w', 'Training' => 'r', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => '-',
             ],
             'viewer' => [
-                'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Live Camera' => 'r',
-                'Training' => '-', 'Annotation' => '-', 'Logs' => 'r', 'Settings' => '-',
+                'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Categories' => '-',
+                'Live Camera' => 'r', 'Training' => '-', 'Annotation' => '-', 'Logs' => 'r', 'Settings' => '-',
             ],
         ];
     }

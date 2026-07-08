@@ -3,15 +3,18 @@
 namespace App\Livewire\Users;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app', ['title' => 'Users'])]
 class Index extends Component
 {
+    use WithFileUploads;
     use WithPagination;
 
     #[Url]
@@ -39,6 +42,11 @@ class Index extends Component
 
     public bool $is_active = true;
 
+    /** Avatar upload. */
+    public $avatar = null;
+
+    public ?string $existingAvatar = null;
+
     /** Flash + delete-confirmation state. */
     public string $flash = '';
 
@@ -60,6 +68,7 @@ class Index extends Component
             'title' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
             'password' => [$this->editingId ? 'nullable' : 'required', 'nullable', 'string', 'min:8'],
+            'avatar' => ['nullable', 'image', 'max:2048'],
         ];
     }
 
@@ -85,6 +94,8 @@ class Index extends Component
         $this->title = (string) $user->title;
         $this->is_active = (bool) $user->is_active;
         $this->password = '';
+        $this->existingAvatar = $user->avatar;
+        $this->avatar = null;
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -122,6 +133,14 @@ class Index extends Component
             $user->password = $data['password']; // "hashed" cast bcrypts it
         }
 
+        // Store avatar on the public disk.
+        if ($this->avatar) {
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            $user->avatar = $this->avatar->store('avatars', 'public');
+        }
+
         $user->save();
 
         $this->flash = $this->editingId ? 'User berhasil diperbarui.' : 'User baru berhasil ditambahkan.';
@@ -151,6 +170,10 @@ class Index extends Component
             return;
         }
 
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
         $user->delete();
         $this->flash = 'User berhasil dihapus.';
         $this->confirmingDeleteId = null;
@@ -172,7 +195,7 @@ class Index extends Component
 
     protected function resetForm(): void
     {
-        $this->reset(['editingId', 'name', 'email', 'title', 'password']);
+        $this->reset(['editingId', 'name', 'email', 'title', 'password', 'avatar', 'existingAvatar']);
         $this->userRole = 'viewer';
         $this->is_active = true;
         $this->resetValidation();
