@@ -15,7 +15,7 @@ import callbacks
 import infer
 import train
 from config import settings
-from stream import camera_source
+from stream import camera_source    
 
 
 def _resolve_stream_model() -> str | None:
