@@ -44,9 +44,9 @@ class ArmStatus extends Model
      * @var array<string, array{label: string, color: string}>
      */
     public const STATES = [
-        'idle'    => ['label' => 'Idle',    'color' => 'gray'],
+        'idle' => ['label' => 'Idle',    'color' => 'gray'],
         'running' => ['label' => 'Running', 'color' => 'green'],
-        'error'   => ['label' => 'Error',   'color' => 'red'],
+        'error' => ['label' => 'Error',   'color' => 'red'],
     ];
 
     /**

@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Services\ArmMqttService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
  * A joint-angle recipe for the robotic arm keyed by product category. In Opsi A
  * (no Jetson Nano) the backend owns these presets instead of an on-device
- * inverse-kinematics solver — {@see \App\Services\ArmMqttService::publishCommand()}
+ * inverse-kinematics solver — {@see ArmMqttService::publishCommand()}
  * looks one up and publishes the ready-to-run angles to the ESP32.
  */
 class TargetZonePreset extends Model

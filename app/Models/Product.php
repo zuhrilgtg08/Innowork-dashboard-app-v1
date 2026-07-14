@@ -41,7 +41,7 @@ class Product extends Model
     /**
      * Product categories moving through the line — the single source of truth
      * reused by the factory and the arm's target-zone presets (see
-     * {@see \App\Models\TargetZonePreset}). Kept as a plain list because the
+     * {@see TargetZonePreset}). Kept as a plain list because the
      * column itself is free text.
      *
      * @var array<int, string>

@@ -36,12 +36,12 @@ class Detection extends Model
      * @var array<string, array{label: string, color: string}>
      */
     public const STATUSES = [
-        'passed'     => ['label' => 'Passed',     'color' => 'green'],
+        'passed' => ['label' => 'Passed',     'color' => 'green'],
         'unreadable' => ['label' => 'QR Unreadable', 'color' => 'amber'],
-        'damaged'    => ['label' => 'Damaged',    'color' => 'red'],
-        'scratched'  => ['label' => 'Scratched',  'color' => 'orange'],
-        'returned'   => ['label' => 'Returned',   'color' => 'rose'],
-        'recheck'    => ['label' => 'Recheck',    'color' => 'blue'],
+        'damaged' => ['label' => 'Damaged',    'color' => 'red'],
+        'scratched' => ['label' => 'Scratched',  'color' => 'orange'],
+        'returned' => ['label' => 'Returned',   'color' => 'rose'],
+        'recheck' => ['label' => 'Recheck',    'color' => 'blue'],
     ];
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Product;
 use App\Models\TargetZonePreset;
 use App\Services\ArmMqttService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -71,7 +72,7 @@ class ArmMqttServiceTest extends TestCase
             TargetZonePreset::updateOrCreate(['slug' => $preset['slug']], $preset);
         }
 
-        foreach (\App\Models\Product::CATEGORIES as $category) {
+        foreach (Product::CATEGORIES as $category) {
             $this->assertNotNull(
                 TargetZonePreset::forCategory($category),
                 "Missing preset for category: {$category}",
