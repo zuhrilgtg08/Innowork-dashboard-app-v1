@@ -39,6 +39,23 @@ class Product extends Model
     ];
 
     /**
+     * Product categories moving through the line — the single source of truth
+     * reused by the factory and the arm's target-zone presets (see
+     * {@see \App\Models\TargetZonePreset}). Kept as a plain list because the
+     * column itself is free text.
+     *
+     * @var array<int, string>
+     */
+    public const CATEGORIES = [
+        'Electronics',
+        'Apparel',
+        'Food & Beverage',
+        'Automotive Parts',
+        'Cosmetics',
+        'Pharmaceutical',
+    ];
+
+    /**
      * Assign an unguessable public token to new products.
      */
     protected static function booted(): void

@@ -114,7 +114,8 @@ MQTT_CONNECT_TIMEOUT=3
 > composer update laravel/sanctum php-mqtt/client
 > ```
 > `php artisan migrate` (langkah 5) lalu membuat tabel `personal_access_tokens`
-> (Sanctum) dan `arm_statuses`.
+> (Sanctum), `arm_statuses`, dan `target_zone_presets` (di-seed placeholder saat
+> `migrate:fresh --seed`).
 
 Detail endpoint REST dan format payload MQTT: lihat `API_CONTRACT.md`.
 
@@ -240,18 +241,25 @@ Live Camera bisa memakai **webcam browser** (default, demo) atau **ICAM-300** (s
 
 ## Robotic Arm — MQTT & Mobile API (Opsi A)
 
-Bagian ini melengkapi **Opsi A**: mobile/web app → backend Laravel + MQTT broker
-→ Jetson Nano → ESP32 → motor. Sisi Laravel berperan sebagai REST API (data
-non-realtime) + publisher/consumer MQTT (command & telemetry realtime). Kode
-Jetson/ESP32/ml-service **di luar** scope repo ini.
+Bagian ini melengkapi **Opsi A tanpa Jetson Nano**: mobile/web app → backend
+Laravel + MQTT broker → ESP32 (WiFi/MQTT langsung) → motor. ESP32 subscribe
+`arm/command` langsung dari broker yang sama — **tidak ada** Jetson/perantara
+compute. Sisi Laravel berperan sebagai REST API (data non-realtime) +
+publisher/consumer MQTT (command & telemetry realtime). Kode ESP32/ml-service
+**di luar** scope repo ini.
 
 ### Komponen di sisi Laravel
 
 - **REST API mobile** (`routes/api.php`, prefix `/api`) — auth Sanctum token,
   endpoint `auth/login|logout|me`, `status`, `detections`, `arm`. Kontrak
   lengkap: `API_CONTRACT.md`.
-- **`App\Services\ArmMqttService`** — publisher command ke `arm/command` dan
-  cek konektivitas broker (`isConnected()`), best-effort seperti `MlClient`.
+- **`App\Services\ArmMqttService`** — publisher command ke `arm/command`
+  (`publishCommand($category, $context)`: lookup `TargetZonePreset` per kategori
+  produk → publish sudut sendi jadi, QoS 1) dan cek konektivitas broker
+  (`isConnected()`), best-effort seperti `MlClient`.
+- **`App\Models\TargetZonePreset`** — preset sudut sendi 6-axis per kategori
+  produk (pengganti kinematika Jetson). Di-seed placeholder oleh
+  `DatabaseSeeder`; tim isi nilai aslinya nanti.
 - **`php artisan mqtt:listen`** — consumer telemetry (`arm/status`,
   `arm/detection`).
 

@@ -1,8 +1,10 @@
 # SortVision — Kontrak API Mobile (Opsi A)
 
-Kontrak REST API untuk mobile app SortVision, bagian dari **Opsi A**
-(mobile/web → backend Laravel + MQTT broker → Jetson Nano → ESP32 → motor).
-Lihat `Opsi-a&b.md` untuk keputusan arsitekturnya.
+Kontrak REST API untuk mobile app SortVision, bagian dari **Opsi A tanpa
+Jetson Nano** (mobile/web → backend Laravel + MQTT broker + ml-service → ESP32
+via WiFi/MQTT langsung → motor). ESP32 subscribe command langsung dari broker
+yang sama; **tidak ada** perantara compute (Jetson) di jalur ini. Lihat
+`Opsi-a&b.md` untuk keputusan arsitekturnya.
 
 - **Base URL:** `http://<host>:8000/api`
 - **Format:** JSON (kirim `Accept: application/json`).
@@ -137,24 +139,35 @@ oleh consumer MQTT `mqtt:listen`).
 
 Broker (Mosquitto/EMQX) di-host terpisah — dikonfigurasi lewat env
 (`MQTT_HOST`, `MQTT_PORT`, `MQTT_BASE_TOPIC`, dll; lihat `config/services.php`
-section `mqtt`). Laravel berperan sebagai **publisher** command dan **consumer**
-telemetry (`php artisan mqtt:listen`). Semua topik di bawah prefix
-`MQTT_BASE_TOPIC` (default `arm`).
+section `mqtt`). **ESP32 connect ke broker yang sama lewat WiFi** dan subscribe
+`arm/command` langsung — tidak lewat Jetson. Laravel berperan sebagai
+**publisher** command dan **consumer** telemetry (`php artisan mqtt:listen`).
+Semua topik di bawah prefix `MQTT_BASE_TOPIC` (default `arm`).
 
-| Topik | Arah | Publisher → Subscriber | Isi |
-|---|---|---|---|
-| `arm/command` | command | Laravel/dashboard → Jetson/ESP32 | Perintah kontrol arm |
-| `arm/status` | telemetry | Jetson/ESP32 → Laravel (`mqtt:listen`) | State arm terkini |
-| `arm/detection` | telemetry | Jetson → Laravel (`mqtt:listen`) | Hasil deteksi QC realtime |
+| Topik | Arah | Publisher → Subscriber | QoS | Isi |
+|---|---|---|---|---|
+| `arm/command` | command | Laravel → ESP32 | 1 | Sudut sendi target (hasil lookup preset) |
+| `arm/status` | telemetry | ESP32 → Laravel (`mqtt:listen`) | 0 | State arm terkini |
+| `arm/detection` | telemetry | ESP32 → Laravel (`mqtt:listen`) | 0 | Hasil deteksi QC realtime |
 
-Semua payload berupa **JSON**.
+Semua payload berupa **JSON**. Command pakai **QoS 1** (at least once) supaya
+tidak hilang di jalur WiFi ESP32 yang kurang stabil.
 
 ### `arm/command`
-Dikirim oleh `ArmMqttService::publishCommand()`. Format bebas per command,
-contoh:
+Dikirim oleh `ArmMqttService::publishCommand(string $category, array $context)`.
+Karena tidak ada Jetson yang menghitung inverse kinematics, backend **sudah
+melakukan lookup** `TargetZonePreset` per kategori produk dan payload berisi
+**sudut sendi jadi** — ESP32 tinggal mengeksekusi, bukan menghitung IK:
 ```json
-{ "action": "start", "line": "LINE-A", "ts": "2026-07-14T08:29:00Z" }
+{
+  "category": "Electronics",
+  "zone": "electronics",
+  "joint_angles": [10, 15, 20, 25, 30, 35],
+  "issued_at": "2026-07-14T08:29:00+00:00"
+}
 ```
+Field tambahan dari `$context` (mis. `detection_id`, `source`) ikut di-merge di
+level atas. Kalau kategori tidak punya preset khusus, dipakai preset `default`.
 
 ### `arm/status`
 Ditulis ke `ArmStatus` (singleton). Field yang dibaca:
