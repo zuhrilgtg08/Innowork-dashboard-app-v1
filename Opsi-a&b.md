@@ -2,7 +2,7 @@
 
 > Dokumen ini mencatat opsi arsitektur komunikasi antara mobile app / web dashboard SortVision dengan robotic arm 6-axis (ESP32, dengan atau tanpa Jetson Nano/mini PC). Opsi A adalah pilihan utama, dengan dua varian: menggunakan Jetson Nano sebagai lapisan compute, atau tanpa Jetson Nano (beban compute dipindah ke backend server). Jika Opsi A tidak berjalan sesuai harapan (mis. ESP32 kewalahan menangani beban komunikasi + kontrol motor bersamaan), tim dapat beralih ke Opsi B tanpa perlu merancang ulang dari nol.
 
-## Opsi A — MQTT langsung ke ESP32 (rekomendasi utama)
+## Opsi A — MQTT langsung ke ESP32
 
 **Alur:**
 ```
@@ -26,7 +26,7 @@ Mobile app / Web dashboard  --(REST + MQTT)-->  Backend server + MQTT broker  --
 - Latensi tambahan karena melewati broker + Jetson sebelum sampai ke ESP32.
 - Perlu desain topik MQTT yang jelas (mis. `arm/command`, `arm/status`, `arm/detection`) dan format payload JSON yang konsisten antara app, Jetson, dan ESP32.
 
-## Opsi A — varian tanpa Jetson Nano
+## Opsi A — varian tanpa Jetson Nano (PRIORITAS UTAMA/MAIN)
 
 Masih Opsi A (MQTT lewat broker, bukan ESP32 jadi perantara jaringan seperti Opsi B). Bedanya: peran "otak" yang tadinya dipegang Jetson Nano dipindah, bukan dihilangkan — dan lapisan Jetson + jalur UART/serial Jetson→ESP32 ditiadakan.
 
