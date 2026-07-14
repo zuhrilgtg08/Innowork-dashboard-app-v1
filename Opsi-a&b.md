@@ -1,8 +1,8 @@
 # Opsi Arsitektur Komunikasi Mobile/Web App ke Robotic Arm
 
-> Dokumen ini mencatat dua opsi arsitektur komunikasi antara mobile app / web dashboard SortVision dengan robotic arm 6-axis (ESP32 + Jetson Nano/mini PC). Opsi A adalah pilihan utama. Jika Opsi A tidak berjalan sesuai harapan (mis. ESP32 kewalahan menangani beban komunikasi + kontrol motor bersamaan), tim dapat beralih ke Opsi B tanpa perlu merancang ulang dari nol.
+> Dokumen ini mencatat opsi arsitektur komunikasi antara mobile app / web dashboard SortVision dengan robotic arm 6-axis (ESP32, dengan atau tanpa Jetson Nano/mini PC). Opsi A adalah pilihan utama, dengan dua varian: menggunakan Jetson Nano sebagai lapisan compute, atau tanpa Jetson Nano (beban compute dipindah ke backend server). Jika Opsi A tidak berjalan sesuai harapan (mis. ESP32 kewalahan menangani beban komunikasi + kontrol motor bersamaan), tim dapat beralih ke Opsi B tanpa perlu merancang ulang dari nol.
 
-## Opsi A — MQTT langsung ke ESP32 (rekomendasi utama)
+## Opsi A — MQTT langsung ke ESP32
 
 **Alur:**
 ```
@@ -25,6 +25,33 @@ Mobile app / Web dashboard  --(REST + MQTT)-->  Backend server + MQTT broker  --
 - Broker MQTT jadi single point of failure — perlu strategi reconnect & QoS yang tepat.
 - Latensi tambahan karena melewati broker + Jetson sebelum sampai ke ESP32.
 - Perlu desain topik MQTT yang jelas (mis. `arm/command`, `arm/status`, `arm/detection`) dan format payload JSON yang konsisten antara app, Jetson, dan ESP32.
+
+## Opsi A — varian tanpa Jetson Nano (PRIORITAS UTAMA/MAIN)
+
+Masih Opsi A (MQTT lewat broker, bukan ESP32 jadi perantara jaringan seperti Opsi B). Bedanya: peran "otak" yang tadinya dipegang Jetson Nano dipindah, bukan dihilangkan — dan lapisan Jetson + jalur UART/serial Jetson→ESP32 ditiadakan.
+
+**Alur:**
+```
+Mobile app / Web dashboard  --(REST + MQTT)-->  Backend server + MQTT broker + ml-service (YOLO)  --(MQTT, WiFi)-->  ESP32  -->  Stepper + servo motor
+```
+
+**Pembagian peran:**
+- **Mobile app / web dashboard** — sama seperti Opsi A: REST untuk data non-real-time, MQTT client untuk command & telemetry real-time.
+- **Backend server (Laravel) + MQTT broker** — selain jadi titik tengah komunikasi, sekarang juga menjalankan/menampung `ml-service` (YOLO, host-nya cukup PC/server biasa, tidak harus Jetson) dan menghitung target zone/preset koordinat, lalu publish command jadi langsung ke topic yang di-subscribe ESP32.
+- **iCam-300** — tetap kirim frame ke `ml-service`, hasil deteksi masuk ke backend lewat callback HMAC yang sudah ada di repo — bagian ini sebenarnya sudah tidak bergantung pada Jetson dari awal.
+- **ESP32** — jadi MQTT client langsung lewat WiFi (mis. `PubSubClient`), subscribe command dari broker (bukan dari Jetson lewat serial), lalu eksekusi ke motor.
+
+**Syarat supaya ini realistis:**
+- Target zone/gerakan arm bersifat **diskrit/preset** (mis. beberapa bucket sesuai kategori produk), bukan trajectory bebas — sehingga kinematika cukup berupa tabel lookup "kategori → sudut sendi/preset koordinat" yang dihitung di backend, bukan IK real-time berat yang butuh compute sekelas Jetson.
+- Kalau ke depan butuh gerakan arm yang lebih dinamis, itu jadi sinyal untuk kembali mempertimbangkan Jetson/minipc.
+
+**Kelebihan dibanding Opsi A dengan Jetson:**
+- Hardware lebih sederhana — satu perangkat lebih sedikit untuk dikelola/di-debug.
+- ESP32 tetap ringan karena cuma eksekusi angka jadi dari backend, bukan menghitung IK sendiri.
+
+**Risiko tambahan dibanding Opsi A dengan Jetson:**
+- Latensi WiFi ESP32 kadang kurang stabil dibanding koneksi lokal ke Jetson — perlu QoS MQTT yang tepat (QoS 1 untuk command supaya tidak hilang).
+- Semua beban kinematika/planning menumpuk di backend server — perlu dipastikan backend cukup kuat kalau kategori/preset makin banyak.
 
 ## Opsi B — Mobile/web ke ESP32, ESP32 ke Jetson Nano
 
@@ -49,11 +76,16 @@ Mobile app / Web dashboard  -->  ESP32  -->  Jetson Nano  -->  Stepper + servo m
 
 ## Kriteria beralih dari Opsi A ke Opsi B
 
-Pindah ke Opsi B jika salah satu kondisi berikut terjadi pada Opsi A:
-- Jetson Nano tidak bisa dijangkau langsung oleh broker MQTT / jaringan app (masalah jaringan/firewall yang tidak bisa diselesaikan di sisi Jetson).
+Pindah ke Opsi B jika salah satu kondisi berikut terjadi pada Opsi A (baik varian dengan Jetson maupun tanpa Jetson):
+- Jetson Nano/backend tidak bisa dijangkau langsung oleh broker MQTT / jaringan app (masalah jaringan/firewall yang tidak bisa diselesaikan di sisi Jetson/backend).
 - Kebutuhan arsitektur berubah sehingga ESP32 harus menjadi satu-satunya endpoint yang diakses app secara langsung.
+
+## Kriteria memilih varian Opsi A (dengan Jetson vs tanpa Jetson)
+
+- Gunakan **varian tanpa Jetson** kalau gerakan arm cukup berupa preset/bucket tetap dan ingin hardware lebih sederhana.
+- Gunakan **varian dengan Jetson** kalau butuh trajectory/gerakan arm yang lebih dinamis, atau beban komputasi vision + kinematika terlalu berat untuk ditumpuk di satu backend server.
 
 ## Catatan
 
-- Opsi A tetap menjadi arsitektur utama karena lebih sesuai dengan kapasitas masing-masing perangkat (ESP32 = eksekusi real-time, Jetson = komputasi AI/planning).
+- Opsi A tetap menjadi arsitektur utama karena lebih sesuai dengan kapasitas masing-masing perangkat (ESP32 = eksekusi real-time, Jetson/backend = komputasi AI/planning).
 - Dokumen ini akan diperbarui jika ada perubahan skema komunikasi atau jika tim benar-benar berpindah ke Opsi B.

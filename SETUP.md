@@ -90,6 +90,35 @@ ML_SERVICE_URL=http://127.0.0.1:8001
 ML_CALLBACK_SECRET=<string acak panjang, generate sekali dan pakai di kedua .env>
 ```
 
+### MQTT broker (robotic arm — Opsi A)
+
+Mobile app dan jalur command/telemetry robotic arm memakai MQTT. **Broker
+(Mosquitto/EMQX) dijalankan terpisah**, bukan di-host oleh Laravel — atur lewat
+env berikut (default menunjuk broker lokal di port 1883):
+
+```env
+MQTT_HOST=127.0.0.1
+MQTT_PORT=1883
+MQTT_USERNAME=
+MQTT_PASSWORD=
+MQTT_CLIENT_ID_PREFIX=sortvision
+MQTT_USE_TLS=false
+MQTT_BASE_TOPIC=arm
+MQTT_CONNECT_TIMEOUT=3
+```
+
+> PR ini menambah dua dependency baru di `composer.json`: `laravel/sanctum`
+> (token API mobile) dan `php-mqtt/client` (klien MQTT). Kalau `composer.lock`
+> belum ikut diperbarui, jalankan sekali:
+> ```bash
+> composer update laravel/sanctum php-mqtt/client
+> ```
+> `php artisan migrate` (langkah 5) lalu membuat tabel `personal_access_tokens`
+> (Sanctum), `arm_statuses`, dan `target_zone_presets` (di-seed placeholder saat
+> `migrate:fresh --seed`).
+
+Detail endpoint REST dan format payload MQTT: lihat `API_CONTRACT.md`.
+
 ## 5. Migrate & seed database
 
 ```bash
@@ -130,6 +159,16 @@ cd ml-service
 uvicorn main:app --host 127.0.0.1 --port 8001 --reload
 ```
 → http://127.0.0.1:8001/health
+
+### Terminal 5 — MQTT listener (opsional, untuk robotic arm/Opsi A)
+```bash
+php artisan mqtt:listen
+```
+> Consumer long-running yang subscribe ke `arm/status` & `arm/detection` di
+> broker MQTT, lalu menulis ke `ArmStatus` dan tabel `detections`. Butuh broker
+> MQTT jalan (lihat env `MQTT_*`). Tanpa broker, command langsung keluar dengan
+> pesan "MQTT broker offline". Di produksi, jaga tetap hidup lewat
+> supervisor/systemd (lihat bagian di bawah).
 
 ---
 
@@ -200,6 +239,74 @@ Live Camera bisa memakai **webcam browser** (default, demo) atau **ICAM-300** (s
 
 ---
 
+## Robotic Arm — MQTT & Mobile API (Opsi A)
+
+Bagian ini melengkapi **Opsi A tanpa Jetson Nano**: mobile/web app → backend
+Laravel + MQTT broker → ESP32 (WiFi/MQTT langsung) → motor. ESP32 subscribe
+`arm/command` langsung dari broker yang sama — **tidak ada** Jetson/perantara
+compute. Sisi Laravel berperan sebagai REST API (data non-realtime) +
+publisher/consumer MQTT (command & telemetry realtime). Kode ESP32/ml-service
+**di luar** scope repo ini.
+
+### Komponen di sisi Laravel
+
+- **REST API mobile** (`routes/api.php`, prefix `/api`) — auth Sanctum token,
+  endpoint `auth/login|logout|me`, `status`, `detections`, `arm`. Kontrak
+  lengkap: `API_CONTRACT.md`.
+- **`App\Services\ArmMqttService`** — publisher command ke `arm/command`
+  (`publishCommand($category, $context)`: lookup `TargetZonePreset` per kategori
+  produk → publish sudut sendi jadi, QoS 1) dan cek konektivitas broker
+  (`isConnected()`), best-effort seperti `MlClient`.
+- **`App\Models\TargetZonePreset`** — preset sudut sendi 6-axis per kategori
+  produk (pengganti kinematika Jetson). Di-seed placeholder oleh
+  `DatabaseSeeder`; tim isi nilai aslinya nanti.
+- **`php artisan mqtt:listen`** — consumer telemetry (`arm/status`,
+  `arm/detection`).
+
+### Menjaga `mqtt:listen` tetap hidup (produksi)
+
+HTTP request Laravel tidak bisa menahan koneksi subscribe MQTT, jadi listener
+harus jalan sebagai proses terpisah yang di-supervisi.
+
+**supervisor** (`/etc/supervisor/conf.d/sortvision-mqtt.conf`):
+```ini
+[program:sortvision-mqtt]
+process_name=%(program_name)s
+command=php /var/www/sortvision/artisan mqtt:listen
+autostart=true
+autorestart=true
+user=www-data
+redirect_stderr=true
+stdout_logfile=/var/www/sortvision/storage/logs/mqtt-listen.log
+stopwaitsecs=10
+```
+```bash
+sudo supervisorctl reread && sudo supervisorctl update
+sudo supervisorctl start sortvision-mqtt:*
+```
+
+**systemd** (`/etc/systemd/system/sortvision-mqtt.service`):
+```ini
+[Unit]
+Description=SortVision MQTT arm listener
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/sortvision
+ExecStart=/usr/bin/php artisan mqtt:listen
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl enable --now sortvision-mqtt.service
+```
+
+---
+
 ## Troubleshooting
 
 | Gejala | Penyebab | Solusi |
@@ -214,3 +321,7 @@ Live Camera bisa memakai **webcam browser** (default, demo) atau **ICAM-300** (s
 | Training callback gagal / run tidak pernah `completed` | `ML_CALLBACK_SECRET` beda antara `.env` Laravel dan `ml-service/.env` | Samakan persis nilainya di kedua file |
 | Video ICAM-300 tidak muncul di Live Camera | ml-service mati, atau Settings masih `webcam`, atau kamera belum "playing" | Cek `http://127.0.0.1:8001/camera/stream`; Settings → Camera → ICAM-300; pastikan kamera playing (≥5fps) |
 | Deteksi ICAM tidak masuk ke feed | `ICAM_AUTO_INFER` masih `false` atau queue worker mati | Set `ICAM_AUTO_INFER=true`, restart ml-service, jalankan `php artisan queue:work` |
+| `mqtt:listen` langsung keluar "MQTT broker offline" | Broker Mosquitto/EMQX belum jalan atau `MQTT_HOST`/`MQTT_PORT` salah | Jalankan broker, cek env `MQTT_*` |
+| `/api/status` selalu `offline` | Broker MQTT tidak terjangkau dari Laravel | Sama seperti di atas — pastikan broker jalan & env benar |
+| API mobile balas `401` padahal sudah login | Token tidak dikirim di header `Authorization: Bearer <token>` | Sertakan header token dari response `POST /api/auth/login` |
+| `Class "Laravel\Sanctum\..." not found` / `PhpMqtt\...` | Dependency baru belum terinstall | Jalankan `composer install` (atau `composer update`) lalu ulangi |
