@@ -27,3 +27,7 @@ yarn-error.log
 ultra-milk-kecil.yolov8/data.yaml
 ultra-milk-kecil.yolov8/README.dataset.txt
 ultra-milk-kecil.yolov8/README.roboflow.txt
+ml-service\colab-artifacts\ultra-milk-yolo-ready
+ml-service\colab-artifacts\ultra-milk-yolo-ready.zip
+ml-service/colab-artifacts/ultra-milk-yolo-ready/ultra-milk-yolo-ready/data.yaml
+ml-service\colab-artifacts\ultra-milk-yolo-ready\ultra-milk-yolo-ready

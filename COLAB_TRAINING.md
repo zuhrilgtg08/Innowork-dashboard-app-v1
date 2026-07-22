@@ -9,22 +9,15 @@ di Google Colab, kemudian mendaftarkannya ke SortVision sebagai model aktif.
 - Dataset `ultra-milk-kecil.yolov8/` sudah ada di dalam repo ini (root folder project)
 - Python 3.12 tersedia untuk persiapan lokal
 
-## Ringkasan Alur — Opsi Dataset
+## Ringkasan Alur
 
-Ada dua cara menyiapkan dataset di Colab:
+1. Buka notebook `ultra-milk-training.ipynb` di Colab
+2. Notebook otomatis download dataset dari Roboflow
+3. Jalankan cell berurutan: Mount Drive → Download Roboflow → Install → Train → Download `best.pt`
+4. Copy `best.pt` ke `storage/app/models/run-{n}/best.pt`
+5. Buat `TrainingRun` + arahkan `active_training_run_id`
 
-**Opsi A — Upload zip via sidebar Colab** (cepat, dataset kecil < 1GB):
-1. Persiapan lokal: zip dataset → `ml-service/colab-artifacts/`
-2. Upload zip (+ notebook `.ipynb`) ke Colab
-3. Unzip otomatis, train, download `best.pt`
-
-**Opsi B — Simpan di Google Drive** (disarankan, dataset besar):
-1. Persiapan lokal: zip dataset → `ml-service/colab-artifacts/`
-2. Upload zip atau folder ke Google Drive: `/content/drive/MyDrive/ultra-milk-yolo-ready/`
-3. Mount Drive di Colab, train langsung dari Drive, download `best.pt`
-
-Kedua opsi menghasilkan model yang sama. Notebook `ultra-milk-training.ipynb` sudah
-mendukung kedua mode.
+Link Roboflow: `https://app.roboflow.com/ds/qFlbnnIoI8?key=jjFHrlZqjO`
 
 ## Langkah 1 — Persiapan Lokal
 
@@ -49,73 +42,48 @@ Output yang diharapkan:
 
 ## Langkah 2 — Persiapan Dataset di Colab
 
-Notebook `ultra-milk-training.ipynb` sudah menyediakan dua mode. Pilih salah satu:
+Upload dataset ke Google Drive, lalu buka notebook.
 
-### Opsi A — Upload zip via sidebar Colab
+### Upload ke Google Drive
 
-1. Buka https://colab.research.google.com → buat Notebook baru (Python 3, GPU disarankan)
-2. Upload `ml-service/colab-artifacts/ultra-milk-yolo-ready.zip` via sidebar → **Files** → **Upload**
-3. Upload `ml-service/colab-artifacts/ultra-milk-training.ipynb` sebagai notebook
-4. Di notebook, jalankan cell **Opsi A: Unzip dataset dari upload Colab**
-5. Lanjut ke Langkah 3
+1. Buka https://drive.google.com
+2. Upload `ml-service/colab-artifacts/ultra-milk-yolo-ready.zip`
+3. Pastikan path di Drive: `/content/drive/MyDrive/ultra-milk-yolo-ready.zip`
+   - Catatan: notebook akan otomatis ekstrak zip ini saat training
+   - Atau kamu bisa ekstrak manual di Drive menjadi folder `ultra-milk-yolo-ready/`
 
-### Opsi B — Dataset dari Google Drive
+### Buka Notebook di Colab
 
-1. Upload `ultra-milk-yolo-ready.zip` atau folder hasil prepare ke Google Drive
-2. Pastikan path di Drive: `/content/drive/MyDrive/ultra-milk-yolo-ready/`
-   - Jika masih dalam bentuk zip, ekstrak dulu di Drive atau gunakan cell Python:
-     ```python
-     import zipfile
-     with zipfile.ZipFile('/content/drive/MyDrive/ultra-milk-yolo-ready.zip', 'r') as z:
-         z.extractall('/content/drive/MyDrive/')
-     ```
-3. Buka notebook `ultra-milk-training.ipynb` di Colab
-4. Jalankan cell **Opsi B: Mount Google Drive**
-5. Di cell **Tentukan base path dataset**, pilih baris:
-   ```python
-   base = Path('/content/drive/MyDrive/ultra-milk-yolo-ready')
-   ```
-   (comment baris `base = Path('/content/ultra-milk-yolo-ready')`)
-6. Lanjut ke Langkah 3
+1. Buka https://colab.research.google.com
+2. Upload `ml-service/colab-artifacts/ultra-milk-training.ipynb` sebagai notebook
+3. Atau buka notebook dari GitHub jika sudah di-push
+4. Pilih Runtime → **Change runtime type** → **GPU** (disarankan)
+5. Jalankan cell berurutan
 
 ## Langkah 3 — Training di Colab
 
-Notebook `ultra-milk-training.ipynb` memiliki cell berurutan:
+Notebook `ultra-milk-training.ipynb` memiliki 4 cell utama:
 
-1. **Unzip (jika pakai Opsi A)**
-2. **Mount Drive (jika pakai Opsi B)**
-3. **Tentukan base path dataset** — pilih baris sesuai sumber dataset
-4. **Install + Train**
-5. **Download `best.pt`**
+1. **Setup — Mount Drive & deteksi dataset** (otomatis)
+2. **Install Ultralytics + Cek GPU**
+3. **Train Model YOLOv8**
+4. **Download best.pt**
 
-Cell training menggunakan `DATA_YAML` dan `DATA_BASE` yang otomatis diset dari cell base path, jadi kamu hanya perlu menjalankan cell berurutan.
+Cell pertama otomatis:
+- Mount Google Drive
+- Mencari dataset di `/content/drive/MyDrive/ultra-milk-yolo-ready/`
+- Jika ada zip, ekstrak otomatis
+- Jika tidak ada, minta upload zip
+
+Cell training otomatis menggunakan `DATA_YAML` dari cell pertama.
 
 Rekomendasi konfigurasi Colab (GPU):
-
 - Epochs: `10` (untuk demonstrasi; naikkan jika perlu)
 - Batch: `16`
 - `imgsz`: `640`
 - `device`: `cuda`
 
 Jika runtime kehabisan memori, turunkan batch ke `8` atau `4`.
-
----
-
-Jika kamu membuat notebook manual, cell training harus pakai path sesuai sumber:
-
-**Dari upload Colab:**
-```python
-base = Path("/content/ultra-milk-yolo-ready")
-data_yaml = str(base / "data.yaml")
-```
-
-**Dari Google Drive:**
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-base = Path("/content/drive/MyDrive/ultra-milk-yolo-ready")
-data_yaml = str(base / "data.yaml")
-```
 
 ## Langkah 4 — Download Model
 
