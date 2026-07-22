@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Detection extends Model
 {
@@ -73,5 +74,23 @@ class Detection extends Model
     public function statusColor(): string
     {
         return self::STATUSES[$this->status]['color'] ?? 'gray';
+    }
+
+    /**
+     * Get the URL for the detection image (frame or product fallback).
+     */
+    public function imageUrl(): string
+    {
+        $path = $this->frame_path ?: $this->product?->image;
+
+        if (empty($path)) {
+            return '';
+        }
+
+        if (str_starts_with($path, 'assets/')) {
+            return asset($path);
+        }
+
+        return Storage::url($path);
     }
 }

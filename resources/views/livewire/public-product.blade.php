@@ -7,7 +7,7 @@
     </div>
 
     @if ($product->image)
-        <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}"
+        <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}"
              class="mx-auto mb-5 h-40 w-40 rounded-2xl object-cover ring-1 ring-black/5" />
     @endif
 

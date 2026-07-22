@@ -105,7 +105,7 @@
                     @forelse ($recent as $d)
                         <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/40">
                             <td class="px-5 py-3 font-mono text-xs font-semibold text-gray-900 dark:text-gray-100">{{ $d->code }}</td>
-                            <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->product?->name ?? '—' }}</td>
+                            <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->product?->name ?? '-' }}</td>
                             <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->camera }}</td>
                             <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $d->conveyor }}</td>
                             <td class="px-5 py-3"><x-status-badge :color="$d->statusColor()" :label="$d->statusLabel()" /></td>

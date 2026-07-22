@@ -105,3 +105,8 @@ The heavy computer-vision work lives in a **separate Python service** under `ml-
 ### Seeding
 
 `DatabaseSeeder` builds a full demo dataset: one user per role (`*@sortvision.test`, password `password`), plus factory-generated users, 40 products, 600 detections, 150 system logs, 120 annotations (~106 approved), 2 completed training runs, the baseline permission matrix, and the settings singleton (pointing at the latest run). Use `migrate:fresh --seed` to reset to a known state.
+
+4. QR Code Publik via Ngrok
+- QR code menggunakan url('/p/'.$qr_token) yang otomatis menggunakan APP_URL dari .env
+- Untuk akses publik: ngrok http 8000 → copy URL ngrok → set APP_URL di .env → php artisan sortvision:regenerate-qr untuk regenerate QR
+- Halaman publik: /p/{token} — menampilkan nama produk, foto, dan status QC terakhir (route public.product)

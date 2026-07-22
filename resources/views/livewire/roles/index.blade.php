@@ -32,7 +32,7 @@
                         View
                     </a>
                     <button wire:click="edit('{{ $key }}')" aria-label="Edit permission {{ $label }}"
-                            class="flex-1 rounded-lg bg-brand-50 py-2 text-center text-xs font-semibold text-brand-700 transition hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-brand-600/15 dark:text-brand-400 dark:hover:bg-brand-600/25">
+                            class="flex-1 rounded-lg bg-brand-50 py-2 text-center text-xs font-semibold text-brand-700 transition hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-brand-600/15 dark:text-brand-400 dark:hover:bg-brand-600/25 {{ auth()->user()->role !== 'admin' ? 'hidden' : '' }}">
                         Edit
                     </button>
                 </div>
