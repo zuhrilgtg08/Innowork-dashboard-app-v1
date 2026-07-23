@@ -259,9 +259,12 @@
             // is still running when the interval fires, that frame is skipped.
             if (!this.active || this.uploading) return;
             const video = this.$refs.video;
+            // Stream belum siap (readyState < HAVE_CURRENT_DATA) → lewati agar
+            // tidak menangkap frame hitam/blank sebelum kamera warm-up.
+            if (video.readyState < 2 || !video.videoWidth) return;
             const canvas = this.$refs.canvas;
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
             this.uploading = true;
             canvas.toBlob((blob) => {
