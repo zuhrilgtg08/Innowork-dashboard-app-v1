@@ -1183,8 +1183,41 @@
       "why": "bridges separate communities"
     }
   ],
-  "tokens": {
-    "input": 0,
-    "output": 0
-  }
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `User` connect `User` to `Product`, `Illuminate\\Database\\Eloquent\\Model`, `PasswordResetTest`, `Detection`, `PasswordConfirmationTest`, `Illuminate\\Foundation\\Testing\\RefreshDatabase`, `TestCase`, `RolePermission`, `Index`, `AuthApiTest`, `AuthenticationTest`?",
+      "why": "High betweenness centrality (0.069) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Detection` connect `Detection` to `Product`, `Illuminate\\Database\\Eloquent\\Model`, `ArmMqttService`, `TrainingRun`, `User`, `Illuminate\\Database\\Eloquent\\Factories\\Factory`, `Illuminate\\Foundation\\Testing\\RefreshDatabase`, `CameraIngestTest`?",
+      "why": "High betweenness centrality (0.062) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Product` connect `Product` to `Illuminate\\Database\\Eloquent\\Factories\\Factory`, `Illuminate\\Database\\Eloquent\\Model`, `Detection`, `ArmMqttService`?",
+      "why": "High betweenness centrality (0.035) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 34 inferred relationships involving `User` (e.g. with `.render()` and `.run()`) actually correct?",
+      "why": "`User` has 34 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `name`, `type`, `description` to the rest of the system?",
+      "why": "90 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Product` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.06019871420222092 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Illuminate\\Database\\Eloquent\\Model` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07676767676767676 - nodes in this community are weakly interconnected."
+    }
+  ]
 }
