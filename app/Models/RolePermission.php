@@ -17,7 +17,7 @@ class RolePermission extends Model
      *
      * @var array<int, string>
      */
-    public const MODULES = ['Dashboard', 'Users', 'Product', 'Categories', 'Live Camera', 'Training', 'Annotation', 'Logs', 'Settings'];
+    public const MODULES = ['Dashboard', 'Users', 'Product', 'Categories', 'Live Camera', 'Returns', 'Training', 'Annotation', 'Logs', 'Settings'];
 
     /**
      * Access levels with UI metadata.
@@ -42,15 +42,15 @@ class RolePermission extends Model
             'admin' => array_fill_keys(self::MODULES, 'f'),
             'supervisor_qc' => [
                 'Dashboard' => 'f', 'Users' => 'r', 'Product' => 'w', 'Categories' => 'w',
-                'Live Camera' => 'f', 'Training' => 'w', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => 'r',
+                'Live Camera' => 'f', 'Returns' => 'f', 'Training' => 'w', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => 'r',
             ],
             'operator' => [
                 'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Categories' => '-',
-                'Live Camera' => 'w', 'Training' => 'r', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => '-',
+                'Live Camera' => 'w', 'Returns' => 'w', 'Training' => 'r', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => '-',
             ],
             'viewer' => [
                 'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Categories' => '-',
-                'Live Camera' => 'r', 'Training' => '-', 'Annotation' => '-', 'Logs' => 'r', 'Settings' => '-',
+                'Live Camera' => 'r', 'Returns' => 'r', 'Training' => '-', 'Annotation' => '-', 'Logs' => 'r', 'Settings' => '-',
             ],
         ];
     }
@@ -69,7 +69,7 @@ class RolePermission extends Model
         $matrix = [];
         foreach (array_keys(User::ROLES) as $role) {
             foreach (self::MODULES as $module) {
-                $matrix[$role][$module] = $stored[$role]?->firstWhere('module', $module)?->access
+                $matrix[$role][$module] = $stored->get($role)?->firstWhere('module', $module)?->access
                     ?? $defaults[$role][$module]
                     ?? '-';
             }

@@ -14,6 +14,7 @@ class Detection extends Model
     protected $fillable = [
         'code',
         'product_id',
+        'return_batch_id',
         'camera',
         'conveyor',
         'status',
@@ -64,6 +65,11 @@ class Detection extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function returnBatch(): BelongsTo
+    {
+        return $this->belongsTo(ReturnBatch::class);
     }
 
     public function statusLabel(): string

@@ -20,6 +20,38 @@
         @endif
     </div>
 
+    <!-- Camera fleet overview (multi-camera) -->
+    @if ($fleet->isNotEmpty())
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach ($fleet as $cam)
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <p class="font-bold text-gray-900 dark:text-white">{{ $cam['name'] }}</p>
+                        @if ($cam['live'])
+                            <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-green-700 dark:bg-green-500/15 dark:text-green-400"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"></span> RTSP</span>
+                        @else
+                            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-gray-500 dark:bg-gray-700 dark:text-gray-400">SIM</span>
+                        @endif
+                    </div>
+                    <p class="mt-0.5 text-xs text-gray-400">{{ $cam['conveyor'] ?? '—' }}</p>
+                    <div class="mt-3 flex items-end justify-between">
+                        <div>
+                            <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($cam['total']) }}</p>
+                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Scan hari ini</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ number_format($cam['failed']) }}</p>
+                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Defect</p>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-[11px] text-gray-400">
+                        {{ $cam['last_seen'] ? 'Terakhir '.\Illuminate\Support\Carbon::parse($cam['last_seen'])->diffForHumans() : 'Belum ada aktivitas' }}
+                    </p>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <!-- Single live camera card -->
         <div class="lg:col-span-2">

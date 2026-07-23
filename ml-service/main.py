@@ -15,7 +15,8 @@ import callbacks
 import infer
 import train
 from config import settings
-from stream import camera_source    
+from flow import FlowAnalyzer
+from stream import camera_source
 
 
 def _resolve_stream_model() -> str | None:
@@ -25,6 +26,39 @@ def _resolve_stream_model() -> str | None:
         return None
     candidate = Path(settings.laravel_storage_path) / rel
     return str(candidate) if candidate.exists() else rel
+
+
+def _flow_loop() -> None:
+    """Continuously watch the stream for conveyor jam/off_flow anomalies.
+
+    Runs faster than the infer loop (every frame it can grab) so the rolling
+    window reflects real motion; anomalies are POSTed to Laravel, which logs
+    them and broadcasts a conveyor/alert.
+    """
+    analyzer = FlowAnalyzer(
+        window=settings.flow_window,
+        jam_occupancy=settings.flow_jam_occupancy,
+        jam_motion=settings.flow_jam_motion,
+        offflow_occupancy=settings.flow_offflow_occupancy,
+    )
+    while True:
+        time.sleep(0.1)
+        frame = camera_source.latest_frame()
+        if frame is None:
+            continue
+        try:
+            result = analyzer.analyze(frame)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[flow] failed: {exc}", flush=True)
+            continue
+        if result["event"] is None:
+            continue
+        callbacks.post_conveyor_event(settings.laravel_url, {
+            "event": result["event"],
+            "conveyor": settings.icam_conveyor,
+            "camera": settings.icam_camera,
+            "metrics": {"occupancy": result["occupancy"], "motion": result["motion"]},
+        })
 
 
 def _infer_loop() -> None:
@@ -53,7 +87,9 @@ def _infer_loop() -> None:
         callbacks.post_detection(settings.laravel_url, {
             "status": result.get("status", "recheck"),
             "confidence": result.get("confidence", 0.0),
+            "qr_value": result.get("qr_value"),
             "boxes": result.get("boxes", []),
+            "detections": result.get("detections", []),
             "camera": settings.icam_camera,
             "conveyor": settings.icam_conveyor,
             "frame_jpeg_b64": base64.b64encode(jpeg).decode(),
@@ -66,6 +102,8 @@ async def lifespan(app: FastAPI):
     camera_source.start()
     if settings.icam_auto_infer:
         threading.Thread(target=_infer_loop, daemon=True).start()
+    if settings.flow_analysis:
+        threading.Thread(target=_flow_loop, daemon=True).start()
     yield
     camera_source.stop()
 
@@ -92,6 +130,19 @@ class TrainRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok", "model_loaded": True, "base_model": settings.base_model}
+
+
+class ReloadRequest(BaseModel):
+    model_path: str | None = None
+
+
+@app.post("/reload-model")
+def reload_model(req: ReloadRequest | None = None):
+    """Drop cached YOLO weights so a newly activated model takes effect without
+    a service restart. The optional model_path is informational (logging)."""
+    infer.reload_models()
+    print(f"[reload-model] cache cleared (hint: {req.model_path if req else None})", flush=True)
+    return {"ok": True}
 
 
 @app.get("/camera/status")

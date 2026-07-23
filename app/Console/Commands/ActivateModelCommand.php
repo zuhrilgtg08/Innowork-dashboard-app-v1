@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Setting;
 use App\Models\TrainingRun;
+use App\Services\MlClient;
 use Illuminate\Console\Command;
 
 /**
@@ -18,11 +19,14 @@ use Illuminate\Console\Command;
  */
 class ActivateModelCommand extends Command
 {
-    protected $signature = 'sortvision:activate-model {run=1 : Nomor run (folder storage/app/models/run-{run})}';
+    protected $signature = 'sortvision:activate-model
+        {run=1 : Nomor run (folder storage/app/models/run-{run})}
+        {--min-map= : mAP50 minimum (0–100) yang harus dilampaui; default dari ML_MIN_MAP50}
+        {--force : Aktifkan walau mAP di bawah minimum / tidak diketahui}';
 
     protected $description = 'Aktifkan model best.pt hasil training (models/run-{n}/best.pt) sebagai model live inference';
 
-    public function handle(): int
+    public function handle(MlClient $ml): int
     {
         $run = (int) $this->argument('run');
         $modelRel = "models/run-{$run}/best.pt";
@@ -47,12 +51,26 @@ class ActivateModelCommand extends Command
             ],
         );
 
+        // Quality gate — refuse to promote a model below the mAP bar unless forced.
+        $minMap = $this->option('min-map') !== null
+            ? (float) $this->option('min-map')
+            : (float) config('services.ml.min_map', 0);
+
+        if (! $this->option('force') && ! $trainingRun->meetsQualityBar($minMap)) {
+            $this->error("mAP50 ".($trainingRun->map50() ?? 'n/a')." di bawah minimum {$minMap}. Batal (pakai --force untuk memaksa).");
+
+            return self::FAILURE;
+        }
+
         Setting::current()->update(['active_training_run_id' => $trainingRun->id]);
 
-        $this->info('Model aktif diperbarui.');
+        // Best-effort: hot-reload the ML service so the new weights take effect.
+        $reloaded = $ml->reloadModel($modelRel);
+
+        $this->info('Model aktif diperbarui.'.($reloaded ? ' ML service reloaded.' : ' (ML service offline — reload dilewati.)'));
         $this->table(
-            ['Run ID', 'Name', 'Status', 'Model path'],
-            [[$trainingRun->id, $trainingRun->name, $trainingRun->status, $trainingRun->model_path]],
+            ['Run ID', 'Name', 'Status', 'mAP50', 'Model path'],
+            [[$trainingRun->id, $trainingRun->name, $trainingRun->status, $trainingRun->map50() ?? 'n/a', $trainingRun->model_path]],
         );
 
         return self::SUCCESS;
