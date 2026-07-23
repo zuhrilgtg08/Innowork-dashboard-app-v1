@@ -1,0 +1,1190 @@
+{
+  "communities": {
+    "0": [
+      "app_livewire_actions_logout",
+      "app_livewire_actions_logout_logout",
+      "app_livewire_actions_logout_logout_invoke",
+      "app_livewire_annotation_index",
+      "app_livewire_categories_index",
+      "app_livewire_categories_index_index",
+      "app_livewire_categories_index_index_closemodal",
+      "app_livewire_categories_index_index_confirmdelete",
+      "app_livewire_categories_index_index_create",
+      "app_livewire_categories_index_index_delete",
+      "app_livewire_categories_index_index_edit",
+      "app_livewire_categories_index_index_render",
+      "app_livewire_categories_index_index_resetform",
+      "app_livewire_categories_index_index_rules",
+      "app_livewire_categories_index_index_save",
+      "app_livewire_categories_index_index_updating",
+      "app_livewire_dashboard",
+      "app_livewire_logs_index",
+      "app_livewire_logs_index_index",
+      "app_livewire_logs_index_index_updating",
+      "app_livewire_products_index",
+      "app_livewire_products_index_index",
+      "app_livewire_products_index_index_closemodal",
+      "app_livewire_products_index_index_confirmdelete",
+      "app_livewire_products_index_index_create",
+      "app_livewire_products_index_index_delete",
+      "app_livewire_products_index_index_edit",
+      "app_livewire_products_index_index_generatecode",
+      "app_livewire_products_index_index_generatesku",
+      "app_livewire_products_index_index_render",
+      "app_livewire_products_index_index_resetform",
+      "app_livewire_products_index_index_rules",
+      "app_livewire_products_index_index_save",
+      "app_livewire_products_index_index_updating",
+      "app_livewire_publicproduct",
+      "app_livewire_publicproduct_publicproduct",
+      "app_livewire_publicproduct_publicproduct_mount",
+      "app_livewire_publicproduct_publicproduct_render",
+      "app_livewire_users_index",
+      "app_models_category",
+      "app_models_category_category",
+      "app_models_category_category_imageurl",
+      "app_models_category_category_products",
+      "app_models_product",
+      "app_models_product_product",
+      "app_models_product_product_booted",
+      "app_models_product_product_detections",
+      "app_models_product_product_imageurl",
+      "app_models_product_product_latestdetection",
+      "app_models_product_product_qrpayload",
+      "app_models_product_product_regenerateqr",
+      "config_session",
+      "database_seeders_categoryseeder_categoryseeder_run",
+      "illuminate_database_eloquent_relations_hasmany",
+      "illuminate_database_eloquent_relations_hasone",
+      "livewire_component",
+      "livewire_withfileuploads",
+      "livewire_withpagination",
+      "routes_web"
+    ],
+    "1": [
+      "app_http_controllers_api_armcontroller",
+      "app_http_controllers_api_armcontroller_armcontroller",
+      "app_http_controllers_api_armcontroller_armcontroller_show",
+      "app_http_controllers_api_authcontroller",
+      "app_http_controllers_api_authcontroller_authcontroller",
+      "app_http_controllers_api_authcontroller_authcontroller_login",
+      "app_http_controllers_api_authcontroller_authcontroller_logout",
+      "app_http_controllers_api_authcontroller_authcontroller_me",
+      "app_http_controllers_api_authcontroller_authcontroller_userpayload",
+      "app_http_controllers_api_cameracontroller",
+      "app_http_controllers_api_cameracontroller_cameracontroller",
+      "app_http_controllers_api_cameracontroller_cameracontroller_ingest",
+      "app_http_controllers_api_detectioncontroller",
+      "app_http_controllers_api_detectioncontroller_detectioncontroller",
+      "app_http_controllers_api_detectioncontroller_detectioncontroller_index",
+      "app_http_controllers_api_mlcallbackcontroller",
+      "app_http_controllers_api_mlcallbackcontroller_mlcallbackcontroller",
+      "app_http_controllers_api_mlcallbackcontroller_mlcallbackcontroller_complete",
+      "app_http_controllers_api_mlcallbackcontroller_mlcallbackcontroller_fail",
+      "app_http_controllers_api_mlcallbackcontroller_mlcallbackcontroller_progress",
+      "app_http_controllers_api_statuscontroller",
+      "app_http_controllers_api_statuscontroller_statuscontroller",
+      "app_http_controllers_api_statuscontroller_statuscontroller_show",
+      "app_http_controllers_controller",
+      "app_http_controllers_controller_controller",
+      "app_livewire_livecamera_index",
+      "app_livewire_livecamera_index_index",
+      "app_livewire_livecamera_index_index_inferframe",
+      "app_livewire_livecamera_index_index_render",
+      "app_livewire_logs_index_index_render",
+      "app_livewire_training_index_index_startrun",
+      "app_models_armstatus",
+      "app_models_armstatus_armstatus",
+      "app_models_armstatus_armstatus_booted",
+      "app_models_armstatus_armstatus_casts",
+      "app_models_armstatus_armstatus_current",
+      "app_models_armstatus_armstatus_statecolor",
+      "app_models_armstatus_armstatus_statelabel",
+      "app_models_armstatus_php_self",
+      "app_models_setting",
+      "app_models_setting_php_self",
+      "app_models_setting_setting",
+      "app_models_setting_setting_booted",
+      "app_models_setting_setting_casts",
+      "app_models_setting_setting_current",
+      "app_models_systemlog",
+      "app_models_systemlog_systemlog",
+      "app_models_systemlog_systemlog_casts",
+      "app_models_systemlog_systemlog_levelcolor",
+      "config_cache",
+      "illuminate_database_eloquent_model",
+      "illuminate_http_jsonresponse",
+      "illuminate_http_request",
+      "routes_api",
+      "tests_feature_api_armapitest_armapitest_test_it_reflects_the_last_reported_state"
+    ],
+    "2": [
+      "backgroundtasks",
+      "basemodel",
+      "basesettings",
+      "fastapi",
+      "ml_service_callbacks",
+      "ml_service_callbacks_complete",
+      "ml_service_callbacks_fail",
+      "ml_service_callbacks_post",
+      "ml_service_callbacks_post_detection",
+      "ml_service_callbacks_progress",
+      "ml_service_callbacks_rationale_1",
+      "ml_service_callbacks_rationale_12",
+      "ml_service_callbacks_rationale_60",
+      "ml_service_config",
+      "ml_service_config_rationale_1",
+      "ml_service_config_settings",
+      "ml_service_infer",
+      "ml_service_infer_infer_frame",
+      "ml_service_infer_load",
+      "ml_service_infer_rationale_1",
+      "ml_service_infer_rationale_18",
+      "ml_service_main",
+      "ml_service_main_annotationitem",
+      "ml_service_main_camera_status",
+      "ml_service_main_camera_stream",
+      "ml_service_main_health",
+      "ml_service_main_infer_loop",
+      "ml_service_main_lifespan",
+      "ml_service_main_rationale_1",
+      "ml_service_main_rationale_105",
+      "ml_service_main_rationale_123",
+      "ml_service_main_rationale_145",
+      "ml_service_main_rationale_22",
+      "ml_service_main_rationale_31",
+      "ml_service_main_rationale_99",
+      "ml_service_main_resolve_stream_model",
+      "ml_service_main_run_infer",
+      "ml_service_main_start_train",
+      "ml_service_main_trainrequest",
+      "ml_service_stream",
+      "ml_service_stream_rationale_1",
+      "ml_service_train",
+      "ml_service_train_build_dataset",
+      "ml_service_train_extract_metrics",
+      "ml_service_train_public_path",
+      "ml_service_train_rationale_1",
+      "ml_service_train_rationale_153",
+      "ml_service_train_rationale_16",
+      "ml_service_train_rationale_21",
+      "ml_service_train_rationale_85",
+      "ml_service_train_run_training",
+      "path",
+      "uploadfile"
+    ],
+    "3": [
+      "app_livewire_annotation_index_index",
+      "app_livewire_annotation_index_index_approve",
+      "app_livewire_annotation_index_index_relabel",
+      "app_livewire_annotation_index_index_render",
+      "app_livewire_annotation_index_index_storeannotation",
+      "app_livewire_annotation_index_index_updating",
+      "app_livewire_dashboard_dashboard",
+      "app_livewire_dashboard_dashboard_rangequery",
+      "app_livewire_dashboard_dashboard_render",
+      "app_models_annotation",
+      "app_models_annotation_annotation",
+      "app_models_annotation_annotation_casts",
+      "app_models_annotation_annotation_detection",
+      "app_models_annotation_annotation_product",
+      "app_models_detection",
+      "app_models_detection_detection",
+      "app_models_detection_detection_casts",
+      "app_models_detection_detection_imageurl",
+      "app_models_detection_detection_product",
+      "app_models_detection_detection_statuscolor",
+      "app_models_detection_detection_statuslabel",
+      "app_models_product_product_category",
+      "app_models_trainingrun",
+      "database_factories_annotationfactory",
+      "database_factories_annotationfactory_annotationfactory",
+      "database_factories_annotationfactory_annotationfactory_approved",
+      "database_factories_annotationfactory_annotationfactory_definition",
+      "database_factories_annotationfactory_php_static",
+      "database_factories_trainingrunfactory",
+      "database_factories_trainingrunfactory_php_static",
+      "database_factories_trainingrunfactory_trainingrunfactory",
+      "database_factories_trainingrunfactory_trainingrunfactory_completed",
+      "database_factories_trainingrunfactory_trainingrunfactory_definition",
+      "database_seeders_categoryseeder",
+      "database_seeders_categoryseeder_categoryseeder",
+      "database_seeders_databaseseeder",
+      "database_seeders_databaseseeder_databaseseeder",
+      "database_seeders_databaseseeder_databaseseeder_run",
+      "illuminate_database_eloquent_factories_hasfactory",
+      "illuminate_database_eloquent_relations_belongsto",
+      "illuminate_database_seeder"
+    ],
+    "4": [
+      "app_console_commands_activatemodelcommand",
+      "app_console_commands_activatemodelcommand_activatemodelcommand",
+      "app_console_commands_activatemodelcommand_activatemodelcommand_handle",
+      "app_console_commands_mqttlisten",
+      "app_console_commands_mqttlisten_mqttlisten",
+      "app_console_commands_mqttlisten_mqttlisten_handle",
+      "app_console_commands_mqttlisten_mqttlisten_handledetection",
+      "app_console_commands_mqttlisten_mqttlisten_handlestatus",
+      "app_console_commands_regenerateqrcommand",
+      "app_console_commands_regenerateqrcommand_regenerateqrcommand",
+      "app_console_commands_regenerateqrcommand_regenerateqrcommand_handle",
+      "app_models_targetzonepreset",
+      "app_models_targetzonepreset_php_self",
+      "app_models_targetzonepreset_targetzonepreset",
+      "app_models_targetzonepreset_targetzonepreset_casts",
+      "app_models_targetzonepreset_targetzonepreset_defaults",
+      "app_models_targetzonepreset_targetzonepreset_forcategory",
+      "app_services_armmqttservice",
+      "app_services_armmqttservice_armmqttservice",
+      "app_services_armmqttservice_armmqttservice_basetopic",
+      "app_services_armmqttservice_armmqttservice_buildcommandpayload",
+      "app_services_armmqttservice_armmqttservice_commandtopic",
+      "app_services_armmqttservice_armmqttservice_connectionsettings",
+      "app_services_armmqttservice_armmqttservice_detectiontopic",
+      "app_services_armmqttservice_armmqttservice_isconnected",
+      "app_services_armmqttservice_armmqttservice_newclient",
+      "app_services_armmqttservice_armmqttservice_publishcommand",
+      "app_services_armmqttservice_armmqttservice_statustopic",
+      "illuminate_console_command",
+      "phpmqtt_client_connectionsettings",
+      "phpmqtt_client_mqttclient",
+      "tests_feature_api_armmqttservicetest",
+      "tests_feature_api_armmqttservicetest_armmqttservicetest",
+      "tests_feature_api_armmqttservicetest_armmqttservicetest_test_it_builds_a_command_payload_with_resolved_joint_angles",
+      "tests_feature_api_armmqttservicetest_armmqttservicetest_test_it_falls_back_to_the_default_preset_for_unknown_category",
+      "tests_feature_api_armmqttservicetest_armmqttservicetest_test_it_returns_null_when_no_preset_and_no_default",
+      "tests_feature_api_armmqttservicetest_armmqttservicetest_test_publish_command_degrades_gracefully_when_broker_offline",
+      "tests_feature_api_armmqttservicetest_armmqttservicetest_test_seed_defaults_cover_every_product_category"
+    ],
+    "5": [
+      "app_jobs_starttrainingrun",
+      "app_jobs_starttrainingrun_starttrainingrun",
+      "app_jobs_starttrainingrun_starttrainingrun_construct",
+      "app_jobs_starttrainingrun_starttrainingrun_handle",
+      "app_livewire_training_index",
+      "app_livewire_training_index_index",
+      "app_livewire_training_index_index_classmetrics",
+      "app_livewire_training_index_index_render",
+      "app_models_setting_setting_activerun",
+      "app_models_trainingrun_trainingrun",
+      "app_models_trainingrun_trainingrun_casts",
+      "app_models_trainingrun_trainingrun_isactive",
+      "app_models_trainingrun_trainingrun_statuscolor",
+      "app_models_trainingrun_trainingrun_statuslabel",
+      "app_services_mlclient",
+      "app_services_mlclient_mlclient",
+      "app_services_mlclient_mlclient_client",
+      "app_services_mlclient_mlclient_healthy",
+      "app_services_mlclient_mlclient_infer",
+      "app_services_mlclient_mlclient_starttraining",
+      "illuminate_contracts_queue_shouldqueue",
+      "illuminate_foundation_queue_queueable",
+      "illuminate_http_client_pendingrequest",
+      "illuminate_support_collection"
+    ],
+    "6": [
+      "app_models_user_user",
+      "app_models_user_user_avatarurl",
+      "app_models_user_user_casts",
+      "app_models_user_user_initials",
+      "app_models_user_user_rolelabel",
+      "illuminate_foundation_auth_user",
+      "tests_feature_api_detectionapitest_detectionapitest",
+      "tests_feature_api_detectionapitest_detectionapitest_test_guest_cannot_access_detections",
+      "tests_feature_api_detectionapitest_detectionapitest_test_it_can_filter_by_status",
+      "tests_feature_api_detectionapitest_detectionapitest_test_it_lists_recent_detections_newest_first",
+      "tests_feature_api_detectionapitest_detectionapitest_test_it_rejects_an_unknown_status_filter",
+      "tests_feature_api_detectionapitest_detectionapitest_test_it_respects_per_page",
+      "tests_feature_api_statusapitest_statusapitest",
+      "tests_feature_api_statusapitest_statusapitest_test_guest_cannot_access_status",
+      "tests_feature_api_statusapitest_statusapitest_test_status_reports_offline_when_broker_unreachable",
+      "tests_feature_api_statusapitest_statusapitest_test_status_reports_online_when_broker_connected",
+      "tests_feature_profiletest",
+      "tests_feature_profiletest_profiletest",
+      "tests_feature_profiletest_profiletest_test_correct_password_must_be_provided_to_delete_account",
+      "tests_feature_profiletest_profiletest_test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged",
+      "tests_feature_profiletest_profiletest_test_profile_information_can_be_updated",
+      "tests_feature_profiletest_profiletest_test_profile_page_is_displayed",
+      "tests_feature_profiletest_profiletest_test_user_can_delete_their_account"
+    ],
+    "7": [
+      "autoprefixer",
+      "axios",
+      "laravel_vite_plugin",
+      "package",
+      "package_devdependencies",
+      "package_devdependencies_autoprefixer",
+      "package_devdependencies_axios",
+      "package_devdependencies_laravel_vite_plugin",
+      "package_devdependencies_postcss",
+      "package_devdependencies_tailwindcss",
+      "package_devdependencies_tailwindcss_forms",
+      "package_devdependencies_vite",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_dev",
+      "package_type",
+      "postcss",
+      "tailwindcss",
+      "tailwindcss_forms",
+      "vite"
+    ],
+    "8": [
+      "database_factories_categoryfactory",
+      "database_factories_categoryfactory_categoryfactory",
+      "database_factories_categoryfactory_categoryfactory_definition",
+      "database_factories_categoryfactory_categoryfactory_getmilkimages",
+      "database_factories_detectionfactory",
+      "database_factories_detectionfactory_detectionfactory",
+      "database_factories_detectionfactory_detectionfactory_definition",
+      "database_factories_productfactory",
+      "database_factories_productfactory_productfactory",
+      "database_factories_productfactory_productfactory_definition",
+      "database_factories_productfactory_productfactory_getmilkimages",
+      "database_factories_systemlogfactory",
+      "database_factories_systemlogfactory_systemlogfactory",
+      "database_factories_systemlogfactory_systemlogfactory_definition",
+      "database_factories_userfactory",
+      "database_factories_userfactory_php_static",
+      "database_factories_userfactory_userfactory",
+      "database_factories_userfactory_userfactory_definition",
+      "database_factories_userfactory_userfactory_unverified",
+      "illuminate_database_eloquent_factories_factory"
+    ],
+    "9": [
+      "app_models_user",
+      "config_auth",
+      "config_sanctum",
+      "illuminate_foundation_testing_refreshdatabase",
+      "illuminate_notifications_notifiable",
+      "laravel_sanctum_hasapitokens",
+      "tests_feature_api_armapitest",
+      "tests_feature_api_armapitest_armapitest",
+      "tests_feature_api_armapitest_armapitest_test_guest_cannot_access_arm_status",
+      "tests_feature_api_armapitest_armapitest_test_it_returns_the_default_idle_state",
+      "tests_feature_api_authapitest",
+      "tests_feature_api_detectionapitest",
+      "tests_feature_api_statusapitest",
+      "tests_feature_auth_emailverificationtest",
+      "tests_feature_auth_emailverificationtest_emailverificationtest",
+      "tests_feature_auth_emailverificationtest_emailverificationtest_test_email_can_be_verified",
+      "tests_feature_auth_emailverificationtest_emailverificationtest_test_email_is_not_verified_with_invalid_hash",
+      "tests_feature_auth_emailverificationtest_emailverificationtest_test_email_verification_screen_can_be_rendered"
+    ],
+    "10": [
+      "ml_service_stream_camerasource",
+      "ml_service_stream_camerasource_init",
+      "ml_service_stream_camerasource_latest_frame",
+      "ml_service_stream_camerasource_latest_jpeg",
+      "ml_service_stream_camerasource_loop",
+      "ml_service_stream_camerasource_open_primary",
+      "ml_service_stream_camerasource_open_simulator",
+      "ml_service_stream_camerasource_placeholder",
+      "ml_service_stream_camerasource_push",
+      "ml_service_stream_camerasource_start",
+      "ml_service_stream_camerasource_status",
+      "ml_service_stream_camerasource_stop",
+      "ml_service_stream_camerasource_synthetic",
+      "ml_service_stream_rationale_141",
+      "ml_service_stream_rationale_24",
+      "ml_service_stream_rationale_70",
+      "ml_service_stream_rationale_79",
+      "ml_service_stream_rationale_96"
+    ],
+    "11": [
+      "illuminate_foundation_testing_testcase",
+      "tests_feature_auth_passwordupdatetest",
+      "tests_feature_auth_passwordupdatetest_passwordupdatetest",
+      "tests_feature_auth_passwordupdatetest_passwordupdatetest_test_correct_password_must_be_provided_to_update_password",
+      "tests_feature_auth_passwordupdatetest_passwordupdatetest_test_password_can_be_updated",
+      "tests_feature_auth_registrationtest",
+      "tests_feature_auth_registrationtest_registrationtest",
+      "tests_feature_auth_registrationtest_registrationtest_test_new_users_can_register",
+      "tests_feature_auth_registrationtest_registrationtest_test_registration_screen_can_be_rendered",
+      "tests_feature_exampletest",
+      "tests_feature_exampletest_exampletest",
+      "tests_feature_exampletest_exampletest_test_the_root_redirects_guests_to_login",
+      "tests_testcase",
+      "tests_testcase_testcase",
+      "tests_testcase_testcase_setup"
+    ],
+    "12": [
+      "app_livewire_roles_index",
+      "app_livewire_roles_index_index",
+      "app_livewire_roles_index_index_cancel",
+      "app_livewire_roles_index_index_edit",
+      "app_livewire_roles_index_index_mount",
+      "app_livewire_roles_index_index_render",
+      "app_livewire_roles_index_index_save",
+      "app_models_rolepermission",
+      "app_models_rolepermission_rolepermission",
+      "app_models_rolepermission_rolepermission_defaults",
+      "app_models_rolepermission_rolepermission_matrix",
+      "app_models_user_user_canaccess",
+      "app_models_user_user_canwrite"
+    ],
+    "13": [
+      "app_livewire_users_index_index",
+      "app_livewire_users_index_index_closemodal",
+      "app_livewire_users_index_index_confirmdelete",
+      "app_livewire_users_index_index_create",
+      "app_livewire_users_index_index_delete",
+      "app_livewire_users_index_index_edit",
+      "app_livewire_users_index_index_isprotectedadmin",
+      "app_livewire_users_index_index_render",
+      "app_livewire_users_index_index_resetform",
+      "app_livewire_users_index_index_rules",
+      "app_livewire_users_index_index_save",
+      "app_livewire_users_index_index_updating"
+    ],
+    "14": [
+      "composer_scripts",
+      "composer_scripts_post_autoload_dump",
+      "composer_scripts_post_create_project_cmd",
+      "composer_scripts_post_root_package_install",
+      "composer_scripts_post_update_cmd",
+      "ref_illuminate_foundation_composerscripts_postautoloaddump",
+      "ref_php_artisan_key_generate_ansi",
+      "ref_php_artisan_migrate_ansi",
+      "ref_php_artisan_package_discover_ansi",
+      "ref_php_artisan_vendor_publish_tag_laravel_assets_ansi_force",
+      "ref_php_r_file_exists_database_database_sqlite_touch_database_database_sqlite",
+      "ref_php_r_file_exists_env_copy_env_example_env"
+    ],
+    "15": [
+      "app_providers_appserviceprovider",
+      "app_providers_appserviceprovider_appserviceprovider",
+      "app_providers_appserviceprovider_appserviceprovider_boot",
+      "app_providers_appserviceprovider_appserviceprovider_register",
+      "app_providers_voltserviceprovider",
+      "app_providers_voltserviceprovider_voltserviceprovider",
+      "app_providers_voltserviceprovider_voltserviceprovider_boot",
+      "app_providers_voltserviceprovider_voltserviceprovider_register",
+      "bootstrap_providers",
+      "illuminate_support_serviceprovider"
+    ],
+    "16": [
+      "composer",
+      "composer_description",
+      "composer_keywords",
+      "composer_license",
+      "composer_minimum_stability",
+      "composer_name",
+      "composer_prefer_stable",
+      "composer_type",
+      "ref_framework",
+      "ref_laravel"
+    ],
+    "17": [
+      "composer_require",
+      "composer_require_laravel_framework",
+      "composer_require_laravel_sanctum",
+      "composer_require_laravel_tinker",
+      "composer_require_livewire_livewire",
+      "composer_require_livewire_volt",
+      "composer_require_php",
+      "composer_require_php_mqtt_client",
+      "composer_require_simplesoftwareio_simple_qrcode"
+    ],
+    "18": [
+      "composer_require_dev",
+      "composer_require_dev_fakerphp_faker",
+      "composer_require_dev_laravel_breeze",
+      "composer_require_dev_laravel_pint",
+      "composer_require_dev_laravel_sail",
+      "composer_require_dev_mockery_mockery",
+      "composer_require_dev_nunomaduro_collision",
+      "composer_require_dev_phpunit_phpunit",
+      "composer_require_dev_spatie_laravel_ignition"
+    ],
+    "19": [
+      "app_livewire_settings_index",
+      "app_livewire_settings_index_index",
+      "app_livewire_settings_index_index_load",
+      "app_livewire_settings_index_index_mount",
+      "app_livewire_settings_index_index_render",
+      "app_livewire_settings_index_index_resetform",
+      "app_livewire_settings_index_index_rules",
+      "app_livewire_settings_index_index_save"
+    ],
+    "20": [
+      "app_view_components_applayout",
+      "app_view_components_applayout_applayout",
+      "app_view_components_applayout_applayout_render",
+      "app_view_components_guestlayout",
+      "app_view_components_guestlayout_guestlayout",
+      "app_view_components_guestlayout_guestlayout_render",
+      "illuminate_view_component",
+      "illuminate_view_view"
+    ],
+    "21": [
+      "tests_feature_api_authapitest_authapitest",
+      "tests_feature_api_authapitest_authapitest_test_guest_cannot_access_me",
+      "tests_feature_api_authapitest_authapitest_test_guest_cannot_logout",
+      "tests_feature_api_authapitest_authapitest_test_login_returns_a_token_and_user",
+      "tests_feature_api_authapitest_authapitest_test_login_with_missing_fields_returns_422",
+      "tests_feature_api_authapitest_authapitest_test_login_with_wrong_password_returns_401",
+      "tests_feature_api_authapitest_authapitest_test_logout_revokes_the_current_token",
+      "tests_feature_api_authapitest_authapitest_test_me_returns_the_authenticated_user"
+    ],
+    "22": [
+      "tests_feature_cameraingesttest",
+      "tests_feature_cameraingesttest_cameraingesttest",
+      "tests_feature_cameraingesttest_cameraingesttest_postsigned",
+      "tests_feature_cameraingesttest_cameraingesttest_setup",
+      "tests_feature_cameraingesttest_cameraingesttest_test_invalid_signature_is_rejected",
+      "tests_feature_cameraingesttest_cameraingesttest_test_missing_signature_is_rejected",
+      "tests_feature_cameraingesttest_cameraingesttest_test_unknown_status_falls_back_to_recheck",
+      "tests_feature_cameraingesttest_cameraingesttest_test_valid_signature_creates_detection"
+    ],
+    "23": [
+      "composer_allow_plugins_pestphp_pest_plugin",
+      "composer_allow_plugins_php_http_discovery",
+      "composer_config",
+      "composer_config_allow_plugins",
+      "composer_config_optimize_autoloader",
+      "composer_config_preferred_install",
+      "composer_config_sort_packages"
+    ],
+    "24": [
+      "confirmdelete_category_id",
+      "edit_category_id",
+      "resources_views_livewire_categories_index_blade",
+      "resources_views_livewire_categories_index_blade_php_closemodal",
+      "resources_views_livewire_categories_index_blade_php_create",
+      "resources_views_livewire_categories_index_blade_php_delete_confirmingdeleteid",
+      "resources_views_livewire_categories_index_blade_php_set"
+    ],
+    "25": [
+      "confirmdelete_product_id",
+      "edit_product_id",
+      "resources_views_livewire_products_index_blade",
+      "resources_views_livewire_products_index_blade_php_closemodal",
+      "resources_views_livewire_products_index_blade_php_create",
+      "resources_views_livewire_products_index_blade_php_delete_confirmingdeleteid",
+      "resources_views_livewire_products_index_blade_php_set"
+    ],
+    "26": [
+      "confirmdelete_user_id",
+      "edit_user_id",
+      "resources_views_livewire_users_index_blade",
+      "resources_views_livewire_users_index_blade_php_closemodal",
+      "resources_views_livewire_users_index_blade_php_create",
+      "resources_views_livewire_users_index_blade_php_delete_confirmingdeleteid",
+      "resources_views_livewire_users_index_blade_php_set"
+    ],
+    "27": [
+      "tests_feature_auth_authenticationtest",
+      "tests_feature_auth_authenticationtest_authenticationtest",
+      "tests_feature_auth_authenticationtest_authenticationtest_test_login_screen_can_be_rendered",
+      "tests_feature_auth_authenticationtest_authenticationtest_test_navigation_menu_can_be_rendered",
+      "tests_feature_auth_authenticationtest_authenticationtest_test_users_can_authenticate_using_the_login_screen",
+      "tests_feature_auth_authenticationtest_authenticationtest_test_users_can_logout",
+      "tests_feature_auth_authenticationtest_authenticationtest_test_users_can_not_authenticate_with_invalid_password"
+    ],
+    "28": [
+      "app_http_controllers_auth_verifyemailcontroller",
+      "app_http_controllers_auth_verifyemailcontroller_verifyemailcontroller",
+      "app_http_controllers_auth_verifyemailcontroller_verifyemailcontroller_invoke",
+      "illuminate_foundation_auth_emailverificationrequest",
+      "illuminate_http_redirectresponse",
+      "routes_auth"
+    ],
+    "29": [
+      "app_http_middleware_verifymlsignature",
+      "app_http_middleware_verifymlsignature_verifymlsignature",
+      "app_http_middleware_verifymlsignature_verifymlsignature_handle",
+      "bootstrap_app",
+      "closure",
+      "symfony_component_httpfoundation_response"
+    ],
+    "30": [
+      "app_livewire_forms_loginform",
+      "app_livewire_forms_loginform_loginform",
+      "app_livewire_forms_loginform_loginform_authenticate",
+      "app_livewire_forms_loginform_loginform_ensureisnotratelimited",
+      "app_livewire_forms_loginform_loginform_throttlekey",
+      "livewire_form"
+    ],
+    "31": [
+      "kamera_bantuan",
+      "kamera_bantuan_kamerasimulasi",
+      "kamera_bantuan_kamerasimulasi_advcam_snap_image",
+      "kamera_bantuan_kamerasimulasi_enum_camera_list",
+      "kamera_bantuan_kamerasimulasi_get_device_by_name",
+      "kamera_bantuan_kamerasimulasi_init"
+    ],
+    "32": [
+      "tests_feature_auth_passwordresettest",
+      "tests_feature_auth_passwordresettest_passwordresettest",
+      "tests_feature_auth_passwordresettest_passwordresettest_test_password_can_be_reset_with_valid_token",
+      "tests_feature_auth_passwordresettest_passwordresettest_test_reset_password_link_can_be_requested",
+      "tests_feature_auth_passwordresettest_passwordresettest_test_reset_password_link_screen_can_be_rendered",
+      "tests_feature_auth_passwordresettest_passwordresettest_test_reset_password_screen_can_be_rendered"
+    ],
+    "33": [
+      "composer_autoload",
+      "composer_autoload_psr_4",
+      "composer_psr_4_app",
+      "composer_psr_4_database_factories",
+      "composer_psr_4_database_seeders"
+    ],
+    "34": [
+      "composer_branch_alias_dev_master",
+      "composer_extra",
+      "composer_extra_branch_alias",
+      "composer_extra_laravel",
+      "composer_laravel_dont_discover"
+    ],
+    "35": [
+      "tests_feature_auth_passwordconfirmationtest",
+      "tests_feature_auth_passwordconfirmationtest_passwordconfirmationtest",
+      "tests_feature_auth_passwordconfirmationtest_passwordconfirmationtest_test_confirm_password_screen_can_be_rendered",
+      "tests_feature_auth_passwordconfirmationtest_passwordconfirmationtest_test_password_can_be_confirmed",
+      "tests_feature_auth_passwordconfirmationtest_passwordconfirmationtest_test_password_is_not_confirmed_with_invalid_password"
+    ],
+    "36": [
+      "approve_item_id",
+      "relabel_item_id",
+      "resources_views_livewire_annotation_index_blade",
+      "resources_views_livewire_annotation_index_blade_php_set"
+    ],
+    "37": [
+      "cancel",
+      "edit",
+      "resources_views_livewire_roles_index_blade",
+      "save"
+    ],
+    "38": [
+      "layouts_partials_sidebar",
+      "layouts_partials_topbar",
+      "resources_views_layouts_app_blade",
+      "resources_views_layouts_app_blade_php_layouts_partials_theme"
+    ],
+    "39": [
+      "phpunit_framework_testcase",
+      "tests_unit_exampletest",
+      "tests_unit_exampletest_exampletest",
+      "tests_unit_exampletest_exampletest_test_that_true_is_true"
+    ],
+    "40": [
+      "profile_delete_user_form",
+      "profile_update_password_form",
+      "profile_update_profile_information_form",
+      "resources_views_profile_blade"
+    ],
+    "41": [
+      "composer_autoload_dev",
+      "composer_autoload_dev_psr_4",
+      "composer_psr_4_tests"
+    ],
+    "42": [
+      "database_migrations_0001_01_01_000000_create_users_table",
+      "database_migrations_0001_01_01_000000_create_users_table_down",
+      "database_migrations_0001_01_01_000000_create_users_table_up"
+    ],
+    "43": [
+      "database_migrations_0001_01_01_000001_create_cache_table",
+      "database_migrations_0001_01_01_000001_create_cache_table_down",
+      "database_migrations_0001_01_01_000001_create_cache_table_up"
+    ],
+    "44": [
+      "database_migrations_0001_01_01_000002_create_jobs_table",
+      "database_migrations_0001_01_01_000002_create_jobs_table_down",
+      "database_migrations_0001_01_01_000002_create_jobs_table_up"
+    ],
+    "45": [
+      "database_migrations_2026_07_02_000001_create_products_table",
+      "database_migrations_2026_07_02_000001_create_products_table_down",
+      "database_migrations_2026_07_02_000001_create_products_table_up"
+    ],
+    "46": [
+      "database_migrations_2026_07_02_000002_create_detections_table",
+      "database_migrations_2026_07_02_000002_create_detections_table_down",
+      "database_migrations_2026_07_02_000002_create_detections_table_up"
+    ],
+    "47": [
+      "database_migrations_2026_07_02_000003_create_system_logs_table",
+      "database_migrations_2026_07_02_000003_create_system_logs_table_down",
+      "database_migrations_2026_07_02_000003_create_system_logs_table_up"
+    ],
+    "48": [
+      "database_migrations_2026_07_02_000004_create_role_permissions_table",
+      "database_migrations_2026_07_02_000004_create_role_permissions_table_down",
+      "database_migrations_2026_07_02_000004_create_role_permissions_table_up"
+    ],
+    "49": [
+      "database_migrations_2026_07_03_000001_add_qr_path_to_products_table",
+      "database_migrations_2026_07_03_000001_add_qr_path_to_products_table_down",
+      "database_migrations_2026_07_03_000001_add_qr_path_to_products_table_up"
+    ],
+    "50": [
+      "database_migrations_2026_07_03_000002_add_qr_token_to_products_table",
+      "database_migrations_2026_07_03_000002_add_qr_token_to_products_table_down",
+      "database_migrations_2026_07_03_000002_add_qr_token_to_products_table_up"
+    ],
+    "51": [
+      "database_migrations_2026_07_03_000003_create_settings_table",
+      "database_migrations_2026_07_03_000003_create_settings_table_down",
+      "database_migrations_2026_07_03_000003_create_settings_table_up"
+    ],
+    "52": [
+      "database_migrations_2026_07_03_000004_create_training_runs_table",
+      "database_migrations_2026_07_03_000004_create_training_runs_table_down",
+      "database_migrations_2026_07_03_000004_create_training_runs_table_up"
+    ],
+    "53": [
+      "database_migrations_2026_07_03_000005_create_annotations_table",
+      "database_migrations_2026_07_03_000005_create_annotations_table_down",
+      "database_migrations_2026_07_03_000005_create_annotations_table_up"
+    ],
+    "54": [
+      "database_migrations_2026_07_03_000006_add_frame_path_to_detections_table",
+      "database_migrations_2026_07_03_000006_add_frame_path_to_detections_table_down",
+      "database_migrations_2026_07_03_000006_add_frame_path_to_detections_table_up"
+    ],
+    "55": [
+      "database_migrations_2026_07_05_000001_add_camera_fields_to_settings",
+      "database_migrations_2026_07_05_000001_add_camera_fields_to_settings_down",
+      "database_migrations_2026_07_05_000001_add_camera_fields_to_settings_up"
+    ],
+    "56": [
+      "database_migrations_2026_07_08_021048_create_categories_table",
+      "database_migrations_2026_07_08_021048_create_categories_table_down",
+      "database_migrations_2026_07_08_021048_create_categories_table_up"
+    ],
+    "57": [
+      "database_migrations_2026_07_08_021249_add_category_id_to_products_table",
+      "database_migrations_2026_07_08_021249_add_category_id_to_products_table_down",
+      "database_migrations_2026_07_08_021249_add_category_id_to_products_table_up"
+    ],
+    "58": [
+      "database_migrations_2026_07_14_000001_create_personal_access_tokens_table",
+      "database_migrations_2026_07_14_000001_create_personal_access_tokens_table_down",
+      "database_migrations_2026_07_14_000001_create_personal_access_tokens_table_up"
+    ],
+    "59": [
+      "database_migrations_2026_07_14_000002_create_arm_statuses_table",
+      "database_migrations_2026_07_14_000002_create_arm_statuses_table_down",
+      "database_migrations_2026_07_14_000002_create_arm_statuses_table_up"
+    ],
+    "60": [
+      "database_migrations_2026_07_14_000003_create_target_zone_presets_table",
+      "database_migrations_2026_07_14_000003_create_target_zone_presets_table_down",
+      "database_migrations_2026_07_14_000003_create_target_zone_presets_table_up"
+    ],
+    "61": [
+      "ml_service_colab_prepare",
+      "ml_service_colab_prepare_prepare",
+      "ml_service_colab_prepare_rationale_1"
+    ],
+    "62": [
+      "resources_views_livewire_pages_auth_verify_email_blade",
+      "resources_views_livewire_pages_auth_verify_email_blade_php_logout",
+      "sendverification"
+    ],
+    "63": [
+      "artisan",
+      "routes_console"
+    ],
+    "64": [
+      "ml_service_colab_artifacts_make_colab_notebook",
+      "ml_service_colab_artifacts_make_colab_notebook_rationale_1"
+    ],
+    "65": [
+      "resetform",
+      "resources_views_livewire_settings_index_blade"
+    ],
+    "66": [
+      "resources_js_app",
+      "resources_js_bootstrap"
+    ],
+    "67": [
+      "resources_views_layouts_guest_blade",
+      "resources_views_layouts_guest_blade_php_layouts_partials_theme"
+    ],
+    "68": [
+      "resources_views_livewire_layout_navigation_blade",
+      "resources_views_livewire_layout_navigation_blade_php_logout"
+    ],
+    "69": [
+      "resources_views_livewire_training_index_blade",
+      "startrun"
+    ],
+    "70": [
+      "resources_views_welcome_blade",
+      "welcome_navigation"
+    ],
+    "71": [
+      "cek_kamera"
+    ],
+    "72": [
+      "config_app"
+    ],
+    "73": [
+      "config_database"
+    ],
+    "74": [
+      "config_filesystems"
+    ],
+    "75": [
+      "config_logging"
+    ],
+    "76": [
+      "config_mail"
+    ],
+    "77": [
+      "config_queue"
+    ],
+    "78": [
+      "config_services"
+    ],
+    "79": [
+      "postcss_config"
+    ],
+    "80": [
+      "public_index"
+    ],
+    "81": [
+      "resources_views_components_action_message_blade"
+    ],
+    "82": [
+      "resources_views_components_application_logo_blade"
+    ],
+    "83": [
+      "resources_views_components_auth_session_status_blade"
+    ],
+    "84": [
+      "resources_views_components_danger_button_blade"
+    ],
+    "85": [
+      "resources_views_components_dropdown_blade"
+    ],
+    "86": [
+      "resources_views_components_dropdown_link_blade"
+    ],
+    "87": [
+      "resources_views_components_empty_state_blade"
+    ],
+    "88": [
+      "resources_views_components_input_error_blade"
+    ],
+    "89": [
+      "resources_views_components_input_label_blade"
+    ],
+    "90": [
+      "resources_views_components_modal_blade"
+    ],
+    "91": [
+      "resources_views_components_nav_link_blade"
+    ],
+    "92": [
+      "resources_views_components_primary_button_blade"
+    ],
+    "93": [
+      "resources_views_components_responsive_nav_link_blade"
+    ],
+    "94": [
+      "resources_views_components_secondary_button_blade"
+    ],
+    "95": [
+      "resources_views_components_stat_card_blade"
+    ],
+    "96": [
+      "resources_views_components_status_badge_blade"
+    ],
+    "97": [
+      "resources_views_components_text_input_blade"
+    ],
+    "98": [
+      "resources_views_dashboard_blade"
+    ],
+    "99": [
+      "resources_views_layouts_partials_sidebar_blade"
+    ],
+    "100": [
+      "resources_views_layouts_partials_theme_blade"
+    ],
+    "101": [
+      "resources_views_layouts_partials_topbar_blade"
+    ],
+    "102": [
+      "resources_views_livewire_dashboard_blade"
+    ],
+    "103": [
+      "resources_views_livewire_live_camera_index_blade"
+    ],
+    "104": [
+      "resources_views_livewire_logs_index_blade"
+    ],
+    "105": [
+      "resources_views_livewire_pages_auth_confirm_password_blade"
+    ],
+    "106": [
+      "resources_views_livewire_pages_auth_forgot_password_blade"
+    ],
+    "107": [
+      "resources_views_livewire_pages_auth_login_blade"
+    ],
+    "108": [
+      "resources_views_livewire_pages_auth_register_blade"
+    ],
+    "109": [
+      "resources_views_livewire_pages_auth_reset_password_blade"
+    ],
+    "110": [
+      "resources_views_livewire_profile_delete_user_form_blade"
+    ],
+    "111": [
+      "resources_views_livewire_profile_update_password_form_blade"
+    ],
+    "112": [
+      "resources_views_livewire_profile_update_profile_information_form_blade"
+    ],
+    "113": [
+      "resources_views_livewire_public_product_blade"
+    ],
+    "114": [
+      "resources_views_livewire_welcome_navigation_blade"
+    ],
+    "115": [
+      "tailwind_config"
+    ],
+    "116": [
+      "vite_config"
+    ]
+  },
+  "cohesion": {
+    "0": 0.06019871420222092,
+    "1": 0.07676767676767676,
+    "2": 0.054426705370101594,
+    "3": 0.07682926829268293,
+    "4": 0.08534850640113797,
+    "5": 0.13768115942028986,
+    "6": 0.11857707509881422,
+    "7": 0.09523809523809523,
+    "8": 0.14210526315789473,
+    "9": 0.16993464052287582,
+    "10": 0.1503267973856209,
+    "11": 0.1619047619047619,
+    "12": 0.19230769230769232,
+    "13": 0.25757575757575757,
+    "14": 0.16666666666666666,
+    "15": 0.26666666666666666,
+    "16": 0.2,
+    "17": 0.2222222222222222,
+    "18": 0.2222222222222222,
+    "19": 0.32142857142857145,
+    "20": 0.42857142857142855,
+    "21": 0.25,
+    "22": 0.35714285714285715,
+    "23": 0.2857142857142857,
+    "24": 0.2857142857142857,
+    "25": 0.2857142857142857,
+    "26": 0.2857142857142857,
+    "27": 0.2857142857142857,
+    "28": 0.4666666666666667,
+    "29": 0.4666666666666667,
+    "30": 0.6,
+    "31": 0.3333333333333333,
+    "32": 0.3333333333333333,
+    "33": 0.4,
+    "34": 0.4,
+    "35": 0.4,
+    "36": 0.5,
+    "37": 0.5,
+    "38": 0.5,
+    "39": 0.6666666666666666,
+    "40": 0.5,
+    "41": 0.6666666666666666,
+    "42": 0.6666666666666666,
+    "43": 0.6666666666666666,
+    "44": 0.6666666666666666,
+    "45": 0.6666666666666666,
+    "46": 0.6666666666666666,
+    "47": 0.6666666666666666,
+    "48": 0.6666666666666666,
+    "49": 0.6666666666666666,
+    "50": 0.6666666666666666,
+    "51": 0.6666666666666666,
+    "52": 0.6666666666666666,
+    "53": 0.6666666666666666,
+    "54": 0.6666666666666666,
+    "55": 0.6666666666666666,
+    "56": 0.6666666666666666,
+    "57": 0.6666666666666666,
+    "58": 0.6666666666666666,
+    "59": 0.6666666666666666,
+    "60": 0.6666666666666666,
+    "61": 0.6666666666666666,
+    "62": 0.6666666666666666,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0,
+    "79": 1.0,
+    "80": 1.0,
+    "81": 1.0,
+    "82": 1.0,
+    "83": 1.0,
+    "84": 1.0,
+    "85": 1.0,
+    "86": 1.0,
+    "87": 1.0,
+    "88": 1.0,
+    "89": 1.0,
+    "90": 1.0,
+    "91": 1.0,
+    "92": 1.0,
+    "93": 1.0,
+    "94": 1.0,
+    "95": 1.0,
+    "96": 1.0,
+    "97": 1.0,
+    "98": 1.0,
+    "99": 1.0,
+    "100": 1.0,
+    "101": 1.0,
+    "102": 1.0,
+    "103": 1.0,
+    "104": 1.0,
+    "105": 1.0,
+    "106": 1.0,
+    "107": 1.0,
+    "108": 1.0,
+    "109": 1.0,
+    "110": 1.0,
+    "111": 1.0,
+    "112": 1.0,
+    "113": 1.0,
+    "114": 1.0,
+    "115": 1.0,
+    "116": 1.0
+  },
+  "gods": [
+    {
+      "id": "app_models_user_user",
+      "label": "User",
+      "degree": 55
+    },
+    {
+      "id": "app_models_detection_detection",
+      "label": "Detection",
+      "degree": 37
+    },
+    {
+      "id": "tests_testcase_testcase",
+      "label": "TestCase",
+      "degree": 31
+    },
+    {
+      "id": "app_models_product_product",
+      "label": "Product",
+      "degree": 28
+    },
+    {
+      "id": "app_models_trainingrun_trainingrun",
+      "label": "TrainingRun",
+      "degree": 21
+    },
+    {
+      "id": "app_livewire_products_index_index",
+      "label": "Index",
+      "degree": 16
+    },
+    {
+      "id": "app_models_setting_setting",
+      "label": "Setting",
+      "degree": 16
+    },
+    {
+      "id": "app_http_controllers_controller_controller",
+      "label": "Controller",
+      "degree": 15
+    },
+    {
+      "id": "app_livewire_users_index_index",
+      "label": "Index",
+      "degree": 15
+    },
+    {
+      "id": "app_livewire_categories_index_index",
+      "label": "Index",
+      "degree": 14
+    }
+  ],
+  "surprises": [
+    {
+      "source": "VerifyEmailController",
+      "target": "Controller",
+      "source_files": [
+        "app/Http/Controllers/Auth/VerifyEmailController.php",
+        "app/Http/Controllers/Controller.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "inherits",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "ArmApiTest",
+      "target": "TestCase",
+      "source_files": [
+        "tests/Feature/Api/ArmApiTest.php",
+        "tests/TestCase.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "inherits",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "ArmMqttServiceTest",
+      "target": "TestCase",
+      "source_files": [
+        "tests/Feature/Api/ArmMqttServiceTest.php",
+        "tests/TestCase.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "inherits",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "AuthApiTest",
+      "target": "TestCase",
+      "source_files": [
+        "tests/Feature/Api/AuthApiTest.php",
+        "tests/TestCase.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "inherits",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "DetectionApiTest",
+      "target": "TestCase",
+      "source_files": [
+        "tests/Feature/Api/DetectionApiTest.php",
+        "tests/TestCase.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "inherits",
+      "why": "bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

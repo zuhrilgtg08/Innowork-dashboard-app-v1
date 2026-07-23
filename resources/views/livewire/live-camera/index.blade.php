@@ -67,9 +67,10 @@
                         <button @click="start()" x-show="!error" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-gray-900">Aktifkan Kamera</button>
                     </div>
 
-                    <!-- Inspecting overlay -->
-                    <div x-show="uploading" class="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <span class="rounded-lg bg-white/90 px-4 py-2 text-sm font-semibold text-gray-800">Menganalisa frame…</span>
+                    <!-- Inspecting indicator (subtle corner badge for the live loop) -->
+                    <div x-show="uploading" x-transition.opacity class="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-lg bg-black/60 px-3 py-1.5 text-xs font-semibold text-white">
+                        <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        Menganalisa frame…
                     </div>
 
                     <!-- Overlay badges -->
@@ -77,19 +78,26 @@
                         <span class="h-1.5 w-1.5 rounded-full bg-red-500" :class="active && 'animate-pulse'"></span>
                         <span x-text="active ? 'LIVE' : 'OFF'"></span>
                     </span>
+                    <span x-show="active && auto" class="absolute left-20 top-3 inline-flex items-center gap-1.5 rounded bg-brand-600/80 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
+                        <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-white"></span> Auto-inspect
+                    </span>
                     <span class="absolute right-3 top-3 rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white">{{ $camera }} · {{ $conveyor }}</span>
                 </div>
 
                 <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p class="font-bold text-gray-900 dark:text-white">{{ $camera }} — Webcam Utama</p>
-                        <p class="text-xs text-gray-400">Perangkat: <span x-text="deviceLabel || '—'"></span></p>
+                        <p class="text-xs text-gray-400">
+                            Perangkat: <span x-text="deviceLabel || '—'"></span>
+                            <span x-show="active" class="ml-1" x-text="auto ? '· Inspeksi otomatis tiap ' + (intervalMs/1000) + ' dtk' : '· Inspeksi dijeda'"></span>
+                        </p>
                     </div>
                     <div class="flex gap-2">
-                        <button @click="capture()" x-show="active" :disabled="uploading" aria-label="Ambil frame dan periksa"
-                                class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-gray-800">
-                            <span x-show="!uploading">Capture &amp; Inspect</span>
-                            <span x-show="uploading">Inspecting…</span>
+                        <button @click="toggleAuto()" x-show="active" aria-label="Jeda atau lanjutkan inspeksi otomatis"
+                                class="rounded-lg px-4 py-2 text-xs font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                :class="auto ? 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-400' : 'bg-brand-600 hover:bg-brand-700 focus:ring-brand-500'">
+                            <span x-show="auto">Jeda Inspeksi</span>
+                            <span x-show="!auto">Lanjutkan Inspeksi</span>
                         </button>
                         <button @click="start()" x-show="!active" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">Start</button>
                         <button @click="stop()" x-show="active" class="rounded-lg bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">Stop</button>
@@ -172,6 +180,9 @@
         error: '',
         deviceLabel: '',
         uploading: false,
+        auto: true,          // run inference continuously while the camera is live
+        intervalMs: 3000,    // cadence of the auto-inspect loop
+        timer: null,
         stream: null,
         init() {
             // Auto-start on mount; browser will prompt for permission.
@@ -190,12 +201,30 @@
                 this.$refs.video.srcObject = this.stream;
                 this.deviceLabel = this.stream.getVideoTracks()[0]?.label || 'Webcam';
                 this.active = true;
+                // Begin live inference immediately, no button press needed.
+                this.startAuto();
             } catch (e) {
                 this.error = e.name === 'NotAllowedError' ? 'Akses kamera ditolak' : 'Kamera tidak tersedia';
                 this.active = false;
             }
         },
+        startAuto() {
+            this.stopAuto();
+            if (!this.auto || !this.active) return;
+            // Kick off the first inspection right away, then keep going on interval.
+            this.capture();
+            this.timer = setInterval(() => this.capture(), this.intervalMs);
+        },
+        stopAuto() {
+            if (this.timer) { clearInterval(this.timer); this.timer = null; }
+        },
+        toggleAuto() {
+            this.auto = !this.auto;
+            this.auto ? this.startAuto() : this.stopAuto();
+        },
         capture() {
+            // The uploading guard makes overlapping ticks a no-op: if inference
+            // is still running when the interval fires, that frame is skipped.
             if (!this.active || this.uploading) return;
             const video = this.$refs.video;
             const canvas = this.$refs.canvas;
@@ -212,6 +241,7 @@
             }, 'image/jpeg', 0.9);
         },
         stop() {
+            this.stopAuto();
             this.stream?.getTracks().forEach(t => t.stop());
             this.stream = null;
             this.active = false;
