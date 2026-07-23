@@ -195,7 +195,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-5 py-8 text-center text-sm text-gray-400">Belum ada training run. Klik <span class="font-semibold">New Training</span> untuk memulai.</td>
+                                <td colspan="5"><x-empty-state title="Belum ada training run" message="Klik New Training untuk memulai proses pelatihan model." /></td>
                             </tr>
                         @endforelse
                     </tbody>

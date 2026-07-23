@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide Alpine-controlled elements until Alpine initializes (dropdowns, menus) */
+[x-cloak] {
+    display: none !important;
+}
+
 @layer components {
     .card {
         @apply bg-white dark:bg-gray-800 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/60;

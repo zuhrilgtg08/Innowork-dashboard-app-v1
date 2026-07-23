@@ -8,10 +8,12 @@
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Users</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ number_format($total) }} member terdaftar dalam sistem.</p>
         </div>
+        @if (auth()->user()->canWrite('Users'))
         <button wire:click="create" class="btn-primary">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Add User
         </button>
+        @endif
     </div>
 
     @if ($flash)
@@ -54,7 +56,13 @@
                         <tr class="transition hover:bg-gray-50 dark:hover:bg-gray-700/40" wire:key="user-{{ $user->id }}">
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-3">
-                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700 dark:bg-brand-600/20 dark:text-brand-300">{{ $user->initials() }}</div>
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 dark:bg-brand-600/20">
+                                        @if ($user->avatar)
+                                            <img src="{{ $user->avatarUrl() }}" alt="{{ $user->name }}" class="h-full w-full object-cover" />
+                                        @else
+                                            <span class="text-xs font-bold text-brand-700 dark:text-brand-300">{{ $user->initials() }}</span>
+                                        @endif
+                                    </div>
                                     <div>
                                         <p class="font-semibold text-gray-900 dark:text-white">{{ $user->name }}</p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ $user->email }}</p>
@@ -78,19 +86,21 @@
                             <td class="px-5 py-3 text-gray-500 dark:text-gray-400">{{ $user->created_at->format('d M Y') }}</td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center justify-end gap-1">
-                                    <button wire:click="edit({{ $user->id }})" title="Edit"
-                                            class="rounded-lg p-2 text-gray-400 transition hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-600/15">
+                                    @if (auth()->user()->canWrite('Users'))
+                                    <button wire:click="edit({{ $user->id }})" title="Edit" aria-label="Edit {{ $user->name }}"
+                                            class="rounded-lg p-2 text-gray-400 transition hover:bg-brand-50 hover:text-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-brand-600/15">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
                                     </button>
-                                    <button wire:click="confirmDelete({{ $user->id }})" title="Delete" @disabled($isSoleAdmin)
-                                            class="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-red-600/15">
+                                    <button wire:click="confirmDelete({{ $user->id }})" title="Delete" aria-label="Hapus {{ $user->name }}" @disabled($isSoleAdmin)
+                                            class="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-red-600/15">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
                                     </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-5 py-10 text-center text-gray-400">No users found.</td></tr>
+                        <tr><td colspan="6"><x-empty-state title="Tidak ada user" message="Tidak ada user yang cocok dengan pencarian atau filter role." /></td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -111,12 +121,34 @@
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ $editingId ? 'Edit User' : 'Add User' }}</h3>
                         <p class="text-xs text-gray-400">{{ $editingId ? 'Perbarui data member.' : 'Tambah member baru ke sistem.' }}</p>
                     </div>
-                    <button wire:click="closeModal" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                    <button wire:click="closeModal" aria-label="Tutup" class="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-700">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
                 <form wire:submit="save" class="space-y-4">
+                    <!-- Avatar upload -->
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300">Foto Profile</label>
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                                @if ($avatar)
+                                    <img src="{{ $avatar->temporaryUrl() }}" class="h-full w-full object-cover" />
+                                @elseif ($existingAvatar)
+                                    <img src="{{ Storage::url($existingAvatar) }}" class="h-full w-full object-cover" />
+                                @else
+                                    <span class="text-lg font-bold text-gray-400">{{ $editingId ? '—' : '' }}</span>
+                                @endif
+                            </div>
+                            <div class="flex-1">
+                                <input type="file" wire:model="avatar" accept="image/*"
+                                       class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-600/15 dark:file:text-brand-400" />
+                                <p class="mt-1 text-xs text-gray-400">JPG / PNG, maks 2 MB.</p>
+                                <p wire:loading wire:target="avatar" class="mt-1 text-xs text-brand-500">Mengunggah...</p>
+                                @error('avatar') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                    </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300">Nama</label>
                         <input wire:model="name" type="text" class="field" placeholder="Nama lengkap" />

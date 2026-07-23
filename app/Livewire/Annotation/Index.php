@@ -33,6 +33,15 @@ class Index extends Component
     public function approve(int $detectionId): void
     {
         $detection = Detection::findOrFail($detectionId);
+
+        // 'returned'/'recheck' are workflow states, not visual classes — the AI
+        // label can't be confirmed as-is; ask the operator to pick a real class.
+        if (! in_array($detection->status, Detection::TRAINABLE_STATUSES, true)) {
+            $this->addError('flash', 'Status "'.$detection->statusLabel().'" bukan kelas visual. Relabel ke kelas yang benar dulu.');
+
+            return;
+        }
+
         $this->storeAnnotation($detection, $detection->status, 'ai');
         $this->flash = 'Label disetujui & masuk dataset.';
     }
@@ -45,7 +54,7 @@ class Index extends Component
         $detection = Detection::findOrFail($detectionId);
 
         validator(['class' => $class], [
-            'class' => ['required', Rule::in(array_keys(Detection::STATUSES))],
+            'class' => ['required', Rule::in(Detection::TRAINABLE_STATUSES)],
         ])->validate();
 
         $this->storeAnnotation($detection, $class, 'human');
@@ -98,16 +107,22 @@ class Index extends Component
 
         $pending = Detection::whereNotIn('id', $annotatedIds)
             ->where(fn ($q) => $q->whereNotNull('frame_path')
-                ->orWhereIn('status', array_merge(Detection::FAILED_STATUSES, ['recheck'])))
+                ->orWhereIn('status', array_merge(Detection::FAILED_STATUSES, ['recheck', 'returned'])))
             ->count();
 
         $labelled = Annotation::where('status', 'approved')->count();
+
+        // All statuses drive the filter chips; only trainable ones are offered
+        // as relabel targets (see the relabel buttons in the view).
+        $trainable = collect(Detection::STATUSES)
+            ->only(Detection::TRAINABLE_STATUSES);
 
         return view('livewire.annotation.index', [
             'queue' => $queue,
             'pending' => $pending,
             'labelled' => $labelled,
             'statuses' => Detection::STATUSES,
+            'trainable' => $trainable,
         ]);
     }
 }

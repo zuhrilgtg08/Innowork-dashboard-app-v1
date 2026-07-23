@@ -66,6 +66,16 @@ class StartTrainingRun implements ShouldQueue
                 'context' => ['run_id' => $run->id],
                 'logged_at' => now(),
             ]);
+
+            return;
         }
+
+        SystemLog::create([
+            'level' => 'info',
+            'source' => 'ai',
+            'message' => "Training run {$run->name} handed off to ML service ({$run->dataset_train} train / {$run->dataset_val} val).",
+            'context' => ['run_id' => $run->id],
+            'logged_at' => now(),
+        ]);
     }
 }

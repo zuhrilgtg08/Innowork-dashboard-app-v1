@@ -15,6 +15,8 @@ class Setting extends Model
         'auto_reject_on_damage',
         'email_alerts',
         'active_training_run_id',
+        'camera_source',
+        'icam_rtsp_url',
     ];
 
     /**
@@ -29,6 +31,7 @@ class Setting extends Model
         'auto_retrain' => true,
         'auto_reject_on_damage' => true,
         'email_alerts' => true,
+        'camera_source' => 'webcam',
     ];
 
     protected function casts(): array

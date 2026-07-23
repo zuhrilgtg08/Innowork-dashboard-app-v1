@@ -14,24 +14,32 @@ class Index extends Component
     #[Url]
     public string $role = '';
 
-    /** Role currently being edited (empty = editor closed). */
     public string $editingRole = '';
 
     /**
-     * Working copy of the edited role's permissions: module => access.
-     *
      * @var array<string, string>
      */
     public array $draft = [];
 
     public string $saved = '';
 
+    public function mount(): void
+    {
+        if (! in_array(auth()->user()->role, ['admin', 'supervisor_qc', 'operator'])) {
+            $this->redirect(route('dashboard'), navigate: true);
+        }
+    }
+
     /**
-     * Open the permission editor for a role.
+     * Open the permission editor for a role. Only admin can edit.
      */
     public function edit(string $role): void
     {
         if (! array_key_exists($role, User::ROLES)) {
+            return;
+        }
+
+        if (auth()->user()->role !== 'admin') {
             return;
         }
 
@@ -46,10 +54,14 @@ class Index extends Component
     }
 
     /**
-     * Persist the edited permissions for the current role.
+     * Persist the edited permissions for the current role. Only admin can save.
      */
     public function save(): void
     {
+        if (auth()->user()->role !== 'admin') {
+            return;
+        }
+
         if (! array_key_exists($this->editingRole, User::ROLES)) {
             return;
         }

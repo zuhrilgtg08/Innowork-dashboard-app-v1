@@ -1,15 +1,76 @@
 """FastAPI entrypoint for the SortVision ML service."""
+import base64
 import tempfile
+import threading
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+import cv2
 from fastapi import BackgroundTasks, FastAPI, Form, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+import callbacks
 import infer
 import train
 from config import settings
+from stream import camera_source    
 
-app = FastAPI(title="SortVision ML Service")
+
+def _resolve_stream_model() -> str | None:
+    """Resolve the configured stream model against Laravel storage."""
+    rel = settings.icam_model_path
+    if not rel:
+        return None
+    candidate = Path(settings.laravel_storage_path) / rel
+    return str(candidate) if candidate.exists() else rel
+
+
+def _infer_loop() -> None:
+    """Periodically infer on the latest frame and push a Detection to Laravel."""
+    model = _resolve_stream_model()
+    while True:
+        time.sleep(max(0.5, settings.icam_infer_interval))
+        frame = camera_source.latest_frame()
+        if frame is None:
+            continue
+        ok, buf = cv2.imencode(".jpg", frame)
+        if not ok:
+            continue
+        jpeg = buf.tobytes()
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            tmp.write(jpeg)
+            tmp_path = tmp.name
+        try:
+            result = infer.infer_frame(tmp_path, model, settings.icam_conf)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[stream-infer] failed: {exc}", flush=True)
+            continue
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+        callbacks.post_detection(settings.laravel_url, {
+            "status": result.get("status", "recheck"),
+            "confidence": result.get("confidence", 0.0),
+            "boxes": result.get("boxes", []),
+            "camera": settings.icam_camera,
+            "conveyor": settings.icam_conveyor,
+            "frame_jpeg_b64": base64.b64encode(jpeg).decode(),
+        })
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the camera buffer, and optionally the auto-inference loop.
+    camera_source.start()
+    if settings.icam_auto_infer:
+        threading.Thread(target=_infer_loop, daemon=True).start()
+    yield
+    camera_source.stop()
+
+
+app = FastAPI(title="SortVision ML Service", lifespan=lifespan)
 
 
 class AnnotationItem(BaseModel):
@@ -31,6 +92,30 @@ class TrainRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok", "model_loaded": True, "base_model": settings.base_model}
+
+
+@app.get("/camera/status")
+def camera_status():
+    """Liveness/mode of the ICAM-300 (or simulator) source, for the UI."""
+    return camera_source.status()
+
+
+@app.get("/camera/stream")
+def camera_stream():
+    """MJPEG stream of the live source — displayable directly in an <img>."""
+    def frames():
+        boundary = b"--frame\r\n"
+        while True:
+            jpeg = camera_source.latest_jpeg()
+            if jpeg is not None:
+                yield boundary + b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
+            time.sleep(0.066)  # ~15 fps
+
+    return StreamingResponse(
+        frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.post("/train", status_code=202)

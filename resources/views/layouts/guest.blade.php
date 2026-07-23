@@ -34,7 +34,7 @@
 
                 <div class="relative text-white">
                     <h2 class="max-w-md text-3xl font-extrabold leading-tight">AI Visual Quality Control untuk Industri Sorting &amp; Logistik</h2>
-                    <p class="mt-4 max-w-md text-brand-100">Deteksi QR code realtime pada conveyor, identifikasi barang cacat/lecet, dan otomatisasi alur return &amp; recheck — semua dalam satu dashboard.</p>
+                    <p class="mt-4 max-w-md text-brand-100">Deteksi QR code realtime pada conveyor, identifikasi barang cacat/lecet, dan otomatisasi alur return &amp; recheck - semua dalam satu dashboard.</p>
                     <div class="mt-8 flex gap-8">
                         <div><p class="text-3xl font-extrabold">99.2%</p><p class="text-sm text-brand-200">Detection Accuracy</p></div>
                         <div><p class="text-3xl font-extrabold">4×</p><p class="text-sm text-brand-200">Active Cameras</p></div>

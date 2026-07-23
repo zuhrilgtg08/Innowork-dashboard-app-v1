@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\RolePermission;
 use App\Models\Setting;
 use App\Models\SystemLog;
+use App\Models\TargetZonePreset;
 use App\Models\TrainingRun;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -34,6 +35,8 @@ class DatabaseSeeder extends Seeder
         // A handful of extra members for the Users table.
         User::factory(12)->create();
 
+        $this->call(CategorySeeder::class);
+
         // Catalogue of products moving through the line.
         Product::factory(40)->create();
 
@@ -58,6 +61,13 @@ class DatabaseSeeder extends Seeder
                     ['access' => $access],
                 );
             }
+        }
+
+        // Arm target-zone presets (joint-angle recipes per product category).
+        // No Jetson computes IK in Opsi A, so the backend ships these and the
+        // ESP32 replays them — placeholder angles until the team tunes them.
+        foreach (TargetZonePreset::defaults() as $preset) {
+            TargetZonePreset::updateOrCreate(['slug' => $preset['slug']], $preset);
         }
 
         // Singleton system settings row, pointing at the latest trained model.
