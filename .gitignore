@@ -17,9 +17,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
-<<<<<<< HEAD
 ml-service/colab-artifacts/ultra-milk-yolo-ready.zip
-=======
 /ultra-milk-kecil.yolov8/train/images
 /ultra-milk-kecil.yolov8/train/labels
 /ultra-milk-kecil.yolov8/test/images
@@ -34,4 +32,3 @@ ml-service\colab-artifacts\ultra-milk-yolo-ready
 ml-service\colab-artifacts\ultra-milk-yolo-ready.zip
 ml-service/colab-artifacts/ultra-milk-yolo-ready/ultra-milk-yolo-ready/data.yaml
 ml-service\colab-artifacts\ultra-milk-yolo-ready\ultra-milk-yolo-ready
->>>>>>> c38ccbfb8ea1291e2e6239cdbea7092376a2fbf3
