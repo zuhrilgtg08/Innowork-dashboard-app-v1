@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ArmController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CameraController;
+use App\Http\Controllers\Api\ConveyorController;
 use App\Http\Controllers\Api\DetectionController;
 use App\Http\Controllers\Api\MlCallbackController;
 use App\Http\Controllers\Api\StatusController;
@@ -42,4 +43,11 @@ Route::middleware('verify.ml')->prefix('ml')->group(function () {
 */
 Route::middleware('verify.ml')->prefix('camera')->group(function () {
     Route::post('detection', [CameraController::class, 'ingest']);
+});
+
+/*
+| Conveyor off-flow anomalies (jam / off_flow) from the ml-service flow analyser.
+*/
+Route::middleware('verify.ml')->prefix('conveyor')->group(function () {
+    Route::post('event', [ConveyorController::class, 'event']);
 });

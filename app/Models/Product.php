@@ -112,6 +112,36 @@ class Product extends Model
     }
 
     /**
+     * Resolve the product a decoded QR value refers to. The QR encodes the
+     * public scan URL (url('/p/{qr_token}')), so we extract the 40-char token
+     * (last path segment) and match it. Also tolerates a bare token or the
+     * legacy "SORTVISION|{code}|{sku}" payload for older codes.
+     */
+    public static function resolveByQrValue(?string $qrValue): ?self
+    {
+        $qrValue = trim((string) $qrValue);
+        if ($qrValue === '') {
+            return null;
+        }
+
+        // Legacy payload: SORTVISION|{code}|{sku}
+        if (str_starts_with($qrValue, 'SORTVISION|')) {
+            $parts = explode('|', $qrValue);
+            $code = $parts[1] ?? null;
+
+            return $code ? static::where('code', $code)->first() : null;
+        }
+
+        // Public URL (/p/{token}) or a bare token: take the last path segment.
+        $token = trim(parse_url($qrValue, PHP_URL_PATH) ?: $qrValue, '/');
+        if (str_contains($token, '/')) {
+            $token = substr($token, strrpos($token, '/') + 1);
+        }
+
+        return $token !== '' ? static::where('qr_token', $token)->first() : null;
+    }
+
+    /**
      * (Re)generate and persist this product's QR code as an SVG on the public disk.
      * Shared by the Products screen and the sortvision:regenerate-qr command.
      */

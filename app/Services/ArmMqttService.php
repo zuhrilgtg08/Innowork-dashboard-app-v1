@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Detection;
 use App\Models\TargetZonePreset;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -123,6 +124,46 @@ class ArmMqttService
             return false;
         }
 
+        return $this->publishPayload($payload);
+    }
+
+    /**
+     * Route an auto-rejected defect to the return/reject zone: resolve the
+     * return {@see TargetZonePreset} and publish its joint angles to
+     * "arm/command", stamped with the detection's context so the operator (and
+     * the ESP32 logs) can trace which item was diverted. Best-effort.
+     */
+    public function routeToReturn(Detection $detection): bool
+    {
+        $preset = TargetZonePreset::forReturn();
+
+        if (! $preset) {
+            Log::warning('MQTT routeToReturn: no return-zone preset seeded');
+
+            return false;
+        }
+
+        return $this->publishPayload([
+            'action' => 'return',
+            'detection_id' => $detection->id,
+            'code' => $detection->code,
+            'status' => $detection->status,
+            'qr_value' => $detection->qr_value,
+            'conveyor' => $detection->conveyor,
+            'zone' => $preset->slug,
+            'joint_angles' => $preset->joint_angles,
+            'issued_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Publish a prepared payload to "arm/command" (QoS 1). Best-effort: broker
+     * transport failures are caught and reported as false.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function publishPayload(array $payload): bool
+    {
         try {
             $client = $this->newClient('pub');
             $client->connect($this->connectionSettings(), true);
@@ -131,7 +172,7 @@ class ArmMqttService
 
             return true;
         } catch (\Throwable $e) {
-            Log::warning('MQTT publishCommand failed', ['category' => $category, 'error' => $e->getMessage()]);
+            Log::warning('MQTT publish failed', ['error' => $e->getMessage()]);
 
             return false;
         }

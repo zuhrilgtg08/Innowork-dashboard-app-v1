@@ -35,6 +35,9 @@ return [
     'ml' => [
         'url' => env('ML_SERVICE_URL', 'http://127.0.0.1:8001'),
         'secret' => env('ML_CALLBACK_SECRET', ''),
+        // Minimum mAP@50 (0–100) a freshly trained run must reach to be
+        // auto-activated as the live model. 0 disables the gate.
+        'min_map' => (float) env('ML_MIN_MAP50', 0),
         // Browser-facing MJPEG stream of the ICAM-300 (served by ml-service).
         'stream_url' => env('ML_STREAM_URL', 'http://127.0.0.1:8001/camera/stream'),
         'status_url' => env('ML_STATUS_URL', 'http://127.0.0.1:8001/camera/status'),
@@ -52,6 +55,8 @@ return [
         'use_tls' => (bool) env('MQTT_USE_TLS', false),
         // All arm topics live under this prefix, e.g. "arm/command".
         'base_topic' => env('MQTT_BASE_TOPIC', 'arm'),
+        // Conveyor topics live under this prefix, e.g. "conveyor/command".
+        'conveyor_base_topic' => env('MQTT_CONVEYOR_BASE_TOPIC', 'conveyor'),
         // Seconds to wait for a broker connection before degrading gracefully.
         'connect_timeout' => (int) env('MQTT_CONNECT_TIMEOUT', 3),
     ],

@@ -60,6 +60,25 @@ class MlClient
     }
 
     /**
+     * Ask the ML service to hot-reload model weights (drop its cached YOLO
+     * handles) so a newly activated model takes effect without a restart.
+     * Best-effort: returns true if the service acknowledged.
+     */
+    public function reloadModel(?string $modelPath = null): bool
+    {
+        try {
+            return $this->client(10)
+                ->asJson()
+                ->post('/reload-model', array_filter(['model_path' => $modelPath]))
+                ->successful();
+        } catch (\Throwable $e) {
+            Log::warning('ML reloadModel failed', ['error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    /**
      * Run inference on a single captured frame.
      *
      * @param  array<string, mixed>  $ctx  camera/conveyor/product context
