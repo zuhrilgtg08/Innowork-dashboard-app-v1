@@ -4,6 +4,7 @@ use App\Livewire\Actions\Logout;
 use App\Livewire\Annotation\Index as AnnotationIndex;
 use App\Livewire\Categories\Index as CategoriesIndex;
 use App\Livewire\Dashboard;
+use App\Livewire\Detection\Index as DetectionIndex;
 use App\Livewire\LiveCamera\Index as LiveCameraIndex;
 use App\Livewire\Logs\Index as LogsIndex;
 use App\Livewire\Products\Index as ProductsIndex;
@@ -29,6 +30,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('categories', CategoriesIndex::class)->name('categories');
     Route::get('roles', RolesIndex::class)->name('roles');
     Route::get('live-camera', LiveCameraIndex::class)->name('live-camera');
+    Route::get('detection', DetectionIndex::class)->name('detection');
     Route::get('returns', ReturnsIndex::class)->name('returns');
     Route::get('training', TrainingIndex::class)->name('training');
     Route::get('annotation', AnnotationIndex::class)->name('annotation');
