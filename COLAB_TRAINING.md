@@ -165,3 +165,26 @@ Jalankan ml-service + Laravel seperti biasa, lalu buka halaman **Live Camera**:
 | `ModuleNotFoundError: No module named 'ultralytics'` | Jalankan `!pip install ultralytics` di cell pertama Colab |
 | Runtime GPU kehabisan memori | Turunkan `batch` ke 8 atau 4, atau gunakan runtime CPU (lebih lambat) |
 | Model tidak muncul di Live Camera | Cek `storage/app/models/run-{n}/best.pt` ada, `TrainingRun` status `completed`, `Setting.active_training_run_id` mengacu ke run itu |
+
+## Hasil Registrasi — 24 Juli 2026 (run-2)
+
+Model hasil Colab (`ultra-milk-best.pt`, 6.2 MB, class names `{0: passed, 1: damaged}`,
+50 epochs) sudah didaftarkan sebagai model live:
+
+- **File model:** `storage/app/models/run-2/best.pt` (identik dgn `run-1/best.pt`, MD5 `7b24b823…`)
+- **TrainingRun:** `ultra-milk-colab-final` (id `10`), status `completed`, `dataset_train=1524`, `dataset_val=327`
+- **Model aktif:** `Setting.active_training_run_id = 10`, `ICAM_MODEL_PATH=models/run-2/best.pt`
+- **Metrics (hasil `model.val()` nyata atas 327 gambar valid, skala 0–100):**
+
+  | Metric | Overall | passed | damaged |
+  |---|---|---|---|
+  | mAP@50 | 99.5 | 99.5 | 99.5 |
+  | Precision | 100.0 | 100.0 | 99.9 |
+  | Recall | 100.0 | 100.0 | 100.0 |
+
+> Metrics di atas dihitung ulang secara lokal dari `ml-service/colab-artifacts/ultra-milk-yolo-ready/valid`,
+> **bukan** placeholder. Angka sangat tinggi karena valid split berasal dari distribusi yang
+> sama dengan train — untuk evaluasi lebih ketat gunakan gambar conveyor nyata.
+
+Setelah registrasi via DB, cache singleton settings di-bust (`Cache::forget('settings.singleton')`
+atau hapus baris `settings.singleton` di tabel `cache`) agar app membaca run aktif yang baru.
