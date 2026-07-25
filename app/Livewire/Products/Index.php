@@ -119,7 +119,7 @@ class Index extends Component
     {
         $data = $this->validate();
 
-        $product = $this->editingId ? Product::findOrFail($this->editingId) : new Product();
+        $product = $this->editingId ? Product::findOrFail($this->editingId) : new Product;
 
         $product->fill([
             'code' => $this->editingId ? $product->code : $this->generateCode(),

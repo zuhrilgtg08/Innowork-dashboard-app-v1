@@ -40,6 +40,22 @@ class Product extends Model
     ];
 
     /**
+     * Product categories used by arm target-zone presets ({@see TargetZonePreset}).
+     * No longer the source for product categorization (now uses the `categories`
+     * table via `category_id` FK), but retained for conveyor-line zone mapping.
+     *
+     * @var array<int, string>
+     */
+    public const CATEGORIES = [
+        'Electronics',
+        'Apparel',
+        'Food & Beverage',
+        'Automotive Parts',
+        'Cosmetics',
+        'Pharmaceutical',
+    ];
+
+    /**
      * Assign an unguessable public token to new products.
      */
     protected static function booted(): void

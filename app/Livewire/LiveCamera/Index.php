@@ -9,6 +9,7 @@ use App\Models\SystemLog;
 use App\Services\MlClient;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -66,7 +67,7 @@ class Index extends Component
         $isDefect = in_array($status, Detection::FAILED_STATUSES, true);
 
         $detection = Detection::create([
-            'code' => 'SCN-'.strtoupper(\Illuminate\Support\Str::random(6)),
+            'code' => 'SCN-'.strtoupper(Str::random(6)),
             'product_id' => Product::inRandomOrder()->value('id'),
             'camera' => $this->camera,
             'conveyor' => $this->conveyor,

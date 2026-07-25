@@ -1,8 +1,31 @@
 <?php
 
+use App\Http\Controllers\Api\ArmController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CameraController;
+use App\Http\Controllers\Api\DetectionController;
 use App\Http\Controllers\Api\MlCallbackController;
+use App\Http\Controllers\Api\StatusController;
 use Illuminate\Support\Facades\Route;
+
+/*
+| Mobile app REST API (Opsi A). Authenticated with Sanctum personal access
+| tokens — separate from the Livewire/Breeze web session. See API_CONTRACT.md.
+*/
+Route::prefix('auth')->group(function () {
+    Route::post('login', [AuthController::class, 'login']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::get('me', [AuthController::class, 'me']);
+    });
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('status', [StatusController::class, 'show']);
+    Route::get('detections', [DetectionController::class, 'index']);
+    Route::get('arm', [ArmController::class, 'show']);
+});
 
 /*
 | Internal callbacks from the FastAPI ML service. Not browser-facing —

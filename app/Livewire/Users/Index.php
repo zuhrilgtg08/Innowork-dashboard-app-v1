@@ -104,7 +104,7 @@ class Index extends Component
     {
         $data = $this->validate();
 
-        $user = $this->editingId ? User::findOrFail($this->editingId) : new User();
+        $user = $this->editingId ? User::findOrFail($this->editingId) : new User;
 
         // Guard: the sole Administrator cannot be demoted or deactivated —
         // the admin role is tunggal (single top-level account).
