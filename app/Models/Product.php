@@ -68,6 +68,45 @@ class Product extends Model
         });
     }
 
+    /**
+     * Next sequential product code, e.g. `PRD-00007`.
+     *
+     * Lives on the model so the Products screen and the mobile API mint codes
+     * the same way.
+     */
+    public static function generateCode(): string
+    {
+        return 'PRD-'.str_pad((string) ((static::max('id') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * SKU derived from the product name's initials plus a unique 3-digit
+     * suffix, e.g. "Susu Segar" → `SS-042`.
+     *
+     * Deliberately avoids `fake()`: faker is a dev-only dependency and this
+     * runs on the request path in production.
+     */
+    public static function generateSku(string $name): string
+    {
+        $initials = collect(preg_split('/[\s-]+/', $name) ?: [])
+            ->filter()
+            ->map(fn (string $word) => mb_strtoupper(mb_substr($word, 0, 1)))
+            ->implode('');
+
+        $initials = $initials !== '' ? $initials : 'PRD';
+
+        // Sequential scan keeps this terminating even once many suffixes are taken.
+        for ($suffix = 0; $suffix <= 999; $suffix++) {
+            $candidate = $initials.'-'.str_pad((string) $suffix, 3, '0', STR_PAD_LEFT);
+
+            if (! static::where('sku', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        return $initials.'-'.Str::random(6);
+    }
+
     public function detections(): HasMany
     {
         return $this->hasMany(Detection::class);

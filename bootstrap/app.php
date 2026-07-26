@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureModuleAccess;
 use App\Http\Middleware\VerifyMlSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'verify.ml' => VerifyMlSignature::class,
+            'module' => EnsureModuleAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

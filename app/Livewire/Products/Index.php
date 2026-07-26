@@ -82,21 +82,6 @@ class Index extends Component
         $this->showModal = true;
     }
 
-    protected function generateCode(): string
-    {
-        return 'PRD-'.str_pad((string) ((Product::max('id') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
-    }
-
-    protected function generateSku(string $name): string
-    {
-        $words = preg_split('/[\s-]+/', $name);
-        $abbr = '';
-        foreach ($words as $w) {
-            if (!empty($w)) $abbr .= strtoupper($w[0]);
-        }
-        return $abbr.'-'.fake()->unique()->numerify('###');
-    }
-
     public function edit(int $id): void
     {
         $product = Product::findOrFail($id);
@@ -122,10 +107,10 @@ class Index extends Component
         $product = $this->editingId ? Product::findOrFail($this->editingId) : new Product;
 
         $product->fill([
-            'code' => $this->editingId ? $product->code : $this->generateCode(),
+            'code' => $this->editingId ? $product->code : Product::generateCode(),
             'name' => $data['name'],
             'category_id' => $data['category_id'] ?? null,
-            'sku' => $this->editingId ? $product->sku : $this->generateSku($data['name']),
+            'sku' => $this->editingId ? $product->sku : Product::generateSku($data['name']),
             'status' => $data['productStatus'],
             'stock' => $data['stock'],
             'description' => $data['description'] ?: null,
