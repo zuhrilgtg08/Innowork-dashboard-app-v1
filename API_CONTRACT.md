@@ -262,6 +262,132 @@ lalu relabel pada deteksi yang sama meninggalkan satu baris anotasi.
 
 ---
 
+## Scan QR (Fase 5)
+
+### ✅ `POST /api/products/scan`
+
+Menerjemahkan hasil scan kamera menjadi produk + verdict QC terakhirnya. Butuh
+akses **read** modul `Product`.
+
+Body `{ "qr_value" }` — isi apa pun yang terbaca kamera. Normalnya URL publik
+yang di-encode QR (`/p/{qr_token}`), tapi `Product::resolveByQrValue()` juga
+menerima **token telanjang** dan payload lama `SORTVISION|{code}|{sku}`, jadi QR
+yang dicetak sebelum pindah ke format URL tetap bisa discan.
+
+**200**
+```json
+{
+  "data": {
+    "product": { "id": 7, "code": "PRD-001", "name": "Yogurt Strawberry", "...": "..." },
+    "latest_detection": {
+      "id": 512, "status": "damaged", "status_label": "Damaged",
+      "camera": "ICAM-300", "conveyor": "LINE-A",
+      "confidence": "92.50", "detected_at": "2026-07-14T08:29:41+00:00"
+    }
+  }
+}
+```
+
+- `latest_detection` bernilai `null` untuk produk yang belum pernah discan.
+- **404** `{ "message": "QR tidak dikenali. Produk tidak ditemukan." }`.
+
+---
+
+## Conveyor monitoring (Fase 5)
+
+Anomali conveyor **tidak punya tabel sendiri** — `ConveyorService::raiseAlert()`
+menyimpannya sebagai `SystemLog` dengan `source = 'conveyor'` dan jenis event di
+`context.event`. Digerbangi modul `Live Camera` (sama seperti endpoint arm;
+`RolePermission::MODULES` tidak punya entri `Conveyor`).
+
+### ✅ `GET /api/conveyor/status`
+
+**200**
+```json
+{
+  "data": {
+    "broker_connected": true,
+    "commands": ["start", "stop", "reverse", "speed"],
+    "events": ["jam", "off_flow"],
+    "window_hours": 24,
+    "counts": { "jam": 1, "off_flow": 2 },
+    "total_alerts": 3,
+    "latest_alert": { "id": 91, "level": "error", "event": "jam", "conveyor": "LINE-A", "metrics": {}, "message": "...", "logged_at": "..." }
+  }
+}
+```
+
+- `counts` dibatasi jendela 24 jam; `latest_alert` **tidak** — itu kondisi
+  terakhir yang diketahui, seberapa pun lamanya.
+
+### ✅ `GET /api/conveyor/alerts`
+
+Riwayat anomali, terbaru dulu. Query `event` (`jam`/`off_flow`, nilai lain →
+`422`) dan `per_page`. Dipaginasi (`data` + `meta`). Pada tiap baris, `event` dan
+`conveyor` dinaikkan jadi field sendiri; sisa isi `context` ada di `metrics`.
+
+### ✅ `POST /api/conveyor/command`
+
+Butuh akses **write** `Live Camera`. Body `{ "command", "speed_rpm?", "line?" }`
+— `command` salah satu `ConveyorService::COMMANDS`, nilai lain → `422`.
+**503** bila broker MQTT mati (bukan diam-diam sukses).
+
+---
+
+## Aktivasi model (Fase 5)
+
+### ✅ `POST /api/training-runs/{run}/activate`
+
+Menjadikan model hasil sebuah run sebagai model live inference. Butuh akses
+**write** modul `Training`. Mencerminkan command `sortvision:activate-model`.
+
+Body `{ "force?": true }`.
+
+Pra-syarat (semua `422` bila gagal): run harus berstatus `completed`, punya
+`model_path`, dan lolos ambang mAP (`ML_MIN_MAP50`). `force` **hanya**
+melewati ambang mAP — bukan syarat completed/model, karena memaksa run tanpa
+model tidak mengaktifkan apa pun.
+
+**200** `{ "message": "...", "data": { "active_training_run_id": 12, "ml_reloaded": true, "run": {...} } }`
+
+Reload ML service bersifat best-effort: `ml_reloaded: false` berarti service
+sedang mati, **bukan** aktivasi gagal — `Setting.active_training_run_id` tetap
+tertulis. Payload run kini juga membawa `is_active_model`, jadi klien bisa
+menandai run mana yang live tanpa request kedua.
+
+---
+
+## Push notification (Fase 5)
+
+Backend mengirim notifikasi lewat **layanan push Expo**, bukan FCM/APNs
+langsung: app mendaftarkan `ExponentPushToken[...]` dan Expo yang meneruskan ke
+transport masing-masing platform, sehingga backend tidak menyimpan kredensial
+per-platform. (Untuk rilis produksi, kunci FCM/APNs tetap perlu diunggah ke
+*project Expo*-nya — itu urusan build, bukan konfigurasi backend.)
+
+Notifikasi dikirim otomatis saat: **anomali conveyor** (`jam`/`off_flow` → ke
+pemegang akses baca `Live Camera`) dan **training selesai/gagal** (→ pemegang
+akses baca `Training`). Semua pengiriman best-effort — kegagalan push tidak
+pernah menggagalkan event QC yang memicunya.
+
+### ✅ `POST /api/device-tokens` · `DELETE /api/device-tokens`
+
+**Tidak** digerbangi `module:` — bisa dihubungi saat line bermasalah bukan aksi
+modul yang istimewa, dan token selalu diikat ke akun pemanggil.
+
+**`POST`** — body `{ "token", "platform?" }` (`ios`/`android`/`web`). Token
+divalidasi harus berformat Expo (`422` bila bukan). Kuncinya adalah **token**,
+bukan pasangan (user, device): saat operator kedua login di HP yang sama, Expo
+memberi token yang sama, dan alert harus mengikuti siapa yang login **sekarang**
+— jadi baris yang ada dipindahkan ke user baru, bukan ditambah baris kedua yang
+akan mengirim dobel. **201**.
+
+**`DELETE`** — body `{ "token" }`, dipanggil saat logout. Dibatasi pada token
+milik pemanggil sendiri: tahu string token saja tidak boleh cukup untuk
+membungkam perangkat orang lain.
+
+---
+
 ## Topik MQTT (Opsi A)
 
 Broker (Mosquitto/EMQX) di-host terpisah — dikonfigurasi lewat env

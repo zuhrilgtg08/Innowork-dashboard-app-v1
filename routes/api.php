@@ -7,7 +7,9 @@ use App\Http\Controllers\Api\CameraController;
 use App\Http\Controllers\Api\CameraFeedController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ConveyorController;
+use App\Http\Controllers\Api\ConveyorMonitorController;
 use App\Http\Controllers\Api\DetectionController;
+use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MlCallbackController;
 use App\Http\Controllers\Api\ProductController;
@@ -44,6 +46,16 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::put('password', [ProfileController::class, 'updatePassword']);
 });
 
+/*
+| Expo push token registration (Fase 5). No `module:` gate — being reachable by
+| a line alert is not a privileged module action, and the token is always bound
+| to the caller's own account.
+*/
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('device-tokens', [DeviceTokenController::class, 'store']);
+    Route::delete('device-tokens', [DeviceTokenController::class, 'destroy']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('status', [StatusController::class, 'show']);
     Route::get('detections', [DetectionController::class, 'index']);
@@ -65,6 +77,9 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     // Products — module "Product" (singular, as defined in RolePermission::MODULES).
     Route::get('products', [ProductController::class, 'index'])->middleware('module:Product,read');
+    // QR scan resolve (Fase 5) — declared before products/{product} so the
+    // literal "scan" segment is not swallowed by the wildcard.
+    Route::post('products/scan', [ProductController::class, 'scan'])->middleware('module:Product,read');
     Route::get('products/{product}', [ProductController::class, 'show'])->middleware('module:Product,read');
     Route::post('products', [ProductController::class, 'store'])->middleware('module:Product,write');
     Route::match(['put', 'patch'], 'products/{product}', [ProductController::class, 'update'])->middleware('module:Product,write');
@@ -91,6 +106,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('training-runs/dataset', [TrainingRunController::class, 'dataset'])->middleware('module:Training,read');
     Route::get('training-runs/{trainingRun}', [TrainingRunController::class, 'show'])->middleware('module:Training,read');
     Route::post('training-runs', [TrainingRunController::class, 'store'])->middleware('module:Training,write');
+    // Promote a finished run's model to live inference (Fase 5).
+    Route::post('training-runs/{trainingRun}/activate', [TrainingRunController::class, 'activate'])->middleware('module:Training,write');
 
     // System logs (read-only)
     Route::get('logs', [LogController::class, 'index'])->middleware('module:Logs,read');
@@ -114,6 +131,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('cameras', [CameraFeedController::class, 'index'])->middleware('module:Live Camera,read');
     Route::get('cameras/status', [CameraFeedController::class, 'status'])->middleware('module:Live Camera,read');
     Route::get('cameras/frame', [CameraFeedController::class, 'frame'])->middleware('module:Live Camera,read');
+
+    // Conveyor line monitoring + control (Fase 5). Gated on "Live Camera" like
+    // the arm endpoints — the conveyor is line equipment and RolePermission
+    // has no "Conveyor" module (see ConveyorMonitorController).
+    Route::get('conveyor/status', [ConveyorMonitorController::class, 'status'])->middleware('module:Live Camera,read');
+    Route::get('conveyor/alerts', [ConveyorMonitorController::class, 'alerts'])->middleware('module:Live Camera,read');
+    Route::post('conveyor/command', [ConveyorMonitorController::class, 'command'])->middleware('module:Live Camera,write');
 
     // QC return batches
     Route::get('returns', [ReturnBatchController::class, 'index'])->middleware('module:Returns,read');

@@ -53,6 +53,54 @@ class ProductController extends Controller
         return response()->json(['data' => $this->payload($product)]);
     }
 
+    /**
+     * Resolve a scanned QR code to its product (Fase 5, mobile QR scanner).
+     *
+     * The decoded value is whatever the camera read — normally the public scan
+     * URL the QR encodes (`/p/{qr_token}`), but {@see Product::resolveByQrValue()}
+     * also accepts a bare token and the legacy `SORTVISION|{code}|{sku}` payload,
+     * so codes printed before the URL switch still scan. Parsing lives on the
+     * model because the Livewire screens resolve scans the same way.
+     *
+     * Returns the product together with its latest QC verdict — that pairing is
+     * the whole point of scanning an item on the line.
+     */
+    public function scan(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'qr_value' => ['required', 'string', 'max:2048'],
+        ]);
+
+        $product = Product::resolveByQrValue($validated['qr_value']);
+
+        if (! $product) {
+            return response()->json([
+                'message' => 'QR tidak dikenali. Produk tidak ditemukan.',
+            ], 404);
+        }
+
+        $product->loadCount('detections')->load(['category', 'latestDetection']);
+
+        $detection = $product->latestDetection;
+
+        return response()->json([
+            'data' => [
+                'product' => $this->payload($product),
+                'latest_detection' => $detection ? [
+                    'id' => $detection->id,
+                    'code' => $detection->code,
+                    'status' => $detection->status,
+                    'status_label' => $detection->statusLabel(),
+                    'status_color' => $detection->statusColor(),
+                    'camera' => $detection->camera,
+                    'conveyor' => $detection->conveyor,
+                    'confidence' => $detection->confidence,
+                    'detected_at' => optional($detection->detected_at)->toIso8601String(),
+                ] : null,
+            ],
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate($this->rules());
