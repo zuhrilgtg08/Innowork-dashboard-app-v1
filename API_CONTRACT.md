@@ -135,6 +135,68 @@ oleh consumer MQTT `mqtt:listen`).
 
 ---
 
+## Dashboard & profil (Fase 4)
+
+### ✅ `GET /api/stats/dashboard`
+
+Angka agregat QC untuk dashboard mobile. Mencerminkan `App\Livewire\Dashboard`
+supaya dashboard web dan mobile tidak berbeda arti. Butuh akses **read** modul
+`Dashboard`.
+
+**Query**: `range` — `today` (default), `7d`, atau `30d`. Nilai lain → `422`.
+
+**200**
+```json
+{
+  "range": "today",
+  "stats": {
+    "total": 128,
+    "passed": 96,
+    "pass_rate": 75.0,
+    "unreadable": 12,
+    "defective": 15,
+    "returned": 5,
+    "throughput_per_minute": 2.1,
+    "active_cameras": 4
+  },
+  "distribution": [
+    { "key": "passed", "label": "Passed", "color": "green", "count": 96, "pct": 75.0 }
+  ],
+  "trend": [
+    { "label": "00:00", "total": 4, "passed": 3, "failed": 1 }
+  ],
+  "generated_at": "2026-07-26T08:29:55+00:00"
+}
+```
+
+- `distribution` selalu memuat **semua** key `Detection::STATUSES`, termasuk yang
+  bernilai 0, supaya grafik klien tidak berubah bentuk saat status hilang-muncul.
+- `trend` selalu bersumbu waktu rata: 24 bucket per jam untuk `today`, 7/30
+  bucket harian untuk `7d`/`30d`. Periode sepi dikirim sebagai nol, bukan
+  dilewati.
+- `throughput_per_minute` sengaja **tidak** mengikuti `range` — angka ini
+  menggambarkan kondisi line saat ini (60 menit terakhir).
+
+### ✅ `GET /api/profile` · `PUT|PATCH /api/profile` · `PUT /api/profile/password`
+
+Akun milik user yang sedang login. **Tidak** digerbangi `module:` — setiap role
+berhak menyunting profilnya sendiri, termasuk role yang tidak punya akses modul
+`Users` (operator, viewer). Sasarannya selalu pemegang token, tidak pernah id
+dari body request.
+
+**`PUT /api/profile`** — body `{ "name", "email" }`. Mengganti email menghapus
+status verifikasi (`email_verified_at` → `null`), sama seperti form profil web.
+`422` bila email sudah dipakai user lain; email yang sama dengan milik sendiri
+bukan konflik.
+
+**`PUT /api/profile/password`** — body `{ "current_password", "password",
+"password_confirmation" }`. `current_password` wajib benar (`422` bila salah):
+token yang dicuri saja tidak boleh cukup untuk mengunci pemilik asli dari
+akunnya. Setelah berhasil, **token lain dicabut** dan token yang dipakai request
+ini dipertahankan supaya aplikasi tidak melogout dirinya sendiri.
+
+---
+
 ## Topik MQTT (Opsi A)
 
 Broker (Mosquitto/EMQX) di-host terpisah — dikonfigurasi lewat env

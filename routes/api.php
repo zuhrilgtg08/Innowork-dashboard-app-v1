@@ -10,9 +10,11 @@ use App\Http\Controllers\Api\DetectionController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MlCallbackController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReturnBatchController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\TrainingRunController;
 use App\Http\Controllers\Api\UserController;
@@ -29,6 +31,16 @@ Route::prefix('auth')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
     });
+});
+
+/*
+| The signed-in user's own account (Fase 4). No `module:` gate on purpose —
+| every role may edit their own profile, including roles with no Users access.
+*/
+Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+    Route::get('/', [ProfileController::class, 'show']);
+    Route::match(['put', 'patch'], '/', [ProfileController::class, 'update']);
+    Route::put('password', [ProfileController::class, 'updatePassword']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -82,6 +94,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // System logs (read-only)
     Route::get('logs', [LogController::class, 'index'])->middleware('module:Logs,read');
     Route::get('logs/filters', [LogController::class, 'filters'])->middleware('module:Logs,read');
+
+    // Aggregated dashboard numbers (Fase 4) — mirrors App\Livewire\Dashboard.
+    Route::get('stats/dashboard', [StatsController::class, 'dashboard'])->middleware('module:Dashboard,read');
 
     // Settings singleton
     Route::get('settings', [SettingController::class, 'show'])->middleware('module:Settings,read');
