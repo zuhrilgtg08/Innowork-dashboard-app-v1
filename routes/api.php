@@ -34,9 +34,9 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('status', [StatusController::class, 'show']);
     Route::get('detections', [DetectionController::class, 'index']);
-    Route::get('arm', [ArmController::class, 'show'])->middleware('module:Arm,read');
-    Route::get('arm/zones', [ArmController::class, 'zones'])->middleware('module:Arm,read');
-    Route::post('arm/command', [ArmController::class, 'command'])->middleware('module:Arm,write');
+    Route::get('arm', [ArmController::class, 'show'])->middleware('module:Live Camera,read');
+    Route::get('arm/zones', [ArmController::class, 'zones'])->middleware('module:Live Camera,read');
+    Route::post('arm/command', [ArmController::class, 'command'])->middleware('module:Live Camera,write');
 });
 
 /*
