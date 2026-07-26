@@ -85,6 +85,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('settings', [SettingController::class, 'show'])->middleware('module:Settings,read');
     Route::match(['put', 'patch'], 'settings', [SettingController::class, 'update'])->middleware('module:Settings,write');
 
+    // Arm movement command. Gated on write access to "Live Camera" (the
+    // line-control surface: viewers hold read-only there) and rate limited,
+    // because each call moves physical hardware.
+    Route::post('arm/command', [ArmController::class, 'command'])
+        ->middleware(['module:Live Camera,write', 'throttle:30,1']);
+
     // Cameras + live feed. Gated on "Live Camera" so a role that cannot open
     // the camera module cannot pull frames off the line either.
     Route::get('cameras', [CameraFeedController::class, 'index'])->middleware('module:Live Camera,read');
