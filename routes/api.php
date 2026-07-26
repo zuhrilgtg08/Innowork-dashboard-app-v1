@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ArmController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CameraController;
+use App\Http\Controllers\Api\CameraFeedController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ConveyorController;
 use App\Http\Controllers\Api\DetectionController;
@@ -83,6 +84,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settings singleton
     Route::get('settings', [SettingController::class, 'show'])->middleware('module:Settings,read');
     Route::match(['put', 'patch'], 'settings', [SettingController::class, 'update'])->middleware('module:Settings,write');
+
+    // Cameras + live feed. Gated on "Live Camera" so a role that cannot open
+    // the camera module cannot pull frames off the line either.
+    Route::get('cameras', [CameraFeedController::class, 'index'])->middleware('module:Live Camera,read');
+    Route::get('cameras/status', [CameraFeedController::class, 'status'])->middleware('module:Live Camera,read');
+    Route::get('cameras/frame', [CameraFeedController::class, 'frame'])->middleware('module:Live Camera,read');
 
     // QC return batches
     Route::get('returns', [ReturnBatchController::class, 'index'])->middleware('module:Returns,read');

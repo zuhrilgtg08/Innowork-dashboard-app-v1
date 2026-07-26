@@ -108,4 +108,44 @@ class MlClient
             return null;
         }
     }
+
+    /**
+     * Liveness/mode of the live camera source (ICAM-300 or simulator).
+     *
+     * @return array{connected: bool, mode: string, source: ?string, fps: float}|null
+     */
+    public function cameraStatus(): ?array
+    {
+        try {
+            $response = $this->client(3)->get('/camera/status');
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML cameraStatus failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * The latest camera frame as raw JPEG bytes, or null when the service is
+     * unreachable or has no frame yet.
+     *
+     * Deliberately a single still rather than the MJPEG stream: native mobile
+     * image loaders cannot render `multipart/x-mixed-replace`, so clients poll
+     * this instead. Kept on a short timeout so a stalled camera cannot pin a
+     * PHP worker for long.
+     */
+    public function cameraFrame(): ?string
+    {
+        try {
+            $response = $this->client(5)->get('/camera/frame');
+
+            return $response->successful() ? $response->body() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML cameraFrame failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
 }

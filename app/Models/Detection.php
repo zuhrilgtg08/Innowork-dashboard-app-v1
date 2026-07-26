@@ -21,6 +21,10 @@ class Detection extends Model
         'qr_value',
         'frame_path',
         'confidence',
+        'bbox',
+        'label',
+        'frame_width',
+        'frame_height',
         'detected_at',
     ];
 
@@ -29,6 +33,8 @@ class Detection extends Model
         return [
             'detected_at' => 'datetime',
             'confidence' => 'decimal:2',
+            // [x1, y1, x2, y2] in the source frame's pixel coordinates.
+            'bbox' => 'array',
         ];
     }
 
