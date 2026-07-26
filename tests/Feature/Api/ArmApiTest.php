@@ -6,6 +6,7 @@ use App\Models\ArmStatus;
 use App\Models\RolePermission;
 use App\Models\TargetZonePreset;
 use App\Models\User;
+use App\Services\ArmMqttService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -166,6 +167,12 @@ class ArmApiTest extends TestCase
             'label' => 'Food & Beverage Zone',
             'joint_angles' => [10, 20, 30, 40, 50, 60],
         ]);
+
+        // Publish di-stub: tanpa ini test hanya lulus di mesin yang kebetulan
+        // menjalankan broker MQTT, dan gagal 503 di mana pun broker tidak ada.
+        $this->mock(ArmMqttService::class, function ($mock) {
+            $mock->shouldReceive('publishPayload')->once()->andReturnTrue();
+        });
 
         Sanctum::actingAs(User::factory()->create(['role' => 'admin', 'is_active' => true]));
 
