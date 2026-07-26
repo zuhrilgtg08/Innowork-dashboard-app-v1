@@ -155,6 +155,27 @@ class ProductApiTest extends TestCase
         $this->getJson('/api/products/999999')->assertStatus(404);
     }
 
+    public function test_it_accepts_a_multipart_update_via_method_spoofing(): void
+    {
+        // React Native cannot send multipart on a real PUT (PHP does not parse
+        // it), so the mobile client posts with `_method=PUT`. Guard that path.
+        Storage::fake('public');
+        $product = Product::factory()->create(['name' => 'Lama']);
+        $this->actingAsAdmin();
+
+        $this->post('/api/products/'.$product->id, [
+            '_method' => 'PUT',
+            'name' => 'Baru',
+            'status' => 'active',
+            'stock' => 3,
+            'image' => UploadedFile::fake()->image('baru.jpg'),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $product->refresh();
+        $this->assertSame('Baru', $product->name);
+        Storage::disk('public')->assertExists($product->image);
+    }
+
     public function test_guest_cannot_access_products(): void
     {
         $this->getJson('/api/products')->assertStatus(401);
