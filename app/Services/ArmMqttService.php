@@ -162,7 +162,7 @@ class ArmMqttService
      *
      * @param  array<string, mixed>  $payload
      */
-    protected function publishPayload(array $payload): bool
+    public function publishPayload(array $payload): bool
     {
         try {
             $client = $this->newClient('pub');
