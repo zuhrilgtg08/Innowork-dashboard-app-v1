@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Annotation;
+use App\Models\Camera;
 use App\Models\Detection;
 use App\Models\Product;
 use App\Models\RolePermission;
@@ -68,6 +69,11 @@ class DatabaseSeeder extends Seeder
         // ESP32 replays them — placeholder angles until the team tunes them.
         foreach (TargetZonePreset::defaults() as $preset) {
             TargetZonePreset::updateOrCreate(['slug' => $preset['slug']], $preset);
+        }
+
+        // Camera registry (multi-camera support). Detections join by name.
+        foreach (Camera::defaults() as $camera) {
+            Camera::updateOrCreate(['name' => $camera['name']], $camera);
         }
 
         // Singleton system settings row, pointing at the latest trained model.

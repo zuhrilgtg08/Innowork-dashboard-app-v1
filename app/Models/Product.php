@@ -68,6 +68,45 @@ class Product extends Model
         });
     }
 
+    /**
+     * Next sequential product code, e.g. `PRD-00007`.
+     *
+     * Lives on the model so the Products screen and the mobile API mint codes
+     * the same way.
+     */
+    public static function generateCode(): string
+    {
+        return 'PRD-'.str_pad((string) ((static::max('id') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * SKU derived from the product name's initials plus a unique 3-digit
+     * suffix, e.g. "Susu Segar" → `SS-042`.
+     *
+     * Deliberately avoids `fake()`: faker is a dev-only dependency and this
+     * runs on the request path in production.
+     */
+    public static function generateSku(string $name): string
+    {
+        $initials = collect(preg_split('/[\s-]+/', $name) ?: [])
+            ->filter()
+            ->map(fn (string $word) => mb_strtoupper(mb_substr($word, 0, 1)))
+            ->implode('');
+
+        $initials = $initials !== '' ? $initials : 'PRD';
+
+        // Sequential scan keeps this terminating even once many suffixes are taken.
+        for ($suffix = 0; $suffix <= 999; $suffix++) {
+            $candidate = $initials.'-'.str_pad((string) $suffix, 3, '0', STR_PAD_LEFT);
+
+            if (! static::where('sku', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        return $initials.'-'.Str::random(6);
+    }
+
     public function detections(): HasMany
     {
         return $this->hasMany(Detection::class);
@@ -109,6 +148,36 @@ class Product extends Model
     public function qrPayload(): string
     {
         return url('/p/'.$this->qr_token);
+    }
+
+    /**
+     * Resolve the product a decoded QR value refers to. The QR encodes the
+     * public scan URL (url('/p/{qr_token}')), so we extract the 40-char token
+     * (last path segment) and match it. Also tolerates a bare token or the
+     * legacy "SORTVISION|{code}|{sku}" payload for older codes.
+     */
+    public static function resolveByQrValue(?string $qrValue): ?self
+    {
+        $qrValue = trim((string) $qrValue);
+        if ($qrValue === '') {
+            return null;
+        }
+
+        // Legacy payload: SORTVISION|{code}|{sku}
+        if (str_starts_with($qrValue, 'SORTVISION|')) {
+            $parts = explode('|', $qrValue);
+            $code = $parts[1] ?? null;
+
+            return $code ? static::where('code', $code)->first() : null;
+        }
+
+        // Public URL (/p/{token}) or a bare token: take the last path segment.
+        $token = trim(parse_url($qrValue, PHP_URL_PATH) ?: $qrValue, '/');
+        if (str_contains($token, '/')) {
+            $token = substr($token, strrpos($token, '/') + 1);
+        }
+
+        return $token !== '' ? static::where('qr_token', $token)->first() : null;
     }
 
     /**

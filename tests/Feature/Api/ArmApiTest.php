@@ -107,7 +107,7 @@ class ArmApiTest extends TestCase
         $this->seedRolePermissions();
 
         $user = User::factory()->create(['role' => 'admin', 'is_active' => true]);
-        RolePermission::where('role', $user->role)->where('module', 'Arm')->update(['access' => '-']);
+        RolePermission::where('role', $user->role)->where('module', 'Live Camera')->update(['access' => '-']);
         Sanctum::actingAs($user);
 
         $this->getJson('/api/arm/zones')->assertStatus(403);
@@ -185,7 +185,7 @@ class ArmApiTest extends TestCase
         $this->seedRolePermissions();
 
         $user = User::factory()->create(['role' => 'admin', 'is_active' => true]);
-        RolePermission::where('role', $user->role)->where('module', 'Arm')->update(['access' => 'r']);
+        RolePermission::where('role', $user->role)->where('module', 'Live Camera')->update(['access' => 'r']);
         Sanctum::actingAs($user);
 
         $this->postJson('/api/arm/command', ['category' => 'Food & Beverage'])->assertStatus(403);

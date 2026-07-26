@@ -69,7 +69,7 @@ class RolePermission extends Model
         $matrix = [];
         foreach (array_keys(User::ROLES) as $role) {
             foreach (self::MODULES as $module) {
-                $matrix[$role][$module] = $stored[$role]?->firstWhere('module', $module)?->access
+                $matrix[$role][$module] = $stored->get($role)?->firstWhere('module', $module)?->access
                     ?? $defaults[$role][$module]
                     ?? '-';
             }

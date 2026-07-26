@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     # string enables simulator mode (see icam_sim_source below).
     icam_rtsp_url: str = ""
 
+    # Multi-camera: comma-separated RTSP URLs, one per camera on the line. When
+    # set, the service can run one capture/inference thread per feed (mirrors the
+    # Camera registry in Laravel). Empty falls back to the single icam_rtsp_url.
+    icam_rtsp_urls: str = ""
+
+    @property
+    def rtsp_url_list(self) -> list[str]:
+        """Parsed, de-duplicated list of camera RTSP URLs (multi-camera)."""
+        raw = self.icam_rtsp_urls or self.icam_rtsp_url
+        return [u.strip() for u in raw.split(",") if u.strip()]
+
     # Fallback video source used when icam_rtsp_url is empty or unreachable.
     # A file path (looped) or a digit string like "0" for a local webcam.
     icam_sim_source: str = "samples/conveyor.mp4"
@@ -43,6 +54,22 @@ class Settings(BaseSettings):
 
     # Confidence threshold for stream inference.
     icam_conf: float = 0.85
+
+    # --- Conveyor off-flow analysis (flow.py) ------------------------------
+    # When true, the stream infer loop also runs jam/off_flow detection and
+    # POSTs anomalies to Laravel's /api/conveyor/event.
+    flow_analysis: bool = False
+
+    # Rolling-window size (frames) the analyser smooths its signals over.
+    flow_window: int = 15
+
+    # Avg edge-density occupancy above this, with motion below flow_jam_motion,
+    # counts as a jam (material piled up, not advancing).
+    flow_jam_occupancy: float = 0.04
+    flow_jam_motion: float = 0.01
+
+    # Avg edge-density occupancy at/below this counts as off_flow (empty belt).
+    flow_offflow_occupancy: float = 0.008
 
 
 settings = Settings()

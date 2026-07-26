@@ -14,12 +14,17 @@ class Detection extends Model
     protected $fillable = [
         'code',
         'product_id',
+        'return_batch_id',
         'camera',
         'conveyor',
         'status',
         'qr_value',
         'frame_path',
         'confidence',
+        'bbox',
+        'label',
+        'frame_width',
+        'frame_height',
         'detected_at',
     ];
 
@@ -28,6 +33,8 @@ class Detection extends Model
         return [
             'detected_at' => 'datetime',
             'confidence' => 'decimal:2',
+            // [x1, y1, x2, y2] in the source frame's pixel coordinates.
+            'bbox' => 'array',
         ];
     }
 
@@ -64,6 +71,11 @@ class Detection extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function returnBatch(): BelongsTo
+    {
+        return $this->belongsTo(ReturnBatch::class);
     }
 
     public function statusLabel(): string

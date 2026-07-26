@@ -34,6 +34,11 @@ class TargetZonePreset extends Model
     public const DEFAULT_SLUG = 'default';
 
     /**
+     * Slug of the return/reject zone the arm drops auto-rejected defects into.
+     */
+    public const RETURN_SLUG = 'return';
+
+    /**
      * Resolve the preset for a product category, falling back to the default.
      * Accepts either a category label ("Food & Beverage") or its slug.
      */
@@ -42,6 +47,15 @@ class TargetZonePreset extends Model
         $slug = Str::slug((string) $category);
 
         return static::where('slug', $slug)->first()
+            ?? static::where('slug', self::DEFAULT_SLUG)->first();
+    }
+
+    /**
+     * Resolve the return/reject zone preset, falling back to the default.
+     */
+    public static function forReturn(): ?self
+    {
+        return static::where('slug', self::RETURN_SLUG)->first()
             ?? static::where('slug', self::DEFAULT_SLUG)->first();
     }
 
@@ -60,6 +74,11 @@ class TargetZonePreset extends Model
             'category' => null,
             'label' => 'Default / Uncategorised',
             'joint_angles' => [0, 0, 0, 0, 0, 0],
+        ], [
+            'slug' => self::RETURN_SLUG,
+            'category' => null,
+            'label' => 'Return / Reject Zone',
+            'joint_angles' => [180, 45, 90, 45, 90, 0],
         ]];
 
         foreach (Product::CATEGORIES as $i => $category) {

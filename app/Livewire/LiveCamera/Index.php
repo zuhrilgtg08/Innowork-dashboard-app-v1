@@ -2,11 +2,13 @@
 
 namespace App\Livewire\LiveCamera;
 
+use App\Models\Camera;
 use App\Models\Detection;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\SystemLog;
 use App\Services\MlClient;
+use App\Services\QcWorkflow;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -62,17 +64,23 @@ class Index extends Component
         }
 
         $status = $result['status'] ?? 'recheck';
+        $qrValue = $result['qr_value'] ?? null;
 
         // Auto-reject setting: flag defects distinctly in the log.
         $isDefect = in_array($status, Detection::FAILED_STATUSES, true);
 
+        // Map to a product via the scanned QR; fall back to a random product so
+        // the demo webcam (no real QR in view) still yields useful data.
+        $productId = Product::resolveByQrValue($qrValue)?->id
+            ?? Product::inRandomOrder()->value('id');
+
         $detection = Detection::create([
             'code' => 'SCN-'.strtoupper(Str::random(6)),
-            'product_id' => Product::inRandomOrder()->value('id'),
+            'product_id' => $productId,
             'camera' => $this->camera,
             'conveyor' => $this->conveyor,
             'status' => $status,
-            'qr_value' => $result['qr_value'] ?? null,
+            'qr_value' => $qrValue,
             'frame_path' => $framePath,
             'confidence' => $result['confidence'] ?? 0,
             'detected_at' => now(),
@@ -85,6 +93,9 @@ class Index extends Component
             'context' => ['detection_id' => $detection->id, 'boxes' => $result['boxes'] ?? []],
             'logged_at' => now(),
         ]);
+
+        // Auto-reject workflow: divert defect to a return batch + command the arm.
+        app(QcWorkflow::class)->handleFrame([$detection]);
 
         $this->lastResult = [
             'status' => $status,
@@ -123,12 +134,32 @@ class Index extends Component
         // relayed as MJPEG by the ml-service).
         $cameraSource = Setting::current()->camera_source ?? 'webcam';
 
+        // Camera fleet overview: each configured camera with today's throughput.
+        $startOfDay = now()->startOfDay();
+        $fleet = Camera::query()
+            ->where('is_active', true)
+            ->orderBy('position')
+            ->get()
+            ->map(function (Camera $cam) use ($startOfDay) {
+                $today = Detection::where('camera', $cam->name)->where('detected_at', '>=', $startOfDay);
+
+                return [
+                    'name' => $cam->name,
+                    'conveyor' => $cam->conveyor,
+                    'live' => $cam->isLive(),
+                    'total' => (clone $today)->count(),
+                    'failed' => (clone $today)->whereIn('status', Detection::FAILED_STATUSES)->count(),
+                    'last_seen' => (clone $today)->max('detected_at'),
+                ];
+            });
+
         return view('livewire.live-camera.index', [
             'stats' => $stats,
             'feed' => $feed,
             'mlOnline' => $mlOnline,
             'cameraSource' => $cameraSource,
             'streamUrl' => config('services.ml.stream_url'),
+            'fleet' => $fleet,
         ]);
     }
 }
