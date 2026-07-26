@@ -197,6 +197,71 @@ ini dipertahankan supaya aplikasi tidak melogout dirinya sendiri.
 
 ---
 
+## Annotation / labelling (Fase 5)
+
+Antrian labelling data training untuk mobile. Mencerminkan
+`App\Livewire\Annotation\Index` — aturan yang sama (kelas visual saja yang
+bisa disetujui, sumber `ai`/`human`, auto-retrain opportunistik) berlaku di
+kedua tempat. Butuh akses modul `Annotation` (`read` untuk melihat, `write`
+untuk approve/relabel).
+
+### ✅ `GET /api/annotations/queue`
+
+Deteksi yang belum dilabeli: punya frame asli, atau berstatus kegagalan QC /
+workflow (`damaged`, `scratched`, `unreadable`, `recheck`, `returned`).
+Dipaginasi seperti endpoint list lainnya (`data` + `meta`).
+
+**Query params (opsional)**
+- `status` — filter salah satu key `Detection::STATUSES`. Nilai lain → `422`.
+- `per_page` — 1..100, default `20`.
+
+**200**
+```json
+{
+  "data": [
+    {
+      "id": 512,
+      "code": "SCN-8A21XZ",
+      "status": "damaged",
+      "status_label": "Damaged",
+      "status_color": "red",
+      "product": { "id": 7, "name": "Yogurt Strawberry", "code": "PRD-001" },
+      "image_url": "http://.../storage/frames/512.jpg",
+      "confidence": "92.50",
+      "detected_at": "2026-07-14T08:29:41+00:00"
+    }
+  ],
+  "meta": { "current_page": 1, "per_page": 20, "total": 8, "last_page": 1 }
+}
+```
+
+### ✅ `GET /api/annotations/stats`
+
+Ringkasan yang tampil di atas antrian.
+
+**200** `{ "data": { "pending": 8, "labelled": 106 } }`
+
+### ✅ `POST /api/annotations/{detection}/approve`
+
+Konfirmasi label AI (status deteksi itu sendiri) sebagai ground truth. Hanya
+status kelas visual (`Detection::TRAINABLE_STATUSES`: `passed`, `unreadable`,
+`damaged`, `scratched`) yang bisa disetujui apa adanya — `422` untuk status
+workflow (`returned`, `recheck`), dan `422` bila deteksi tidak punya gambar
+(tidak ada `frame_path` maupun foto produk).
+
+**200** `{ "message": "Label disetujui & masuk dataset." }`
+
+### ✅ `POST /api/annotations/{detection}/relabel`
+
+Koreksi label ke kelas lain. Body `{ "label" }` — harus salah satu
+`Detection::TRAINABLE_STATUSES`, nilai lain → `422`. Menulis ulang anotasi yang
+sama (`updateOrCreate` per `detection_id`), bukan duplikat, sehingga approve
+lalu relabel pada deteksi yang sama meninggalkan satu baris anotasi.
+
+**200** `{ "message": "Label diperbarui ke \"Scratched\"." }`
+
+---
+
 ## Topik MQTT (Opsi A)
 
 Broker (Mosquitto/EMQX) di-host terpisah — dikonfigurasi lewat env

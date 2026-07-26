@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AnnotationController;
 use App\Http\Controllers\Api\ArmController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CameraController;
@@ -97,6 +98,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Aggregated dashboard numbers (Fase 4) — mirrors App\Livewire\Dashboard.
     Route::get('stats/dashboard', [StatsController::class, 'dashboard'])->middleware('module:Dashboard,read');
+
+    // Annotation / labelling queue (Fase 5) — mirrors App\Livewire\Annotation\Index.
+    Route::get('annotations/queue', [AnnotationController::class, 'queue'])->middleware('module:Annotation,read');
+    Route::get('annotations/stats', [AnnotationController::class, 'stats'])->middleware('module:Annotation,read');
+    Route::post('annotations/{detection}/approve', [AnnotationController::class, 'approve'])->middleware('module:Annotation,write');
+    Route::post('annotations/{detection}/relabel', [AnnotationController::class, 'relabel'])->middleware('module:Annotation,write');
 
     // Settings singleton
     Route::get('settings', [SettingController::class, 'show'])->middleware('module:Settings,read');
