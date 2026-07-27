@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ArmStatus;
+use App\Models\SystemLog;
 use App\Models\TargetZonePreset;
 use App\Services\ArmMqttService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Robotic arm state, zones, and command dispatch (Fase 3).
@@ -32,87 +32,64 @@ class ArmController extends Controller
     }
 
     /**
-     * Return selectable target zones for the mobile arm-control picker.
-     * System zones (default, return) are excluded because the mobile app
-     * sends explicit category names, not slugs.
-     */
-    public function zones(): JsonResponse
-    {
-        $presets = TargetZonePreset::all()
-            ->reject(fn (TargetZonePreset $p) => in_array($p->slug, [TargetZonePreset::DEFAULT_SLUG, TargetZonePreset::RETURN_SLUG], true))
-            ->values()
-            ->all();
-
-        $zones = array_map(static function (TargetZonePreset $p): array {
-            return [
-                'slug' => $p->slug,
-                'label' => $p->label,
-                'joint_angles' => $p->joint_angles,
-                'selectable' => true,
-            ];
-        }, $presets);
-
-        return response()->json(compact('zones'));
-    }
-
-    /**
-     * Dispatch an arm command for a product category.
+     * Publish a movement command for a product category to the arm.
      *
-     * @response 501 Arm command feature is not configured on this server.
-     * @response 422 No target-zone preset exists for the given category.
-     * @response 503 MQTT broker is offline — command could not be delivered.
+     * This actuates physical hardware, so it is deliberately stricter than the
+     * read endpoints: it needs *write* access on the "Live Camera" module (the
+     * line-control surface — viewers only hold read there), it is rate limited
+     * at the route, and every accepted command is written to the system log so
+     * a movement can be traced back to the account that ordered it.
+     *
+     * Mobile never publishes to MQTT itself: resolving a category to joint
+     * angles lives in ArmMqttService/TargetZonePreset, so the backend stays the
+     * only publisher on "arm/command".
      */
-    public function command(Request $request): JsonResponse
+    public function command(Request $request, ArmMqttService $arm): JsonResponse
     {
-        $validated = $request->validate([
-            'category' => 'required|string|max:255',
-            'context' => 'sometimes|array',
+        $data = $request->validate([
+            'category' => ['required', 'string', 'max:100'],
+            'context' => ['nullable', 'array'],
         ]);
 
-        $category = $validated['category'];
-        $context = $validated['context'] ?? [];
-
-        if (empty(config('services.mqtt.host'))) {
+        // `forCategory()` already falls back to the "default" preset, so a null
+        // here means no presets are seeded at all — a server misconfiguration,
+        // not bad input from the client. Reporting it as 422 would send the
+        // operator hunting for a mistake they did not make.
+        if (TargetZonePreset::forCategory($data['category']) === null) {
             return response()->json([
-                'message' => 'Fitur kirim command belum tersedia di server.',
-            ], 501);
-        }
-
-        $preset = TargetZonePreset::forCategory($category);
-
-        if (! $preset) {
-            return response()->json([
-                'message' => 'Kategori ini tidak memiliki zona target yang dikonfigurasi.',
-                'category' => $category,
-            ], 422);
-        }
-
-        $payload = [
-            'category' => $category,
-            'zone' => $preset->slug,
-            'joint_angles' => $preset->joint_angles,
-            'issued_at' => now()->toIso8601String(),
-        ];
-
-        if (! empty($context)) {
-            $payload = array_merge($context, $payload);
-        }
-
-        $published = $this->armMqtt->publishPayload($payload);
-
-        if (! $published) {
-            Log::warning('Arm command: broker offline', ['category' => $category, 'zone' => $preset->slug]);
-
-            return response()->json([
-                'message' => 'Broker MQTT sedang offline. Coba lagi nanti.',
+                'message' => 'Preset zona target belum tersedia di server. Jalankan seeder TargetZonePreset.',
             ], 503);
         }
 
-        Log::info('Arm command dispatched', ['category' => $category, 'zone' => $preset->slug]);
+        $context = $data['context'] ?? [];
+        // Stamp provenance so the ESP32 log and the audit trail agree on who
+        // ordered the movement. Core keys still win inside buildCommandPayload.
+        $context['source'] = 'mobile';
+        $context['issued_by'] = $request->user()->id;
+
+        if (! $arm->publishCommand($data['category'], $context)) {
+            // Preset resolution already succeeded above, so a failure here is
+            // the MQTT broker being unreachable — transient, worth retrying.
+            return response()->json([
+                'message' => 'Gagal mengirim command: broker MQTT tidak terjangkau.',
+            ], 503);
+        }
+
+        SystemLog::create([
+            'level' => 'info',
+            'source' => 'arm',
+            'message' => "Arm command '{$data['category']}' dikirim dari mobile oleh {$request->user()->name}.",
+            'context' => [
+                'category' => $data['category'],
+                'issued_by' => $request->user()->id,
+                'source' => 'mobile',
+            ],
+            'logged_at' => now(),
+        ]);
 
         return response()->json([
-            'message' => 'Command sent successfully.',
-            'command' => $payload,
-        ], 200);
+            'message' => 'Command dikirim.',
+            'category' => $data['category'],
+        ]);
     }
 }
