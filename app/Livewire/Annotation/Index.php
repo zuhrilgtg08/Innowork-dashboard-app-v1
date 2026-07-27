@@ -87,6 +87,9 @@ class Index extends Component
                 'confidence' => $detection->confidence,
             ],
         );
+
+        // Opportunistically retrain once enough new labels have accrued.
+        app(\App\Services\AutoRetrain::class)->maybeTrigger();
     }
 
     public function render()

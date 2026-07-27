@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Annotation;
+use App\Models\Camera;
 use App\Models\Detection;
 use App\Models\Product;
 use App\Models\RolePermission;
@@ -70,6 +71,14 @@ class DatabaseSeeder extends Seeder
             TargetZonePreset::updateOrCreate(['slug' => $preset['slug']], $preset);
         }
 
+<<<<<<< HEAD
+=======
+        // Camera registry (multi-camera support). Detections join by name.
+        foreach (Camera::defaults() as $camera) {
+            Camera::updateOrCreate(['name' => $camera['name']], $camera);
+        }
+
+>>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
         // Singleton system settings row, pointing at the latest trained model.
         Setting::firstOrCreate([])->update([
             'active_training_run_id' => TrainingRun::where('status', 'completed')->max('id'),

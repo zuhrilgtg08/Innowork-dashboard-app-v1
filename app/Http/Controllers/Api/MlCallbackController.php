@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Models\SystemLog;
 use App\Models\TrainingRun;
+use App\Services\MlClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -54,18 +55,29 @@ class MlCallbackController extends Controller
             'finished_at' => now(),
         ]);
 
-        // Auto-activate the freshly trained model for inference.
-        Setting::current()->update(['active_training_run_id' => $run->id]);
+        // Quality gate: only promote the new model to live if it clears the
+        // minimum mAP bar. Otherwise keep the previously active model (an
+        // automatic rollback) so a bad run can't degrade production.
+        $minMap = (float) config('services.ml.min_map', 0);
+        $activated = $run->meetsQualityBar($minMap);
+
+        if ($activated) {
+            Setting::current()->update(['active_training_run_id' => $run->id]);
+            // Best-effort: tell the ML service to hot-reload weights.
+            app(MlClient::class)->reloadModel($run->model_path);
+        }
 
         SystemLog::create([
-            'level' => 'info',
+            'level' => $activated ? 'info' : 'warning',
             'source' => 'ai',
-            'message' => "Training run {$run->name} completed and activated.",
-            'context' => ['run_id' => $run->id, 'metrics' => $data['metrics'] ?? null],
+            'message' => $activated
+                ? "Training run {$run->name} completed and activated (mAP50 ".($run->map50() ?? 'n/a').")."
+                : "Training run {$run->name} completed but NOT activated: mAP50 ".($run->map50() ?? 'n/a')." below minimum {$minMap}. Kept previous model.",
+            'context' => ['run_id' => $run->id, 'metrics' => $data['metrics'] ?? null, 'activated' => $activated],
             'logged_at' => now(),
         ]);
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'activated' => $activated]);
     }
 
     public function fail(Request $request, TrainingRun $run): JsonResponse

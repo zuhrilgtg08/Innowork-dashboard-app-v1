@@ -1,3 +1,44 @@
+# SortVision
+
+Laravel 11 + Livewire 3 dashboard untuk sistem QC vision di lini conveyor: kamera memindai
+QR dan mengklasifikasikan tiap produk (`passed` / `damaged` / `recheck`, dst). Computer-vision
+berjalan di service Python terpisah (`ml-service/`, FastAPI + YOLOv8). Detail arsitektur ada di
+[`CLAUDE.md`](CLAUDE.md); setup lengkap di [`SETUP.md`](SETUP.md).
+
+## Quickstart — Live Camera & Training
+
+Butuh **4 terminal** (Laravel, Vite, Queue worker, ML service):
+
+```bash
+# 1) Laravel  — pakai 127.0.0.1 agar konsisten dgn callback ml-service
+php artisan serve --host=127.0.0.1 --port=8000
+# 2) Vite
+npm run dev
+# 3) Queue worker (WAJIB untuk callback training)
+php artisan queue:work
+# 4) ML service (FastAPI + YOLOv8)
+cd ml-service && .venv\Scripts\activate && uvicorn main:app --host 127.0.0.1 --port 8001 --reload
+```
+
+**Live Camera** (`/live-camera`) — webcam (client-side), ICAM-300 (RTSP), atau simulator
+(`samples/conveyor.mp4` → MJPEG `/camera/stream`). Auto-infer aktif saat `ICAM_AUTO_INFER=true`
+di `ml-service/.env`; deteksi dipush ke feed tiap `ICAM_INFER_INTERVAL` detik.
+
+**Detection** (`/detection`) — deteksi objek real-time **100% di browser** (TensorFlow.js +
+COCO-SSD), tanpa ml-service. Lihat [`DETECTION_PLAN.md`](DETECTION_PLAN.md).
+
+**Training** (`/training`) — annotation → export ~80/20 → train di ml-service → callback progres →
+auto-activate model. Model aktif dilacak di `Setting.active_training_run_id`. Untuk melatih di
+Google Colab dan mendaftarkan hasilnya, ikuti [`COLAB_TRAINING.md`](COLAB_TRAINING.md).
+
+Konfigurasi penting:
+
+- `APP_URL` (Laravel) **=** `LARAVEL_URL` (ml-service) `= http://127.0.0.1:8000`
+- `ML_CALLBACK_SECRET` harus identik di kedua `.env`
+- Model live saat ini: `storage/app/models/run-2/best.pt` (ultra-milk, `passed`/`damaged`)
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

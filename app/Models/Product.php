@@ -40,9 +40,16 @@ class Product extends Model
     ];
 
     /**
+<<<<<<< HEAD
      * Product categories used by arm target-zone presets ({@see TargetZonePreset}).
      * No longer the source for product categorization (now uses the `categories`
      * table via `category_id` FK), but retained for conveyor-line zone mapping.
+=======
+     * Product categories moving through the line — the single source of truth
+     * reused by the factory and the arm's target-zone presets (see
+     * {@see TargetZonePreset}). Kept as a plain list because the
+     * column itself is free text.
+>>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
      *
      * @var array<int, string>
      */
@@ -108,6 +115,36 @@ class Product extends Model
     public function qrPayload(): string
     {
         return url('/p/'.$this->qr_token);
+    }
+
+    /**
+     * Resolve the product a decoded QR value refers to. The QR encodes the
+     * public scan URL (url('/p/{qr_token}')), so we extract the 40-char token
+     * (last path segment) and match it. Also tolerates a bare token or the
+     * legacy "SORTVISION|{code}|{sku}" payload for older codes.
+     */
+    public static function resolveByQrValue(?string $qrValue): ?self
+    {
+        $qrValue = trim((string) $qrValue);
+        if ($qrValue === '') {
+            return null;
+        }
+
+        // Legacy payload: SORTVISION|{code}|{sku}
+        if (str_starts_with($qrValue, 'SORTVISION|')) {
+            $parts = explode('|', $qrValue);
+            $code = $parts[1] ?? null;
+
+            return $code ? static::where('code', $code)->first() : null;
+        }
+
+        // Public URL (/p/{token}) or a bare token: take the last path segment.
+        $token = trim(parse_url($qrValue, PHP_URL_PATH) ?: $qrValue, '/');
+        if (str_contains($token, '/')) {
+            $token = substr($token, strrpos($token, '/') + 1);
+        }
+
+        return $token !== '' ? static::where('qr_token', $token)->first() : null;
     }
 
     /**

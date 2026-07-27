@@ -59,3 +59,8 @@ def fail(callback_url: str, error: str) -> None:
 def post_detection(laravel_url: str, payload: dict) -> None:
     """Send a stream-inference verdict to Laravel's signed ingest endpoint."""
     _post(f"{laravel_url.rstrip('/')}/api/camera/detection", payload)
+
+
+def post_conveyor_event(laravel_url: str, payload: dict) -> None:
+    """Send a conveyor off-flow anomaly (jam/off_flow) to Laravel."""
+    _post(f"{laravel_url.rstrip('/')}/api/conveyor/event", payload)

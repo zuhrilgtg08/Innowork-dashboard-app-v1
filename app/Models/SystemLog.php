@@ -35,7 +35,7 @@ class SystemLog extends Model
         'critical' => 'rose',
     ];
 
-    public const SOURCES = ['system', 'camera', 'conveyor', 'auth', 'ai'];
+    public const SOURCES = ['system', 'camera', 'conveyor', 'arm', 'auth', 'ai'];
 
     public function levelColor(): string
     {
