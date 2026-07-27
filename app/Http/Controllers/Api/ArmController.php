@@ -11,11 +11,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Last-known robotic arm state (idle/running/error) for the mobile dashboard.
- * The state is kept current by the mqtt:listen consumer from "arm/status".
+ * Robotic arm state, zones, and command dispatch (Fase 3).
  */
 class ArmController extends Controller
 {
+    public function __construct(private ArmMqttService $armMqtt) {}
+
     public function show(): JsonResponse
     {
         $arm = ArmStatus::current();

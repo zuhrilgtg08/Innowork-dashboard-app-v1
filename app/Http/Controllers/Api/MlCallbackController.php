@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Models\SystemLog;
 use App\Models\TrainingRun;
 use App\Services\MlClient;
+use App\Services\PushNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -71,11 +72,22 @@ class MlCallbackController extends Controller
             'level' => $activated ? 'info' : 'warning',
             'source' => 'ai',
             'message' => $activated
-                ? "Training run {$run->name} completed and activated (mAP50 ".($run->map50() ?? 'n/a').")."
+                ? "Training run {$run->name} completed and activated (mAP50 ".($run->map50() ?? 'n/a').').'
                 : "Training run {$run->name} completed but NOT activated: mAP50 ".($run->map50() ?? 'n/a')." below minimum {$minMap}. Kept previous model.",
             'context' => ['run_id' => $run->id, 'metrics' => $data['metrics'] ?? null, 'activated' => $activated],
             'logged_at' => now(),
         ]);
+
+        // Training is long-running and nobody watches the screen for its whole
+        // duration — that is exactly what a push is for.
+        app(PushNotifier::class)->notifyModuleWatchers(
+            'Training',
+            $activated ? 'Training selesai' : 'Training selesai (tidak diaktifkan)',
+            $activated
+                ? "{$run->name} aktif — mAP50 ".($run->map50() ?? 'n/a').'.'
+                : "{$run->name} selesai tapi mAP50 ".($run->map50() ?? 'n/a')." di bawah minimum {$minMap}.",
+            ['type' => 'training_complete', 'run_id' => $run->id, 'activated' => $activated],
+        );
 
         return response()->json(['ok' => true, 'activated' => $activated]);
     }
@@ -99,6 +111,13 @@ class MlCallbackController extends Controller
             'context' => ['run_id' => $run->id, 'error' => $data['error'] ?? null],
             'logged_at' => now(),
         ]);
+
+        app(PushNotifier::class)->notifyModuleWatchers(
+            'Training',
+            'Training gagal',
+            "{$run->name} berhenti: ".($data['error'] ?? 'Unknown error'),
+            ['type' => 'training_failed', 'run_id' => $run->id],
+        );
 
         return response()->json(['ok' => true]);
     }
