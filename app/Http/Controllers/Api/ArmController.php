@@ -32,6 +32,27 @@ class ArmController extends Controller
     }
 
     /**
+     * List the target-zone presets a client can command the arm to move to.
+     * Only category-bound presets are selectable — "default"/"return" are
+     * internal fallbacks resolved automatically by ArmMqttService, not zones
+     * an operator picks by hand.
+     */
+    public function zones(): JsonResponse
+    {
+        $zones = TargetZonePreset::whereNotNull('category')
+            ->orderBy('category')
+            ->get()
+            ->map(fn (TargetZonePreset $preset) => [
+                'slug' => $preset->slug,
+                'label' => $preset->label,
+                'joint_angles' => $preset->joint_angles,
+                'selectable' => true,
+            ]);
+
+        return response()->json(['zones' => $zones]);
+    }
+
+    /**
      * Publish a movement command for a product category to the arm.
      *
      * This actuates physical hardware, so it is deliberately stricter than the
@@ -51,27 +72,38 @@ class ArmController extends Controller
             'context' => ['nullable', 'array'],
         ]);
 
-        // `forCategory()` already falls back to the "default" preset, so a null
-        // here means no presets are seeded at all — a server misconfiguration,
-        // not bad input from the client. Reporting it as 422 would send the
-        // operator hunting for a mistake they did not make.
-        if (TargetZonePreset::forCategory($data['category']) === null) {
+        $preset = TargetZonePreset::forCategory($data['category']);
+
+        if ($preset === null) {
+            // No preset matched this category and there is no "default"
+            // fallback either — bad/unconfigured input, not a transient
+            // broker problem, so this is a 422 the client can act on.
             return response()->json([
-                'message' => 'Preset zona target belum tersedia di server. Jalankan seeder TargetZonePreset.',
-            ], 503);
+                'message' => 'Kategori ini tidak memiliki zona target yang dikonfigurasi.',
+            ], 422);
         }
 
         $context = $data['context'] ?? [];
         // Stamp provenance so the ESP32 log and the audit trail agree on who
-        // ordered the movement. Core keys still win inside buildCommandPayload.
+        // ordered the movement. Core keys still win over caller-supplied context.
         $context['source'] = 'mobile';
         $context['issued_by'] = $request->user()->id;
 
-        if (! $arm->publishCommand($data['category'], $context)) {
+        // Build the payload once: it is both what gets published to MQTT and
+        // what gets echoed back in the response, so preset resolution never
+        // needs to run twice.
+        $payload = array_merge($context, [
+            'category' => $data['category'],
+            'zone' => $preset->slug,
+            'joint_angles' => $preset->joint_angles,
+            'issued_at' => now()->toIso8601String(),
+        ]);
+
+        if (! $arm->publishPayload($payload)) {
             // Preset resolution already succeeded above, so a failure here is
             // the MQTT broker being unreachable — transient, worth retrying.
             return response()->json([
-                'message' => 'Gagal mengirim command: broker MQTT tidak terjangkau.',
+                'message' => 'Broker MQTT sedang offline. Coba lagi nanti.',
             ], 503);
         }
 
@@ -89,7 +121,12 @@ class ArmController extends Controller
 
         return response()->json([
             'message' => 'Command dikirim.',
-            'category' => $data['category'],
+            'command' => [
+                'category' => $data['category'],
+                'zone' => $payload['zone'],
+                'joint_angles' => $payload['joint_angles'],
+                'issued_at' => $payload['issued_at'],
+            ],
         ]);
     }
 }
