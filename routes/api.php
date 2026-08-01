@@ -1,12 +1,26 @@
 <?php
 
+use App\Http\Controllers\Api\AnnotationController;
 use App\Http\Controllers\Api\ArmController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CameraController;
+use App\Http\Controllers\Api\CameraFeedController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ConveyorController;
+use App\Http\Controllers\Api\ConveyorMonitorController;
 use App\Http\Controllers\Api\DetectionController;
+use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MlCallbackController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ReturnBatchController;
+use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\StatusController;
+use App\Http\Controllers\Api\TrainingRunController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -22,10 +36,119 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+/*
+| The signed-in user's own account (Fase 4). No `module:` gate on purpose —
+| every role may edit their own profile, including roles with no Users access.
+*/
+Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+    Route::get('/', [ProfileController::class, 'show']);
+    Route::match(['put', 'patch'], '/', [ProfileController::class, 'update']);
+    Route::put('password', [ProfileController::class, 'updatePassword']);
+});
+
+/*
+| Expo push token registration (Fase 5). No `module:` gate — being reachable by
+| a line alert is not a privileged module action, and the token is always bound
+| to the caller's own account.
+*/
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('device-tokens', [DeviceTokenController::class, 'store']);
+    Route::delete('device-tokens', [DeviceTokenController::class, 'destroy']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('status', [StatusController::class, 'show']);
     Route::get('detections', [DetectionController::class, 'index']);
-    Route::get('arm', [ArmController::class, 'show']);
+    Route::get('arm', [ArmController::class, 'show'])->middleware('module:Live Camera,read');
+    Route::get('arm/zones', [ArmController::class, 'zones'])->middleware('module:Live Camera,read');
+    Route::post('arm/command', [ArmController::class, 'command'])->middleware('module:Live Camera,write');
+});
+
+/*
+| CRUD resources for the mobile app (Fase 1).
+|
+| Every route is additionally gated by the role × module matrix via the
+| `module:<Module>,<read|write>` middleware. This is stricter than the web
+| dashboard, where the matrix is editable but not enforced — see
+| App\Http\Middleware\EnsureModuleAccess for why.
+|
+| Module names must match RolePermission::MODULES exactly.
+*/
+Route::middleware('auth:sanctum')->group(function () {
+    // Products — module "Product" (singular, as defined in RolePermission::MODULES).
+    Route::get('products', [ProductController::class, 'index'])->middleware('module:Product,read');
+    // QR scan resolve (Fase 5) — declared before products/{product} so the
+    // literal "scan" segment is not swallowed by the wildcard.
+    Route::post('products/scan', [ProductController::class, 'scan'])->middleware('module:Product,read');
+    Route::get('products/{product}', [ProductController::class, 'show'])->middleware('module:Product,read');
+    Route::post('products', [ProductController::class, 'store'])->middleware('module:Product,write');
+    Route::match(['put', 'patch'], 'products/{product}', [ProductController::class, 'update'])->middleware('module:Product,write');
+    Route::delete('products/{product}', [ProductController::class, 'destroy'])->middleware('module:Product,write');
+
+    // Categories
+    Route::get('categories', [CategoryController::class, 'index'])->middleware('module:Categories,read');
+    Route::get('categories/{category}', [CategoryController::class, 'show'])->middleware('module:Categories,read');
+    Route::post('categories', [CategoryController::class, 'store'])->middleware('module:Categories,write');
+    Route::match(['put', 'patch'], 'categories/{category}', [CategoryController::class, 'update'])->middleware('module:Categories,write');
+    Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->middleware('module:Categories,write');
+
+    // Users + the permission matrix itself.
+    Route::get('users', [UserController::class, 'index'])->middleware('module:Users,read');
+    Route::get('users/{user}', [UserController::class, 'show'])->middleware('module:Users,read');
+    Route::post('users', [UserController::class, 'store'])->middleware('module:Users,write');
+    Route::match(['put', 'patch'], 'users/{user}', [UserController::class, 'update'])->middleware('module:Users,write');
+    Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('module:Users,write');
+    Route::get('roles', [RoleController::class, 'index'])->middleware('module:Users,read');
+    Route::put('roles', [RoleController::class, 'update'])->middleware('module:Users,write');
+
+    // Training runs
+    Route::get('training-runs', [TrainingRunController::class, 'index'])->middleware('module:Training,read');
+    Route::get('training-runs/dataset', [TrainingRunController::class, 'dataset'])->middleware('module:Training,read');
+    Route::get('training-runs/{trainingRun}', [TrainingRunController::class, 'show'])->middleware('module:Training,read');
+    Route::post('training-runs', [TrainingRunController::class, 'store'])->middleware('module:Training,write');
+    // Promote a finished run's model to live inference (Fase 5).
+    Route::post('training-runs/{trainingRun}/activate', [TrainingRunController::class, 'activate'])->middleware('module:Training,write');
+
+    // System logs (read-only)
+    Route::get('logs', [LogController::class, 'index'])->middleware('module:Logs,read');
+    Route::get('logs/filters', [LogController::class, 'filters'])->middleware('module:Logs,read');
+
+    // Aggregated dashboard numbers (Fase 4) — mirrors App\Livewire\Dashboard.
+    Route::get('stats/dashboard', [StatsController::class, 'dashboard'])->middleware('module:Dashboard,read');
+
+    // Annotation / labelling queue (Fase 5) — mirrors App\Livewire\Annotation\Index.
+    Route::get('annotations/queue', [AnnotationController::class, 'queue'])->middleware('module:Annotation,read');
+    Route::get('annotations/stats', [AnnotationController::class, 'stats'])->middleware('module:Annotation,read');
+    Route::post('annotations/{detection}/approve', [AnnotationController::class, 'approve'])->middleware('module:Annotation,write');
+    Route::post('annotations/{detection}/relabel', [AnnotationController::class, 'relabel'])->middleware('module:Annotation,write');
+
+    // Settings singleton
+    Route::get('settings', [SettingController::class, 'show'])->middleware('module:Settings,read');
+    Route::match(['put', 'patch'], 'settings', [SettingController::class, 'update'])->middleware('module:Settings,write');
+
+    // Arm movement command. Gated on write access to "Live Camera" (the
+    // line-control surface: viewers hold read-only there) and rate limited,
+    // because each call moves physical hardware.
+    Route::post('arm/command', [ArmController::class, 'command'])
+        ->middleware(['module:Live Camera,write', 'throttle:30,1']);
+
+    // Cameras + live feed. Gated on "Live Camera" so a role that cannot open
+    // the camera module cannot pull frames off the line either.
+    Route::get('cameras', [CameraFeedController::class, 'index'])->middleware('module:Live Camera,read');
+    Route::get('cameras/status', [CameraFeedController::class, 'status'])->middleware('module:Live Camera,read');
+    Route::get('cameras/frame', [CameraFeedController::class, 'frame'])->middleware('module:Live Camera,read');
+
+    // Conveyor line monitoring + control (Fase 5). Gated on "Live Camera" like
+    // the arm endpoints — the conveyor is line equipment and RolePermission
+    // has no "Conveyor" module (see ConveyorMonitorController).
+    Route::get('conveyor/status', [ConveyorMonitorController::class, 'status'])->middleware('module:Live Camera,read');
+    Route::get('conveyor/alerts', [ConveyorMonitorController::class, 'alerts'])->middleware('module:Live Camera,read');
+    Route::post('conveyor/command', [ConveyorMonitorController::class, 'command'])->middleware('module:Live Camera,write');
+
+    // QC return batches
+    Route::get('returns', [ReturnBatchController::class, 'index'])->middleware('module:Returns,read');
+    Route::get('returns/{returnBatch}', [ReturnBatchController::class, 'show'])->middleware('module:Returns,read');
+    Route::post('returns/{returnBatch}/resolve', [ReturnBatchController::class, 'resolve'])->middleware('module:Returns,write');
 });
 
 /*
