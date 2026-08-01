@@ -27,7 +27,7 @@ class ArmCommandApiTest extends TestCase
     private function fakeArm(bool $published): void
     {
         $mock = Mockery::mock(ArmMqttService::class);
-        $mock->shouldReceive('publishCommand')->andReturn($published);
+        $mock->shouldReceive('publishPayload')->andReturn($published);
         $this->instance(ArmMqttService::class, $mock);
     }
 
@@ -48,7 +48,7 @@ class ArmCommandApiTest extends TestCase
 
         $this->postJson('/api/arm/command', ['category' => 'Electronics'])
             ->assertOk()
-            ->assertJsonPath('category', 'Electronics');
+            ->assertJsonPath('command.category', 'Electronics');
 
         // A physical movement must be traceable to the account that ordered it.
         $this->assertDatabaseHas('system_logs', ['source' => 'arm']);
@@ -62,12 +62,12 @@ class ArmCommandApiTest extends TestCase
         $this->seedPresets();
 
         $mock = Mockery::mock(ArmMqttService::class);
-        $mock->shouldReceive('publishCommand')
+        $mock->shouldReceive('publishPayload')
             ->once()
-            ->withArgs(function (string $category, array $context) {
-                return $category === 'Cosmetics'
-                    && ($context['detection_id'] ?? null) === 42
-                    && ($context['source'] ?? null) === 'mobile';
+            ->withArgs(function (array $payload) {
+                return $payload['category'] === 'Cosmetics'
+                    && ($payload['detection_id'] ?? null) === 42
+                    && ($payload['source'] ?? null) === 'mobile';
             })
             ->andReturn(true);
         $this->instance(ArmMqttService::class, $mock);
@@ -93,17 +93,17 @@ class ArmCommandApiTest extends TestCase
         $this->assertDatabaseCount('system_logs', 0);
     }
 
-    public function test_it_returns_503_when_no_presets_are_seeded(): void
+    public function test_it_returns_422_when_no_presets_are_seeded(): void
     {
         // No seedPresets() here. forCategory() falls back to the "default"
-        // preset, so a miss means the install is misconfigured — not that the
-        // client sent a bad category, which would deserve a 422.
+        // preset, so a miss here means not even that fallback exists — a
+        // client-actionable 422, not a transient broker problem.
         $this->fakeArm(published: true);
         $this->actingAsOperator();
 
         $this->postJson('/api/arm/command', ['category' => 'Electronics'])
-            ->assertStatus(503)
-            ->assertJsonPath('message', 'Preset zona target belum tersedia di server. Jalankan seeder TargetZonePreset.');
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Kategori ini tidak memiliki zona target yang dikonfigurasi.');
     }
 
     public function test_an_unknown_category_still_works_via_the_default_preset(): void

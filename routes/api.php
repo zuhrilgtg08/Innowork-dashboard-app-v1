@@ -61,7 +61,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('detections', [DetectionController::class, 'index']);
     Route::get('arm', [ArmController::class, 'show'])->middleware('module:Live Camera,read');
     Route::get('arm/zones', [ArmController::class, 'zones'])->middleware('module:Live Camera,read');
-    Route::post('arm/command', [ArmController::class, 'command'])->middleware('module:Live Camera,write');
 });
 
 /*
