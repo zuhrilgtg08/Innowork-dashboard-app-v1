@@ -2,10 +2,7 @@
 
 namespace App\Services;
 
-<<<<<<< HEAD
-=======
 use App\Models\Detection;
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
 use App\Models\TargetZonePreset;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -127,8 +124,6 @@ class ArmMqttService
             return false;
         }
 
-<<<<<<< HEAD
-=======
         return $this->publishPayload($payload);
     }
 
@@ -169,7 +164,6 @@ class ArmMqttService
      */
     protected function publishPayload(array $payload): bool
     {
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
         try {
             $client = $this->newClient('pub');
             $client->connect($this->connectionSettings(), true);
@@ -178,11 +172,7 @@ class ArmMqttService
 
             return true;
         } catch (\Throwable $e) {
-<<<<<<< HEAD
-            Log::warning('MQTT publishCommand failed', ['category' => $category, 'error' => $e->getMessage()]);
-=======
             Log::warning('MQTT publish failed', ['error' => $e->getMessage()]);
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
 
             return false;
         }

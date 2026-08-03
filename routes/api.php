@@ -3,10 +3,7 @@
 use App\Http\Controllers\Api\ArmController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CameraController;
-<<<<<<< HEAD
-=======
 use App\Http\Controllers\Api\ConveyorController;
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
 use App\Http\Controllers\Api\DetectionController;
 use App\Http\Controllers\Api\MlCallbackController;
 use App\Http\Controllers\Api\StatusController;

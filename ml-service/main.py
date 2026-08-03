@@ -15,12 +15,8 @@ import callbacks
 import infer
 import train
 from config import settings
-<<<<<<< HEAD
-from stream import camera_source    
-=======
 from flow import FlowAnalyzer
 from stream import camera_source
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
 
 
 def _resolve_stream_model() -> str | None:

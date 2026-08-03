@@ -23,10 +23,10 @@ class DatabaseSeeder extends Seeder
     {
         // One account per role — password: "password"
         $accounts = [
-            ['name' => 'Ahmad Fauzi',    'email' => 'admin@sortvision.test',      'role' => 'admin',         'title' => 'System Administrator'],
-            ['name' => 'Rina Marlina',   'email' => 'supervisor@sortvision.test', 'role' => 'supervisor_qc', 'title' => 'QC Supervisor'],
-            ['name' => 'Budi Santoso',   'email' => 'operator@sortvision.test',   'role' => 'operator',      'title' => 'Line Operator'],
-            ['name' => 'Sari Dewi',      'email' => 'viewer@sortvision.test',     'role' => 'viewer',        'title' => 'Monitoring Staff'],
+            ['name' => 'Ahmad Fahrizal',    'email' => 'admin@sortvision.test',      'role' => 'admin',         'title' => 'System Administrator'],
+            ['name' => 'Raysa Pratama',   'email' => 'supervisor@sortvision.test', 'role' => 'supervisor_qc', 'title' => 'QC Supervisor'],
+            ['name' => 'Athaya Ganteng',   'email' => 'operator@sortvision.test',   'role' => 'operator',      'title' => 'Line Operator'],
+            ['name' => 'Testing User',      'email' => 'viewer@sortvision.test',     'role' => 'viewer',        'title' => 'Monitoring Staff'],
         ];
 
         foreach ($accounts as $account) {
@@ -34,22 +34,22 @@ class DatabaseSeeder extends Seeder
         }
 
         // A handful of extra members for the Users table.
-        User::factory(12)->create();
+        // User::factory(12)->create();
 
         $this->call(CategorySeeder::class);
 
         // Catalogue of products moving through the line.
-        Product::factory(40)->create();
+        Product::factory(10)->create();
 
         // Realtime detection history (QC scans).
-        Detection::factory(600)->create();
+        Detection::factory(10)->create();
 
         // System / device logs.
-        SystemLog::factory(150)->create();
+        SystemLog::factory(10)->create();
 
         // Labelled dataset for the Annotation + Training screens.
-        Annotation::factory(90)->approved()->create();
-        Annotation::factory(30)->create(); // pending / mixed review states
+        Annotation::factory(10)->approved()->create();
+        Annotation::factory(10)->create(); // pending / mixed review states
 
         // Training history: two finished runs so the Training page shows metrics.
         TrainingRun::factory(2)->completed()->create();
@@ -71,14 +71,11 @@ class DatabaseSeeder extends Seeder
             TargetZonePreset::updateOrCreate(['slug' => $preset['slug']], $preset);
         }
 
-<<<<<<< HEAD
-=======
         // Camera registry (multi-camera support). Detections join by name.
         foreach (Camera::defaults() as $camera) {
             Camera::updateOrCreate(['name' => $camera['name']], $camera);
         }
 
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
         // Singleton system settings row, pointing at the latest trained model.
         Setting::firstOrCreate([])->update([
             'active_training_run_id' => TrainingRun::where('status', 'completed')->max('id'),

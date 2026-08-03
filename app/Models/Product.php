@@ -40,16 +40,10 @@ class Product extends Model
     ];
 
     /**
-<<<<<<< HEAD
-     * Product categories used by arm target-zone presets ({@see TargetZonePreset}).
-     * No longer the source for product categorization (now uses the `categories`
-     * table via `category_id` FK), but retained for conveyor-line zone mapping.
-=======
      * Product categories moving through the line — the single source of truth
      * reused by the factory and the arm's target-zone presets (see
      * {@see TargetZonePreset}). Kept as a plain list because the
      * column itself is free text.
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
      *
      * @var array<int, string>
      */

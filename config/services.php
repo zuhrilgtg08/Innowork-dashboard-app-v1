@@ -55,11 +55,8 @@ return [
         'use_tls' => (bool) env('MQTT_USE_TLS', false),
         // All arm topics live under this prefix, e.g. "arm/command".
         'base_topic' => env('MQTT_BASE_TOPIC', 'arm'),
-<<<<<<< HEAD
-=======
         // Conveyor topics live under this prefix, e.g. "conveyor/command".
         'conveyor_base_topic' => env('MQTT_CONVEYOR_BASE_TOPIC', 'conveyor'),
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
         // Seconds to wait for a broker connection before degrading gracefully.
         'connect_timeout' => (int) env('MQTT_CONNECT_TIMEOUT', 3),
     ],

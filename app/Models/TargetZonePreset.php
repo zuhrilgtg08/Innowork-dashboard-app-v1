@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Product;
+use App\Models\RolePermission;
 use App\Services\ArmMqttService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -34,14 +36,11 @@ class TargetZonePreset extends Model
     public const DEFAULT_SLUG = 'default';
 
     /**
-<<<<<<< HEAD
-=======
      * Slug of the return/reject zone the arm drops auto-rejected defects into.
      */
     public const RETURN_SLUG = 'return';
 
     /**
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
      * Resolve the preset for a product category, falling back to the default.
      * Accepts either a category label ("Food & Beverage") or its slug.
      */
@@ -54,8 +53,6 @@ class TargetZonePreset extends Model
     }
 
     /**
-<<<<<<< HEAD
-=======
      * Resolve the return/reject zone preset, falling back to the default.
      */
     public static function forReturn(): ?self
@@ -65,7 +62,6 @@ class TargetZonePreset extends Model
     }
 
     /**
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
      * Placeholder presets seeded on install: one per {@see Product::CATEGORIES}
      * plus a default fallback. The 6-axis angles are dummy values spread out so
      * each zone is visibly distinct — the team replaces them with tuned values
@@ -80,14 +76,11 @@ class TargetZonePreset extends Model
             'category' => null,
             'label' => 'Default / Uncategorised',
             'joint_angles' => [0, 0, 0, 0, 0, 0],
-<<<<<<< HEAD
-=======
         ], [
             'slug' => self::RETURN_SLUG,
             'category' => null,
             'label' => 'Return / Reject Zone',
             'joint_angles' => [180, 45, 90, 45, 90, 0],
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
         ]];
 
         foreach (Product::CATEGORIES as $i => $category) {

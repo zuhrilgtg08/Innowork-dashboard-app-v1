@@ -76,11 +76,7 @@ class Index extends Component
 
         $detection = Detection::create([
             'code' => 'SCN-'.strtoupper(Str::random(6)),
-<<<<<<< HEAD
-            'product_id' => Product::inRandomOrder()->value('id'),
-=======
             'product_id' => $productId,
->>>>>>> 82476b2013dbf698b733a104be90cfb03b1a4101
             'camera' => $this->camera,
             'conveyor' => $this->conveyor,
             'status' => $status,
