@@ -17,7 +17,7 @@ class RolePermission extends Model
      *
      * @var array<int, string>
      */
-    public const MODULES = ['Dashboard', 'Users', 'Product', 'Categories', 'Live Camera', 'Returns', 'Training', 'Annotation', 'Logs', 'Settings'];
+    public const MODULES = ['Dashboard', 'Users', 'Product', 'Categories', 'Live Camera', 'Returns', 'Training', 'Annotation', 'Logs', 'Settings', 'Arm'];
 
     /**
      * Access levels with UI metadata.

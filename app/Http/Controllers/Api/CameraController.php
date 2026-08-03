@@ -31,6 +31,9 @@ class CameraController extends Controller
             'detections' => ['nullable', 'array'],
             'detections.*.status' => ['nullable', 'string'],
             'detections.*.confidence' => ['nullable', 'numeric'],
+            'detections.*.bbox' => ['nullable', 'array', 'size:4'],
+            'detections.*.bbox.*' => ['numeric'],
+            'detections.*.label' => ['nullable', 'string', 'max:100'],
             'camera' => ['nullable', 'string', 'max:50'],
             'conveyor' => ['nullable', 'string', 'max:50'],
             'qr_value' => ['nullable', 'string', 'max:255'],
@@ -55,11 +58,18 @@ class CameraController extends Controller
 
         // Persist the captured frame once; all detections from this frame share it.
         $framePath = null;
+        $frameWidth = null;
+        $frameHeight = null;
         if (! empty($data['frame_jpeg_b64'])) {
             $binary = base64_decode($data['frame_jpeg_b64'], true);
             if ($binary !== false) {
                 $framePath = 'frames/icam-'.now()->format('Ymd_His').'-'.Str::random(6).'.jpg';
                 Storage::disk('public')->put($framePath, $binary);
+
+                $size = @getimagesizefromstring($binary);
+                if ($size !== false) {
+                    [$frameWidth, $frameHeight] = $size;
+                }
             }
         }
 
@@ -88,6 +98,10 @@ class CameraController extends Controller
                 'qr_value' => $qrValue,
                 'frame_path' => $framePath,
                 'confidence' => $item['confidence'] ?? 0,
+                'bbox' => $item['bbox'] ?? null,
+                'label' => $item['label'] ?? null,
+                'frame_width' => $frameWidth,
+                'frame_height' => $frameHeight,
                 'detected_at' => now(),
             ]);
         }

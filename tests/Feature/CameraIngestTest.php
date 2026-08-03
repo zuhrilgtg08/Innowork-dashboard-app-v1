@@ -68,6 +68,53 @@ class CameraIngestTest extends TestCase
         $this->assertDatabaseHas('detections', ['status' => 'recheck']);
     }
 
+    public function test_it_persists_the_bounding_box_of_each_detection(): void
+    {
+        Storage::fake('public');
+
+        // A real 2x3 JPEG so getimagesizefromstring() can read the dimensions.
+        $image = imagecreatetruecolor(2, 3);
+        ob_start();
+        imagejpeg($image);
+        $jpegBytes = (string) ob_get_clean();
+        imagedestroy($image);
+
+        $this->postSigned([
+            'status' => 'damaged',
+            'confidence' => 91.2,
+            'camera' => 'ICAM-300',
+            'frame_jpeg_b64' => base64_encode($jpegBytes),
+            'detections' => [
+                ['status' => 'damaged', 'confidence' => 91.2, 'bbox' => [10, 20, 110, 220], 'label' => 'damaged'],
+                ['status' => 'passed', 'confidence' => 80.0, 'bbox' => [5, 5, 50, 50], 'label' => 'passed'],
+            ],
+        ])->assertOk();
+
+        $first = Detection::where('status', 'damaged')->firstOrFail();
+        $this->assertSame([10, 20, 110, 220], $first->bbox);
+        $this->assertSame('damaged', $first->label);
+        // Frame dimensions travel with the box so a client can scale it.
+        $this->assertSame(2, $first->frame_width);
+        $this->assertSame(3, $first->frame_height);
+
+        $second = Detection::where('status', 'passed')->firstOrFail();
+        $this->assertSame([5, 5, 50, 50], $second->bbox);
+    }
+
+    public function test_a_detection_without_a_box_is_still_accepted(): void
+    {
+        // The manual/webcam path sends only a top-level verdict, no boxes.
+        $this->postSigned([
+            'status' => 'passed',
+            'confidence' => 99.0,
+            'camera' => 'CAM-01',
+        ])->assertOk();
+
+        $detection = Detection::firstOrFail();
+        $this->assertNull($detection->bbox);
+        $this->assertNull($detection->frame_width);
+    }
+
     public function test_invalid_signature_is_rejected(): void
     {
         $this->postSigned(['status' => 'passed'], signature: 'deadbeef')

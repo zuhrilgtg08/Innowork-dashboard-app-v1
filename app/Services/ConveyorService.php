@@ -121,6 +121,16 @@ class ConveyorService
             'raised_at' => now()->toIso8601String(),
         ]);
 
+        // Push the alert to whoever is allowed to watch the line. Best-effort,
+        // like the MQTT publish above: a notification failure must not stop the
+        // alert from being recorded.
+        app(PushNotifier::class)->notifyModuleWatchers(
+            'Live Camera',
+            $event === 'jam' ? 'Conveyor macet' : 'Anomali conveyor',
+            $log->message,
+            ['type' => 'conveyor_alert', 'event' => $event, 'log_id' => $log->id],
+        );
+
         return $log->id;
     }
 

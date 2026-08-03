@@ -40,12 +40,15 @@ npm run build                # production build
 
 - **Database is PostgreSQL** (`DB_CONNECTION=pgsql`, db `sort_vision`), not the Laravel-default SQLite. The `.env.example` may differ — the running app uses Postgres.
 - Sessions, cache, and queue all use the **database** driver.
-- Tests run with `APP_ENV=testing` (see `phpunit.xml`). The sqlite/`:memory:` lines there are commented out, so tests run against the configured DB unless you enable them.
+- Tests run with `APP_ENV=testing` against **in-memory sqlite** (`phpunit.xml`), not Postgres. Every `<env>` there is `force="true"` and `tests/bootstrap.php` mirrors `$_ENV` onto `$_SERVER` — without that, real environment variables (a docker-compose `DB_CONNECTION=pgsql`, `CACHE_STORE=redis`, `APP_ENV=production`, …) win over `phpunit.xml`, because Laravel's `Env` repository reads `$_SERVER` first. If the suite suddenly tries to reach the production database, that mirroring is what broke.
+- Tests need an `APP_KEY`; run `php artisan key:generate` on a fresh checkout or every view-rendering test fails with `MissingAppKeyException`.
 - Auth scaffolding is **Laravel Breeze (Livewire/Volt stack)**.
 
 ## Architecture
 
-This is a **Livewire-first** app: there are almost no traditional controllers. Each page is a full-page Livewire component mapped directly in `routes/web.php`.
+This is a **Livewire-first** app for the browser, plus a **REST API for the mobile client** (`routes/api.php`, Sanctum tokens). Each web page is a full-page Livewire component mapped directly in `routes/web.php`; each API resource is a thin controller in `app/Http/Controllers/Api/`.
+
+**When you change domain behaviour, change it in both places.** The API controllers deliberately mirror their Livewire counterparts (`ProductController` ↔ `Livewire\Products\Index`, and so on) and reproduce the same guards — generated `code`/`sku`, QR regeneration, the sole-admin protections, the training pre-flight checks. Shared logic that both need belongs on the model (see `Product::generateCode()` / `generateSku()`).
 
 - **Routing** (`routes/web.php`): all app pages are behind the `auth` middleware group and route straight to a Livewire class, e.g. `Route::get('products', ProductsIndex::class)`. `routes/auth.php` holds Breeze auth routes; `/` redirects to `dashboard` or `login`.
 - **Two flavors of Livewire components:**
@@ -73,7 +76,11 @@ When adding a status/role/level, update the model `const` — do not hardcode th
 - `RolePermission::matrix()` — merges DB overrides on top of defaults for every role/module (DB rows are sparse; missing pairs fall back to defaults).
 - The Roles page (`app/Livewire/Roles/Index.php`) edits and persists this matrix via `updateOrCreate`.
 
-**Important:** this matrix is currently informational/editable but is **not enforced** — routes are gated only by the `auth` middleware, and components do no per-module permission checks. Don't assume a role restriction exists just because the matrix defines one.
+**Important — enforcement differs by surface:**
+- **Web dashboard: not enforced.** Livewire routes are gated only by the `auth` middleware and components do no per-module checks. Don't assume a role restriction exists there just because the matrix defines one.
+- **Mobile REST API: enforced.** Every `/api` CRUD route carries `module:<Module>,<read|write>` (`App\Http\Middleware\EnsureModuleAccess`), which reads `RolePermission::matrix()` and returns `403` when the role lacks access. It also locks out `is_active = false` accounts.
+
+`EnsureModuleAccess` reads the matrix directly instead of `User::canAccess()`, because that helper hard-codes an `admin/supervisor_qc/operator` whitelist and so denies `viewer` **every** module — contradicting the matrix, which grants viewers read on Dashboard, Product, Live Camera, Returns and Logs. Treat `canAccess()` as suspect; the matrix is the source of truth.
 
 ### Common Livewire component conventions (follow when editing/adding pages)
 

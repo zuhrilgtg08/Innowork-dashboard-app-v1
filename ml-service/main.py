@@ -8,7 +8,7 @@ from pathlib import Path
 
 import cv2
 from fastapi import BackgroundTasks, FastAPI, Form, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 import callbacks
@@ -149,6 +149,25 @@ def reload_model(req: ReloadRequest | None = None):
 def camera_status():
     """Liveness/mode of the ICAM-300 (or simulator) source, for the UI."""
     return camera_source.status()
+
+
+@app.get("/camera/frame")
+def camera_frame():
+    """Single latest JPEG frame.
+
+    Native mobile image loaders cannot render a `multipart/x-mixed-replace`
+    MJPEG stream, so clients that need a live view poll this instead. Laravel
+    proxies it so the phone never talks to this service directly.
+    """
+    jpeg = camera_source.latest_jpeg()
+    if jpeg is None:
+        return Response(status_code=503)
+
+    return Response(
+        content=jpeg,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 @app.get("/camera/stream")

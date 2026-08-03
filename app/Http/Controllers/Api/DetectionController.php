@@ -18,6 +18,7 @@ class DetectionController extends Controller
     {
         $validated = $request->validate([
             'status' => ['nullable', 'string', Rule::in(array_keys(Detection::STATUSES))],
+            'camera' => ['nullable', 'string', 'max:50'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
@@ -25,6 +26,7 @@ class DetectionController extends Controller
 
         $detections = Detection::query()
             ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->when($validated['camera'] ?? null, fn ($q, $camera) => $q->where('camera', $camera))
             ->latest('detected_at')
             ->paginate($perPage);
 
@@ -38,6 +40,12 @@ class DetectionController extends Controller
                 'conveyor' => $d->conveyor,
                 'confidence' => $d->confidence,
                 'qr_value' => $d->qr_value,
+                // Box that produced this verdict, in the source frame's pixel
+                // coordinates — a client must scale by frame_width/height.
+                'bbox' => $d->bbox,
+                'label' => $d->label,
+                'frame_width' => $d->frame_width,
+                'frame_height' => $d->frame_height,
                 'detected_at' => optional($d->detected_at)->toIso8601String(),
             ])->all(),
             'meta' => [
