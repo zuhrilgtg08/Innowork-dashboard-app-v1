@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -17,7 +17,7 @@ class RolePermission extends Model
      *
      * @var array<int, string>
      */
-    public const MODULES = ['Dashboard', 'Users', 'Product', 'Categories', 'Live Camera', 'Returns', 'Training', 'Annotation', 'Logs', 'Settings', 'Arm'];
+    public const MODULES = ['Dashboard', 'Users', 'Product', 'Categories', 'Live Camera', 'Returns', 'Training', 'Annotation', 'Logs', 'Settings', 'Arm', 'Sorting'];
 
     /**
      * Access levels with UI metadata.
@@ -32,7 +32,7 @@ class RolePermission extends Model
     ];
 
     /**
-     * Seed defaults — the baseline matrix shipped with the app.
+     * Seed defaults â€” the baseline matrix shipped with the app.
      *
      * @return array<string, array<string, string>>
      */
@@ -56,7 +56,7 @@ class RolePermission extends Model
     }
 
     /**
-     * Full role → module → access matrix, sourced from the DB and backfilled
+     * Full role â†’ module â†’ access matrix, sourced from the DB and backfilled
      * with defaults for any missing role/module pair.
      *
      * @return array<string, array<string, string>>

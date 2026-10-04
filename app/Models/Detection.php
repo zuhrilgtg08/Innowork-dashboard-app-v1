@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Models;
 
@@ -25,7 +25,7 @@ class Detection extends Model
         'label',
         'frame_width',
         'frame_height',
-        'detected_at',
+        'detected_at',\n        'color',\n        'center_x',\n        'center_y',\n        'in_pick_zone',\n        'processed',\n        'competition_event_id',\n        'color',
     ];
 
     protected function casts(): array
@@ -61,7 +61,7 @@ class Detection extends Model
 
     /**
      * Statuses that are valid visual QC classes for training. Workflow-only
-     * states ('returned', 'recheck') are excluded — they are not something the
+     * states ('returned', 'recheck') are excluded â€” they are not something the
      * vision model can learn to recognise from a frame.
      *
      * @var array<int, string>
