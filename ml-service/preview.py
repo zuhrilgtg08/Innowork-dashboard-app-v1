@@ -36,10 +36,6 @@ DRAW_COLORS = {
 }
 DRAW_DEFAULT = (96, 165, 250)
 
-# Pick-zone heuristic for the preview panel ONLY: bbox center inside the
-# central 60% of the frame counts as VALID. Presentation aid, not backend logic.
-PICK_MARGIN = 0.2
-
 _latest_lock = threading.Lock()
 _latest = {
     "at": None,
@@ -68,9 +64,15 @@ def resolve_model() -> str | None:
 
 
 def in_pick_zone(cx: float, cy: float, w: int, h: int) -> bool:
-    """Preview-only pick-zone check (central 60% of the frame)."""
-    mx, my = PICK_MARGIN * w, PICK_MARGIN * h
-    return (mx <= cx <= w - mx) and (my <= cy <= h - my)
+    """Preview-only pick-zone check.
+
+    Reuses the SAME operational bounds as the sort pipeline
+    (settings.pick_zone_*). Presentation aid only — preview never commands.
+    """
+    return (
+        settings.pick_zone_x_min * w <= cx <= settings.pick_zone_x_max * w
+        and settings.pick_zone_y_min * h <= cy <= settings.pick_zone_y_max * h
+    )
 
 
 def annotate_frame(frame, conf: float, model: str | None):

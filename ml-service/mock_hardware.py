@@ -47,8 +47,13 @@ async def publish_status(
     detection_id: str | None = None,
     event_uuid: str | None = None,
     confidence: float = 0.0,
+    detail: str | None = None,
 ) -> bool:
-    """Publish arm status to arm/status topic."""
+    """Publish arm status to arm/status topic.
+
+    event_uuid echoes the command's UUID through every state (including
+    COMPLETED) so the backend can match feedback to the originating sort.
+    """
     status = {
         "state": state,
         "color": color,
@@ -57,6 +62,8 @@ async def publish_status(
         "confidence": confidence,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
+    if detail is not None:
+        status["detail"] = detail
     result = client.publish("arm/status", json.dumps(status, separators=(",", ":")), qos=1)
     return result.rc == mqtt.MQTT_ERR_SUCCESS
 
@@ -157,8 +164,16 @@ async def _sort_sequence(client, destination: str, confidence: float):
 
 
 def start_mqtt_client():
-    """Initialize and start the MQTT client for the mock hardware."""
+    """Initialize and start the MQTT client for the mock hardware.
+
+    Authenticates with MQTT_USERNAME/MQTT_PASSWORD (+TLS) when configured,
+    mirroring the production broker requirements; stays anonymous locally.
+    """
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    if (settings.mqtt_username or "").strip():
+        client.username_pw_set(settings.mqtt_username, settings.mqtt_password or "")
+    if settings.mqtt_use_tls:
+        client.tls_set()
     client.on_message = on_command
     client.connect(settings.mqtt_broker, settings.mqtt_port, 60)
     client.subscribe("arm/command")

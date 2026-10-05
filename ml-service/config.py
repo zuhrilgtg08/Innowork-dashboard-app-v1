@@ -1,9 +1,17 @@
 """Environment-driven configuration for the ML service."""
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Absolute .env location: the service must load ml-service/.env no
+    # matter which directory uvicorn is started from (repo root vs
+    # ml-service/). Without this, ICAM_MODEL_PATH silently reads empty and
+    # the sorting pipeline rejects every frame with model_error.
+    model_config = SettingsConfigDict(
+        env_file=str(Path(__file__).parent / ".env"), extra="ignore"
+    )
 
     # Absolute path to Laravel's storage/app directory (shared filesystem).
     # Falls back to a relative guess if not provided.
@@ -80,6 +88,14 @@ class Settings(BaseSettings):
     mqtt_broker: str = "localhost"
     mqtt_port: int = 1883
 
+    # MQTT authentication for the production broker. Empty username keeps
+    # local anonymous compatibility; when set (VPS), both the sort pipeline
+    # publisher and mock_hardware authenticate with these credentials.
+    # Laravel reads the same values from MQTT_USERNAME/MQTT_PASSWORD.
+    mqtt_username: str = ""
+    mqtt_password: str = ""
+    mqtt_use_tls: bool = False
+
     # Minimum confidence (0-1) for a detection to trigger a sort command.
     sort_min_confidence: float = 0.5
 
@@ -89,8 +105,28 @@ class Settings(BaseSettings):
     # Cooldown between sort commands in milliseconds.
     sort_cooldown_ms: int = 1000
 
+    # Operational pick zone, normalized 0-1 (fraction of frame width/height).
+    # A sort command is issued ONLY when the detected object's center falls
+    # inside this rectangle. Defaults to the central 60% of the frame.
+    # The Model Evaluation preview reuses the same bounds for its overlay.
+    pick_zone_x_min: float = 0.2
+    pick_zone_x_max: float = 0.8
+    pick_zone_y_min: float = 0.2
+    pick_zone_y_max: float = 0.8
+
+    # Spatial quantization (normalized units) for the anti-duplicate latch:
+    # centers falling in the same cell count as the same stationary object.
+    sort_spatial_tolerance: float = 0.05
+
     # Mock hardware step delay (ms).
     mock_delay_ms: int = 300
 
 
 settings = Settings()
+
+# Anchor a relative laravel_storage_path to the repo layout (ml-service/..),
+# so model/dataset resolution works regardless of process cwd (same class
+# of silent failure as the .env location above).
+_storage = Path(settings.laravel_storage_path)
+if not _storage.is_absolute():
+    settings.laravel_storage_path = str((Path(__file__).parent / _storage).resolve())

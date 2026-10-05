@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReturnBatchController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\SortingPreflightController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\TrainingRunController;
@@ -165,6 +166,14 @@ Route::middleware('verify.ml')->prefix('ml')->group(function () {
 */
 Route::middleware('verify.ml')->prefix('camera')->group(function () {
     Route::post('detection', [CameraController::class, 'ingest']);
+});
+
+/*
+| Pre-sort gate for the ml-service sort pipeline (same HMAC auth).
+| Bowl capacity + arm availability, checked before arm/command is published.
+*/
+Route::middleware('verify.ml')->prefix('sorting')->group(function () {
+    Route::post('preflight', [SortingPreflightController::class, 'check']);
 });
 
 /*

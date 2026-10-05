@@ -30,6 +30,9 @@ ultra-milk-kecil.yolov8/
 .env
 .env.local
 
+# Runtime logs (never commit service output)
+logs/*.log
+
 # Testing
 .phpunit.result.cache
 

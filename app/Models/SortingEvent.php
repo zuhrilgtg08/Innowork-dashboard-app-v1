@@ -10,6 +10,7 @@ class SortingEvent extends Model
     protected $fillable = [
         'event_uuid',
         'detection_id',
+        'sorting_session_id',
         'status',
         'color',
         'destination',
@@ -18,6 +19,14 @@ class SortingEvent extends Model
         'source',
         'processed',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'command_payload' => 'array',
+            'processed' => 'boolean',
+        ];
+    }
 
     /**
      * Possible statuses for a sorting event with UI metadata.
