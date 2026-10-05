@@ -1,5 +1,10 @@
 """Competition sorting pipeline: YOLO inference → signed POST → MQTT publish.
 
+Confidence convention (canonical, enforced across the stack):
+  - Database + UI + MQTT payloads store 0–100 PERCENT (e.g. 94.0, never 0.94).
+  - Only internal threshold comparisons use 0–1 (sort_min_confidence,
+    Setting.confidence_threshold, icam_conf), converting at the boundary.
+
 Safety properties (H-1, do not weaken):
   - Vision Sorting ALWAYS uses the configured best.pt (ICAM_MODEL_PATH),
     resolved against Laravel storage. If it is missing/invalid, or its
@@ -43,8 +48,10 @@ DESTINATION_MAP = {
     "red": "BOWL_RED",
 }
 
-# Exact class set the authoritative Vision Sorting model must expose.
-EXPECTED_CLASSES = {"HIJAU", "KUNING", "MERAH"}
+# Exact class map the authoritative Vision Sorting model must expose.
+# ID AND order are enforced (a model with the right names on the wrong IDs
+# would sort colors into the wrong bowls).
+EXPECTED_CLASS_MAP = {0: "HIJAU", 1: "KUNING", 2: "MERAH"}
 
 # Anti-duplicate state: signature of the last COMMANDED object plus the time
 # the last command was published. A stationary object keeps producing the
@@ -81,18 +88,22 @@ def resolve_sorting_model(explicit: str | None = None) -> str:
 
 
 def assert_sorting_classes(model_path: str) -> dict:
-    """Load the weights and verify they expose HIJAU/KUNING/MERAH.
+    """Load the weights and verify the EXACT Vision Sorting class map.
 
-    Returns the {index: name} mapping. Raises SortingModelError otherwise.
+    model.names must equal {0: 'HIJAU', 1: 'KUNING', 2: 'MERAH'} — IDs and
+    order, not just name presence. Anything else raises SortingModelError
+    (wrong IDs would silently sort colors into the wrong bowls).
+    Returns the {index: name} mapping.
     """
     try:
         model = infer._load(model_path)  # noqa: SLF001 — same service package
     except Exception as exc:  # noqa: BLE001
         raise SortingModelError(f"cannot load sorting model {model_path}: {exc}") from exc
     names = {int(k): v for k, v in dict(model.names).items()}
-    missing = EXPECTED_CLASSES - set(names.values())
-    if missing:
-        raise SortingModelError(f"sorting model classes {names} missing {sorted(missing)}")
+    if names != EXPECTED_CLASS_MAP:
+        raise SortingModelError(
+            f"sorting model class map {names} != required {EXPECTED_CLASS_MAP}"
+        )
     return names
 
 
@@ -225,7 +236,7 @@ def run_sort_pipeline(
             **result,
             "sort_triggered": False,
             "reason": "low_confidence",
-            "confidence": confidence,
+            "confidence": round(confidence * 100, 1),
         }
 
     # 3. Operational pick zone: normalized center inside configured bounds.
@@ -356,13 +367,16 @@ def run_sort_pipeline(
         }
 
     # 8. Publish arm/command MQTT message (blocking; failure ≠ success).
+    # Confidence convention: database/UI store 0-100 percent everywhere, so
+    # the command carries 0-100 too (MqttListen persists it verbatim into
+    # sorting_events.confidence). Only threshold comparisons use 0-1.
     command_payload = {
         "action": "sort",
         "event_uuid": event_uuid,
         "detection_id": detection_id,
         "color": color,
         "destination": destination,
-        "confidence": round(confidence, 3),
+        "confidence": round(confidence * 100, 1),
         "bbox": target["bbox"],
         "source": "ml_service",
     }

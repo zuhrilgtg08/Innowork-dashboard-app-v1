@@ -79,7 +79,7 @@ def on_command(client, userdata, message):
         if action == "sort" and settings.competition_mode:
             current_color = payload.get("color")  # expects canonical green/yellow/red
             destination = payload.get("destination", pick_destination(current_color))
-            confidence = payload.get("confidence", 1.0)
+            confidence = payload.get("confidence", 100.0)  # 0-100 percent, matches arm/command
             current_event_uuid = payload.get("event_uuid")
             current_detection_id = payload.get("detection_id")
 

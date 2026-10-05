@@ -38,6 +38,8 @@ class Detection extends Model
     {
         return [
             'detected_at' => 'datetime',
+            // Canonical unit: 0–100 percent (never 0–1). All blades append
+            // '%' directly; thresholds compare in 0–1 and convert at the edge.
             'confidence' => 'decimal:2',
             'bbox' => 'array',
         ];

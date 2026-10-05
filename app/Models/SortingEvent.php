@@ -24,6 +24,8 @@ class SortingEvent extends Model
     {
         return [
             'command_payload' => 'array',
+            // Canonical unit: 0–100 percent, persisted verbatim from the
+            // arm/command payload (the ml-service converts before publish).
             'processed' => 'boolean',
         ];
     }
