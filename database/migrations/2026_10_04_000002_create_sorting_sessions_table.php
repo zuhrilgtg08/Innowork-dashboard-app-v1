@@ -1,17 +1,19 @@
+<?php
+
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::create('sorting_sessions', function (Builder $table): void {
+        Schema::create('sorting_sessions', function (Blueprint $table): void {
             $table->id();
             $table->string('session_key', 50)->unique();
-            $table->integer('green_count')->default(0);
-            $table->integer('yellow_count')->default(0);
-            $table->integer('red_count')->default(0);
-            $table->integer('total_objects')->default(0);
+            $table->enum('status', ['active', 'completed'])->default('active');
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('completed_at')->nullable();
             $table->timestamp('last_reset_at')->nullable();
             $table->timestamps();
 

@@ -2,45 +2,53 @@
 
 namespace App\Livewire\Sorting;
 
-use App\Livewire\Livewire\Component;
 use App\Models\SortingEvent;
-use App\Models\SortingSession;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
+use Livewire\WithPagination;
 
-#[Auth]
-#[Layout('layouts.app', ['title' => 'Sorting Events')]
+#[Layout('layouts.app', ['title' => 'Sorting Events'])]
 class Events extends Component
 {
-    public $events = [];
+    use WithPagination;
+
     public $statusFilter = 'all';
+
     public $colorFilter = 'all';
-    public $page = 1;
+
     public $perPage = 20;
 
     public function mount()
     {
-        $this->loadEvents();
+        $this->resetPage();
     }
 
-    public function loadEvents()
+    public function updatingStatusFilter()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingColorFilter()
+    {
+        $this->resetPage();
+    }
+
+    public function render()
     {
         $query = SortingEvent::with('detection');
-        
+
         if ($this->statusFilter !== 'all') {
             $query->where('status', $this->statusFilter);
         }
         if ($this->colorFilter !== 'all') {
             $query->where('color', $this->colorFilter);
         }
-        
-        $this->events = $query->latest('detected_at')
-            ->forPage($this->page, $this->perPage)
-            ->get();
-    }
 
-    public function render()
-    {
+        $events = $query->latest('created_at')
+            ->paginate($this->perPage);
+
         return view('livewire.sorting.events', [
-            'events' => $this->events,
+            'events' => $events,
             'statuses' => SortingEvent::STATUSES,
             'colors' => ['green', 'yellow', 'red', 'all'],
         ]);

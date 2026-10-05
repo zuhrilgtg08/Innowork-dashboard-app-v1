@@ -6,8 +6,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
@@ -99,7 +99,8 @@ class User extends Authenticatable
         if (str_starts_with($this->avatar, 'assets/')) {
             return asset($this->avatar);
         }
-        return \Illuminate\Support\Facades\Storage::url($this->avatar);
+
+        return Storage::url($this->avatar);
     }
 
     /**
@@ -110,7 +111,7 @@ class User extends Authenticatable
         return collect(explode(' ', (string) $this->name))
             ->filter()
             ->take(2)
-            ->map(fn($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+            ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
             ->implode('');
     }
 }

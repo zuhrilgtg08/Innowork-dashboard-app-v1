@@ -110,6 +110,40 @@ class MlClient
     }
 
     /**
+     * Real metadata about the active YOLO weights (path, size, classes,
+     * inference device) from GET /model/info. No inference is run.
+     *
+     * @return array{path: string, file_size_bytes: ?int, classes: array, class_count: int, inference_device: string}|null
+     */
+    public function modelInfo(): ?array
+    {
+        try {
+            $response = $this->client(10)->get('/model/info');
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML modelInfo failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Latest Model Preview inference snapshot from GET /preview/latest.
+     * Read-only visualization data: never triggers arm commands.
+     */
+    public function previewLatest(): ?array
+    {
+        try {
+            $response = $this->client(5)->get('/preview/latest');
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Liveness/mode of the live camera source (ICAM-300 or simulator).
      *
      * @return array{connected: bool, mode: string, source: ?string, fps: float}|null

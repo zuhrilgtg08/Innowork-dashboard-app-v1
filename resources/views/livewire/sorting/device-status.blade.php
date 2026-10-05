@@ -1,78 +1,80 @@
-<div class="p-6">
-    <h2 class="text-2xl font-bold mb-4">Device Status</h2>
-    
-    <!-- Hardware Mode -->
-    <div class="mb-4">
-        <p>Hardware Mode: {{ $hardwareMode }}</p>
-        @if($demoControlsVisible)
-            <div class="p-3 rounded bg-red-100 text-red-800 mb-3">
-                <strong>DEMO MODE</strong> — Controls only active in mock mode
+<div wire:poll.5s="updateCounters" class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Device Status</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Arm controller, service health, and sorting counters.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            @if ($demoControlsVisible)
+                <x-status-badge color="amber" label="Hardware Simulation" />
+            @else
+                <x-status-badge color="green" label="Live Hardware" />
+            @endif
+            <span class="text-xs text-gray-400">Mode: {{ $hardwareMode }}</span>
+        </div>
+    </div>
+
+    <!-- Status cards -->
+    <div wire:poll.30s="refreshMqtt" class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="card p-5">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Arm Status</p>
+            <p class="mt-2 text-2xl font-extrabold uppercase tracking-tight text-gray-900 dark:text-white">{{ strtolower($armStatus->state) }}</p>
+            @if ($armStatus->detail)
+                <p class="mt-1 text-xs text-gray-400">{{ $armStatus->detail }}</p>
+            @endif
+        </div>
+        <div class="card p-5">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">ML Service</p>
+            <p class="mt-2"><x-status-badge :color="$mlHealth ? 'green' : 'red'" :label="$mlHealth ? 'Online' : 'Offline'" /></p>
+            <p class="mt-1 text-xs text-gray-400">YOLO inference service</p>
+        </div>
+        <div class="card p-5">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">MQTT Broker</p>
+            <p class="mt-2"><x-status-badge :color="$mqttOnline ? 'green' : 'red'" :label="$mqttOnline ? 'Online' : 'Offline'" /></p>
+            <p class="mt-1 font-mono text-xs text-gray-400">arm/command · arm/status</p>
+        </div>
+    </div>
+
+    <!-- Simulation controls (mock hardware only) -->
+    @if ($demoControlsVisible)
+        <div class="card p-5">
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-gray-900 dark:text-white">Simulation Controls</h3>
+                    <p class="text-xs text-gray-400">Sends test commands through the MQTT bus (mock hardware only).</p>
+                </div>
+                <x-status-badge color="amber" label="Simulation" />
             </div>
-        @endif
-    </div>
-    
-    <!-- Arm Status -->
-    <div class="mb-4">
-        <p>Arm Status: <strong>{{ ucfirst($armStatus->state) }}</strong></p>
-        @if($armStatus->detail)
-            <p>Detail: {{ $armStatus->detail }}</p>
-        @endif
-    </div>
-    
-    <!-- ML Health -->
-    <div class="mb-4">
-        <p>ML Service: <span class="{{ $mlHealth ? 'text-green-500' : 'text-red-500' }}">{{ $mlHealth ? 'ONLINE' : 'OFFLINE' }}</span></p>
-    </div>
-    
-    <!-- Demo Controls (only visible in mock mode) -->
-    @if($demoControlsVisible)
-        <div class="p-3 rounded bg-red-100 text-red-800 mb-3">
-            <strong>DEMO CONTROLS (MOCK MODE ONLY)</strong>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <button wire:click="simulateComplete" class="btn-primary flex-1">Simulate Completed Sort</button>
+                <button wire:click="simulateError" class="btn-secondary flex-1">Simulate Error</button>
+                <button wire:click="resetSession" class="btn-secondary flex-1">Reset Sorting Session</button>
+            </div>
         </div>
-        <div class="grid grid-cols-2 mb-4">
-            <button wire:click="simulateComplete" class="btn btn-primary w-full">
-                SIMULATE COMPLETED
-            </button>
-            <button wire:click="simulateError" class="btn btn-danger w-full">
-                SIMULATE ERROR
-            </button>
+    @else
+        <div class="card p-5">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="font-bold text-gray-900 dark:text-white">Sorting Session</h3>
+                    <p class="text-xs text-gray-400">Complete the active session and start a fresh one.</p>
+                </div>
+                <button wire:click="resetSession" class="btn-secondary">Reset Sorting Session</button>
+            </div>
         </div>
-        <button wire:click="resetSession" class="btn btn-success w-full mt-2">
-            Reset Session
-        </button>
     @endif
-    
-    <!-- Status Cards -->
-    <div class="grid grid-cols-3 gap-4 mb-6">
-        <div>
-            <p>MQTT Broker</p>
-            <p class="{{ $mlHealth ? 'text-green-500' : 'text-red-500' }}">{{ $mlHealth ? 'ONLINE' : 'OFFLINE' }}</p>
-        </div>
-        <div>
-            <p>ESP32 Status</p>
-            <p>{{ $armStatus->state }}</p>
-        </div>
-        <div>
-            <p>Current Event</p>
-            <p>{{ $armStatus->detail ?? '—' }}</p>
-        </div>
-    </div>
-    
+
     <!-- Counters -->
-    <div class="grid grid-cols-3 gap-4">
-        <div class="p-4 rounded bg-slate-800">
-            <p class="text-xl font-bold {{ $counters['green'] >= 3 ? 'text-green-600' : '' }}">GREEN {{ $counters['green'] }}/3</p>
-        </div>
-        <div class="p-4 rounded bg-slate-800">
-            <p class="text-xl font-bold {{ $counters['yellow'] >= 3 ? 'text-yellow-600' : '' }}">YELLOW {{ $counters['yellow'] }}/3</p>
-        </div>
-        <div class="p-4 rounded bg-slate-800">
-            <p class="text-xl font-bold {{ $counters['red'] >= 3 ? 'text-red-600' : '' }}">RED {{ $counters['red'] }}/3</p>
-        </div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        @foreach (['green' => ['tone' => 'green', 'bowl' => 'BOWL_GREEN'], 'yellow' => ['tone' => 'amber', 'bowl' => 'BOWL_YELLOW'], 'red' => ['tone' => 'red', 'bowl' => 'BOWL_RED']] as $color => $meta)
+            <x-stat-card
+                :label="strtoupper($color)"
+                :value="($counters[$color] ?? 0).' / 3'"
+                :tone="$meta['tone']"
+                :delta="($counters[$color] ?? 0) >= 3 ? 'Complete' : 'Sorting'"
+                :deltaUp="($counters[$color] ?? 0) >= 3"
+                :sub="$meta['bowl']"
+            />
+        @endforeach
     </div>
-    
-    <!-- Reset Session -->
-    <button wire:click="resetSession" class="mt-6 btn btn-primary">
-        Reset Session (start new sorting session)
-    </button>
 </div>

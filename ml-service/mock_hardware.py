@@ -1,191 +1,209 @@
+"""Mock hardware server for competition sorting (runs locally, subscribes to arm/command)."""
 import asyncio
 import json
-import os
-import paho.mqtt.client as mqtt
+import threading
 from datetime import datetime
 
-MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
-MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
-MQTT_TOPIC_COMMAND = "arm/command"
-MQTT_TOPIC_STATUS = "arm/status"
+import paho.mqtt.client as mqtt
 
-# Competition Mode
-COMPETITION_MODE = os.getenv("COMPETITION_MODE", "false").lower() == "true"
+from config import settings
 
-# Color mapping for competition mode
-COLOR_MAP = {
-    "HIJAU": "GREEN",
-    "KUNING": "YELLOW",
-    "MERAH": "RED",
-}
 
-# State machine states
-STATES = ["READY", "BUSY", "PICKING", "MOVING", "PLACING", "RETURNING", "COMPLETED"]
+# State machine states (lowercase to match ArmStatus::STATES)
+STATES = ["ready", "busy", "picking", "moving", "placing", "returning", "completed", "error"]
 
-# Counter tracking (in-memory for demo)
-counters = {"GREEN": 0, "YELLOW": 0, "RED": 0}
+# Counter tracking (in-memory for demo) - keys match canonical colors
+counters = {"green": 0, "yellow": 0, "red": 0}
 
-current_state = "READY"
+current_state = "ready"
 current_color = None
 current_detection_id = None
+current_event_uuid = None
 start_time = None
 
+# Event loop for thread-safe asyncio from paho callbacks
+_loop: asyncio.AbstractEventLoop | None = None
 
-def pick_destination(color_name):
-    """Map competition color to destination bowl."""
+
+def _schedule(coro):
+    """Schedule a coroutine on the mock server's event loop from the paho thread."""
+    global _loop
+    if _loop and _loop.is_running():
+        asyncio.run_coroutine_threadsafe(coro, _loop)
+    else:
+        # Fallback: run in new loop (should not happen in normal operation)
+        asyncio.run(coro)
+
+
+def pick_destination(color_name: str) -> str:
+    """Map canonical color to destination bowl."""
     return f"BOWL_{color_name.upper()}"
 
 
-def color_name_to_enum(color_name):
-    """Convert color name to enum value."""
-    mapping = {"GREEN": "HIJAU", "YELLOW": "KUNING", "RED": "MERAH"}
-    return mapping.get(color_name, "HIJAU")
+async def publish_status(
+    client,
+    state: str,
+    color: str | None = None,
+    detection_id: str | None = None,
+    event_uuid: str | None = None,
+    confidence: float = 0.0,
+    detail: str | None = None,
+) -> bool:
+    """Publish arm status to arm/status topic.
 
-
-async def publish_command(client, color_name, destination, confidence=1.0):
-    """Publish sorting command to arm/command topic."""
-    command = {
-        "action": "sort",
-        "color": color_name,
-        "destination": destination,
-        "confidence": confidence,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-    }
-    result = client.publish(MQTT_TOPIC_COMMAND, json.dumps(command), qos=1)
-    return result.rc == mqtt.MQTT_ERR_SUCCESS
-
-
-async def publish_status(client, state, color=None, detection_id=None, confidence=0.0):
-    """Publish arm status to arm/status topic."""
+    event_uuid echoes the command's UUID through every state (including
+    COMPLETED) so the backend can match feedback to the originating sort.
+    """
     status = {
         "state": state,
         "color": color,
         "detection_id": detection_id,
+        "event_uuid": event_uuid,
         "confidence": confidence,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
-    result = client.publish(MQTT_TOPIC_STATUS, json.dumps(status), qos=1)
+    if detail is not None:
+        status["detail"] = detail
+    result = client.publish("arm/status", json.dumps(status, separators=(",", ":")), qos=1)
     return result.rc == mqtt.MQTT_ERR_SUCCESS
 
 
 def on_command(client, userdata, message):
-    """Callback for incoming command messages on arm/command."""
-    global current_state, current_color, current_detection_id, start_time
+    """Callback for incoming command messages on arm/command (runs in paho network thread)."""
+    global current_state, current_color, current_detection_id, current_event_uuid, start_time, counters
 
     try:
         payload = json.loads(message.payload.decode())
         action = payload.get("action")
 
-        if action == "sort" and COMPETITION_MODE:
-            current_color = payload.get("color")
+        if action == "sort" and settings.competition_mode:
+            current_color = payload.get("color")  # expects canonical green/yellow/red
             destination = payload.get("destination", pick_destination(current_color))
-            confidence = payload.get("confidence", 1.0)
-            event_uuid = payload.get("event_uuid")
-            detection_id = payload.get("detection_id")
+            confidence = payload.get("confidence", 100.0)  # 0-100 percent, matches arm/command
+            current_event_uuid = payload.get("event_uuid")
+            current_detection_id = payload.get("detection_id")
 
-            current_state = "BUSY"
-            current_detection_id = detection_id
+            current_state = "busy"
             start_time = datetime.utcnow()
 
-            # Execute sort sequence
-            asyncio.create_task(_sort_sequence(client, destination, confidence))
+            # Execute sort sequence (schedule on our event loop)
+            _schedule(_sort_sequence(client, destination, confidence))
 
         elif action == "reset_session":
-            current_state = "READY"
+            current_state = "ready"
             current_color = None
             current_detection_id = None
-            counters = {"GREEN": 0, "YELLOW": 0, "RED": 0}
-            asyncio.create_task(publish_status(client, "READY"))
+            current_event_uuid = None
+            # Must use global keyword to modify the module-level dict
+            global counters
+            counters = {"green": 0, "yellow": 0, "red": 0}
+            _schedule(publish_status(client, "ready"))
             print("=== Demo session reset ===")
+
+        elif action == "error":
+            detail = payload.get("detail", "unknown_error")
+            _schedule(publish_status(client, "error", detail=detail))
+            print(f"[MOCK] Error command received: {detail}")
 
     except (json.JSONDecodeError, KeyError) as e:
         print(f"Error processing command: {e}")
 
 
-async def _sort_sequence(client, destination, confidence):
-    """Execute the full sort sequence: BUSY → PICKING → MOVING → PLACING → RETURNING → COMPLETED → READY."""
-    global current_state, current_color, current_detection_id, start_time
+async def _sort_sequence(client, destination: str, confidence: float):
+    """Execute the full sort sequence: busy → picking → moving → placing → returning → completed → ready."""
+    global current_state, current_color, current_detection_id, current_event_uuid, start_time, counters
 
-    delay = float(os.getenv("MOCK_DELAY_MS", 300)) / 1000.0  # Convert ms to seconds
+    delay = settings.mock_delay_ms / 1000.0  # Convert ms to seconds
 
-    color_display = current_color or "HIJAU"
-    destination_display = destination or f"BOWL_{color_display.upper()}"
+    color_display = current_color or "green"
+    destination_display = destination or pick_destination(color_display)
+    event_uuid = current_event_uuid
 
-    # Step 1: BUSY → PICKING
-    current_state = "PICKING"
-    await publish_status(client, "PICKING", current_color, current_detection_id, confidence)
+    # Step 1: busy → picking
+    current_state = "picking"
+    await publish_status(client, "picking", current_color, current_detection_id, event_uuid, confidence)
     print(f"  [MOCK] PICKING - color={color_display}, dest={destination_display}")
     await asyncio.sleep(delay)
 
-    # Step 2: PICKING → MOVING
-    current_state = "MOVING"
-    await publish_status(client, "MOVING", current_color, current_detection_id, confidence)
+    # Step 2: picking → moving
+    current_state = "moving"
+    await publish_status(client, "moving", current_color, current_detection_id, event_uuid, confidence)
     print(f"  [MOCK] MOVING - color={color_display}, dest={destination_display}")
     await asyncio.sleep(delay)
 
-    # Step 3: MOVING → PLACING
-    current_state = "PLACING"
-    await publish_status(client, "PLACING", current_color, current_detection_id, confidence)
+    # Step 3: moving → placing
+    current_state = "placing"
+    await publish_status(client, "placing", current_color, current_detection_id, event_uuid, confidence)
     print(f"  [MOCK] PLACING - color={color_display}, dest={destination_display}")
     await asyncio.sleep(delay)
 
-    # Step 4: PLACING → RETURNING
-    current_state = "RETURNING"
-    await publish_status(client, "RETURNING", current_color, current_detection_id, confidence)
+    # Step 4: placing → returning
+    current_state = "returning"
+    await publish_status(client, "returning", current_color, current_detection_id, event_uuid, confidence)
     print(f"  [MOCK] RETURNING - color={color_display}, dest={destination_display}")
     await asyncio.sleep(delay)
 
-    # Step 5: RETURNING → COMPLETED
-    current_state = "COMPLETED"
-    await publish_status(client, "COMPLETED", current_color, current_detection_id, confidence)
+    # Step 5: returning → completed
+    current_state = "completed"
+    await publish_status(client, "completed", current_color, current_detection_id, event_uuid, confidence)
 
-    # Update counters
-    color_key = color_display.upper()
-    if color_key in counters:
-        counters[color_key] += 1
-        print(f"  [MOCK] Counter updated: {color_key} = {counters[color_key]}/3")
+    # Update counters (only on COMPLETED)
+    if color_display in counters:
+        counters[color_display] += 1
+        print(f"  [MOCK] Counter updated: {color_display} = {counters[color_display]}/3")
 
     # COMPLETED → READY (with small delay)
     await asyncio.sleep(0.5)
 
-    # COMPLETED → READY
-    current_state = "READY"
+    current_state = "ready"
     current_color = None
     current_detection_id = None
-    await publish_status(client, "READY")
+    current_event_uuid = None
+    await publish_status(client, "ready")
     print(f"  [MOCK] Sequence complete - {color_display} sorted to {destination_display}")
 
 
 def start_mqtt_client():
-    """Initialize and start the MQTT client for the mock hardware."""
-    client = mqtt.Client()
+    """Initialize and start the MQTT client for the mock hardware.
+
+    Authenticates with MQTT_USERNAME/MQTT_PASSWORD (+TLS) when configured,
+    mirroring the production broker requirements; stays anonymous locally.
+    """
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    if (settings.mqtt_username or "").strip():
+        client.username_pw_set(settings.mqtt_username, settings.mqtt_password or "")
+    if settings.mqtt_use_tls:
+        client.tls_set()
     client.on_message = on_command
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    client.subscribe(MQTT_TOPIC_COMMAND)
+    client.connect(settings.mqtt_broker, settings.mqtt_port, 60)
+    client.subscribe("arm/command")
     client.loop_start()
     return client
 
 
 async def run_mock_server():
     """Run the mock hardware server with automatic MQTT connection."""
+    global _loop
+    _loop = asyncio.get_running_loop()
+
     client = start_mqtt_client()
 
     try:
         # Publish initial Ready status
-        await publish_status(client, "READY")
+        await publish_status(client, "ready")
 
         # Print initial state
         print(f"Mock Hardware Server running...")
-        print(f"  Competition Mode: {COMPETITION_MODE}")
+        print(f"  Competition Mode: {settings.competition_mode}")
         print(f"  Initial state: READY")
         print(f"  Counters: {counters}")
-        print(f"  Topics: subscribed={MQTT_TOPIC_COMMAND}, published={MQTT_TOPIC_STATUS}")
-        print(f"  Delay: {os.getenv('MOCK_DELAY_MS', 300)}ms per step")
+        print(f"  Topics: subscribed=arm/command, published=arm/status")
+        print(f"  Delay: {settings.mock_delay_ms}ms per step")
         print()
         print("=== Available demo controls ===")
-        print("  SIMULATE COMPLETED - trigger green sort completion")
-        print("  SIMULATE ERROR - trigger error state")
-        print("  RESET SESSION - reset all counters")
+        print("  SIMULATE COMPLETED - trigger green sort completion (via Laravel)")
+        print("  SIMULATE ERROR - trigger error state (via Laravel)")
+        print("  RESET SESSION - reset all counters (via Laravel)")
         print()
 
         # Keep running
@@ -198,17 +216,17 @@ async def run_mock_server():
 
 if __name__ == "__main__":
     print(f"Mock Hardware Server starting...")
-    print(f"  Competition Mode: {COMPETITION_MODE}")
-    print(f"  MQTT Broker: {MQTT_BROKER}:{MQTT_PORT}")
+    print(f"  Competition Mode: {settings.competition_mode}")
+    print(f"  MQTT Broker: {settings.mqtt_broker}:{settings.mqtt_port}")
     print(f"  Model Path: not required (mock mode)")
-    print(f"  Topics: {MQTT_TOPIC_COMMAND}, {MQTT_TOPIC_STATUS}")
-    print(f"  Delay: {os.getenv('MOCK_DELAY_MS', 300)}ms per step")
+    print(f"  Topics: arm/command, arm/status")
+    print(f"  Delay: {settings.mock_delay_ms}ms per step")
     print()
 
-    if COMPETITION_MODE:
+    if settings.competition_mode:
         print("=== COMPETITION MODE ENABLED ===")
-        print("Color mapping: HIJAU→BOWL_GREEN, KUNING→BOWL_YELLOW, MERAH→BOWL_RED")
-        print("State sequence: READY → BUSY → PICKING → MOVING → PLACING → RETURNING → COMPLETED → READY")
+        print("Color mapping (canonical): green→BOWL_GREEN, yellow→BOWL_YELLOW, red→BOWL_RED")
+        print("State sequence: ready → busy → picking → moving → placing → returning → completed → ready")
         print("Counters track completed events per color (need 3/3 for SORTING_COMPLETE)")
         print()
 

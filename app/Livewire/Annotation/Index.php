@@ -4,6 +4,7 @@ namespace App\Livewire\Annotation;
 
 use App\Models\Annotation;
 use App\Models\Detection;
+use App\Services\AutoRetrain;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -89,7 +90,7 @@ class Index extends Component
         );
 
         // Opportunistically retrain once enough new labels have accrued.
-        app(\App\Services\AutoRetrain::class)->maybeTrigger();
+        app(AutoRetrain::class)->maybeTrigger();
     }
 
     public function render()

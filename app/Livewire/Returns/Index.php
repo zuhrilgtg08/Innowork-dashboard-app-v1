@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Returns;
 
-use App\Models\Detection;
 use App\Models\ReturnBatch;
+use App\Services\QcWorkflow;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -11,7 +11,7 @@ use Livewire\WithPagination;
 
 /**
  * QC return review: operators/supervisors triage the defect batches the
- * auto-reject workflow ({@see \App\Services\QcWorkflow}) diverted off the line,
+ * auto-reject workflow ({@see QcWorkflow}) diverted off the line,
  * inspect their detections, and resolve them.
  */
 #[Layout('layouts.app', ['title' => 'QC Returns'])]

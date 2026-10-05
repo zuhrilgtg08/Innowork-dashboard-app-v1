@@ -5,6 +5,7 @@
     'deltaUp' => true,
     'tone' => 'blue',
     'sub' => null,
+    'icon' => null,
 ])
 
 @php
@@ -23,7 +24,7 @@
     <div class="flex items-start justify-between">
         <div class="flex items-center gap-3">
             <span class="flex h-11 w-11 items-center justify-center rounded-xl {{ $toneClass }}">
-                {{ $icon }}
+                {{ $icon ?? '' }}
             </span>
             <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ $label }}</span>
         </div>

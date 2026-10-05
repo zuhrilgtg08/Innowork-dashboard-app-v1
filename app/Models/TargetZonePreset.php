@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Product;
-use App\Models\RolePermission;
 use App\Services\ArmMqttService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;

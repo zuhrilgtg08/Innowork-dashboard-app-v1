@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 /**
  * Ingest endpoint for the ICAM-300 stream pipeline. The FastAPI ml-service
@@ -38,6 +39,13 @@ class CameraController extends Controller
             'conveyor' => ['nullable', 'string', 'max:50'],
             'qr_value' => ['nullable', 'string', 'max:255'],
             'frame_jpeg_b64' => ['nullable', 'string'],
+            // Vision Sorting competition fields (sent frame-level by the
+            // ml-service sort pipeline; dropped silently before this fix).
+            'color' => ['nullable', 'string', Rule::in(['green', 'yellow', 'red'])],
+            'center_x' => ['nullable', 'integer', 'min:0'],
+            'center_y' => ['nullable', 'integer', 'min:0'],
+            'in_pick_zone' => ['nullable', 'boolean'],
+            'competition_event_id' => ['nullable', 'uuid'],
         ]);
 
         $camera = $data['camera'] ?? 'ICAM-300';
@@ -102,6 +110,12 @@ class CameraController extends Controller
                 'label' => $item['label'] ?? null,
                 'frame_width' => $frameWidth,
                 'frame_height' => $frameHeight,
+                // Frame-level Vision Sorting verdict from the sort pipeline.
+                'color' => $data['color'] ?? null,
+                'center_x' => $data['center_x'] ?? null,
+                'center_y' => $data['center_y'] ?? null,
+                'in_pick_zone' => $data['in_pick_zone'] ?? false,
+                'competition_event_id' => $data['competition_event_id'] ?? null,
                 'detected_at' => now(),
             ]);
         }

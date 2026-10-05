@@ -20,7 +20,13 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        // Vision Sorting mode prioritises the operational board after login.
+        // redirectIntended still honours a directly requested URL.
+        $home = config('services.sorting.competition_mode')
+            ? route('sorting.dashboard', absolute: false)
+            : route('dashboard', absolute: false);
+
+        $this->redirectIntended(default: $home, navigate: true);
     }
 }; ?>
 

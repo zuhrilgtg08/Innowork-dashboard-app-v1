@@ -36,7 +36,8 @@ class ArmMqttService
     public function newClient(?string $clientIdSuffix = null): MqttClient
     {
         $clientId = trim((string) config('services.mqtt.client_id_prefix', 'sortvision'))
-            .'-'.($clientIdSuffix ?: Str::random(6));
+            .'-'.($clientIdSuffix ?: 'client')
+            .'-'.Str::random(6);
 
         return new MqttClient(
             (string) config('services.mqtt.host', '127.0.0.1'),
@@ -50,11 +51,25 @@ class ArmMqttService
      */
     public function connectionSettings(): ConnectionSettings
     {
-        return (new ConnectionSettings)
-            ->setUsername(config('services.mqtt.username'))
-            ->setPassword(config('services.mqtt.password'))
+        $settings = (new ConnectionSettings)
             ->setConnectTimeout((int) config('services.mqtt.connect_timeout', 3))
+            ->setKeepAliveInterval(60)
             ->setUseTls((bool) config('services.mqtt.use_tls', false));
+
+        // Anonymous brokers (local Mosquitto default) need no credentials.
+        // php-mqtt rejects a blank username, so only set auth when configured.
+        $username = config('services.mqtt.username');
+        $password = config('services.mqtt.password');
+
+        if (is_string($username) && trim($username) !== '') {
+            $settings->setUsername($username);
+        }
+
+        if (is_string($password) && trim($password) !== '') {
+            $settings->setPassword($password);
+        }
+
+        return $settings;
     }
 
     /**

@@ -1,5 +1,8 @@
 @php
     $user = auth()->user();
+    // Vision Sorting mode: simplified demo navigation. Legacy modules stay
+    // reachable by URL; only the primary navigation is reduced.
+    $visionMode = (bool) config('services.sorting.competition_mode', false);
 @endphp
 
 <aside
@@ -22,6 +25,51 @@
 
         <!-- Nav -->
         <nav class="scrollbar-thin flex-1 space-y-1 overflow-y-auto px-4 pb-4">
+            @if ($visionMode)
+            {{-- Vision Sorting demo navigation: Dashboard, Live Camera,
+                 Vision Sorting group, Model Evaluation. Legacy modules
+                 (Product, Categories, Returns, Annotation, Users, Roles)
+                 remain available by URL but are hidden here. --}}
+            <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Main Menu</p>
+
+            @if ($user->canAccess('Dashboard'))
+                <a href="{{ route('dashboard') }}" wire:navigate class="nav-link {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
+                    <span>Dashboard</span>
+                </a>
+            @endif
+
+            @if ($user->canAccess('Live Camera'))
+                <a href="{{ route('live-camera') }}" wire:navigate class="nav-link {{ request()->routeIs('live-camera') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                    <span>Live Camera</span>
+                </a>
+            @endif
+
+            @if ($user->canAccess('Sorting'))
+                <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Vision Sorting</p>
+                <a href="{{ route('sorting.dashboard') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.dashboard') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2.5M4 8l-2 2m0 0l2 2m-2-2h12M4 8v8a2 2 0 0 0 2 2h2.5" /></svg>
+                    <span>Sorting Dashboard</span>
+                </a>
+                <a href="{{ route('sorting.events') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.events') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" /></svg>
+                    <span>Sorting Events</span>
+                </a>
+                <a href="{{ route('sorting.device-status') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.device-status') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 5.25a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0ZM18.364 13.364a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0ZM5.636 13.364a2.25 2.25 0 1 1 3.182 0 2.25 2.25 0 0 1-3.182 0ZM12 15.75a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0ZM5.636 5.636a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0ZM18.364 5.636a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0Z" /></svg>
+                    <span>Device Status</span>
+                </a>
+            @endif
+
+            @if ($user->canAccess('Training'))
+                <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">AI Model</p>
+                <a href="{{ route('model-evaluation') }}" wire:navigate class="nav-link {{ request()->routeIs('model-evaluation') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>
+                    <span>Model Evaluation</span>
+                </a>
+            @endif
+            @else
             <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Main Menu</p>
 
             @if ($user->canAccess('Dashboard'))
@@ -78,6 +126,22 @@
                 </a>
             @endif
 
+            @if ($user->canAccess('Sorting'))
+                <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Vision Sorting</p>
+                <a href="{{ route('sorting.dashboard') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.dashboard') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2.5M4 8l-2 2m0 0l2 2m-2-2h12M4 8v8a2 2 0 0 0 2 2h2.5" /></svg>
+                    <span>Sorting Dashboard</span>
+                </a>
+                <a href="{{ route('sorting.events') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.events') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" /></svg>
+                    <span>Sorting Events</span>
+                </a>
+                <a href="{{ route('sorting.device-status') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.device-status') ? 'nav-link-active' : '' }}">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 5.25a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0ZM18.364 13.364a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0ZM5.636 13.364a2.25 2.25 0 1 1 3.182 0 2.25 2.25 0 0 1-3.182 0ZM12 15.75a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0ZM5.636 5.636a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0ZM18.364 5.636a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0Z" /></svg>
+                    <span>Device Status</span>
+                </a>
+            @endif
+
             @if ($user->canAccess('Returns'))
                 <a href="{{ route('returns') }}" wire:navigate class="nav-link {{ request()->routeIs('returns') ? 'nav-link-active' : '' }}">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
@@ -111,6 +175,7 @@
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
                     <span>Logs Sistem</span>
                 </a>
+            @endif
             @endif
         </nav>
 

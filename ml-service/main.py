@@ -8,11 +8,13 @@ from pathlib import Path
 
 import cv2
 from fastapi import BackgroundTasks, FastAPI, Form, UploadFile
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 import callbacks
 import infer
+import preview
+import sort_pipeline
 import train
 from config import settings
 from flow import FlowAnalyzer
@@ -62,7 +64,13 @@ def _flow_loop() -> None:
 
 
 def _infer_loop() -> None:
-    """Periodically infer on the latest frame and push a Detection to Laravel."""
+    """Periodically infer on the latest frame and push a Detection to Laravel.
+
+    In competition (Vision Sorting) mode each frame runs the full sort
+    pipeline (authoritative best.pt → ingest → pick-zone/dedupe/preflight
+    gates → arm/command); otherwise the legacy plain-inference path posts a
+    monitoring detection.
+    """
     model = _resolve_stream_model()
     while True:
         time.sleep(max(0.5, settings.icam_infer_interval))
@@ -77,12 +85,22 @@ def _infer_loop() -> None:
             tmp.write(jpeg)
             tmp_path = tmp.name
         try:
-            result = infer.infer_frame(tmp_path, model, settings.icam_conf)
+            if settings.competition_mode:
+                result = sort_pipeline.run_sort_pipeline(tmp_path, settings.icam_conf)
+                if not result.get("sort_triggered"):
+                    print(f"[stream-sort] no command ({result.get('reason')})", flush=True)
+            else:
+                result = infer.infer_frame(tmp_path, model, settings.icam_conf)
         except Exception as exc:  # noqa: BLE001
             print(f"[stream-infer] failed: {exc}", flush=True)
             continue
         finally:
             Path(tmp_path).unlink(missing_ok=True)
+
+        if settings.competition_mode:
+            # The sort pipeline already ingested the frame with competition
+            # fields; nothing left to post from the loop.
+            continue
 
         callbacks.post_detection(settings.laravel_url, {
             "status": result.get("status", "recheck"),
@@ -129,7 +147,37 @@ class TrainRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_loaded": True, "base_model": settings.base_model}
+    """Liveness + real Vision Sorting model health.
+
+    In competition (Vision Sorting) mode the configured best.pt is actually
+    resolved and loaded: model_loaded reflects reality, never a hardcoded
+    true. A load failure returns model_loaded=false with a safe diagnostic
+    (no secrets — the message is a YOLO/filesystem error string only).
+    """
+    base = {
+        "status": "ok",
+        "vision_sorting": settings.competition_mode,
+        "camera_connected": bool(camera_source.status().get("connected", False)),
+    }
+    if not settings.competition_mode:
+        return {**base, "model_loaded": True, "base_model": settings.base_model}
+    try:
+        resolved = sort_pipeline.resolve_sorting_model()
+        classes = sort_pipeline.assert_sorting_classes(resolved)
+        return {
+            **base,
+            "model_loaded": True,
+            "model_path": settings.icam_model_path or None,
+            "classes": {str(k): v for k, v in classes.items()},
+        }
+    except sort_pipeline.SortingModelError as exc:
+        return {
+            **base,
+            "model_loaded": False,
+            "model_path": settings.icam_model_path or None,
+            "classes": {},
+            "diagnostic": str(exc)[:200],
+        }
 
 
 class ReloadRequest(BaseModel):
@@ -188,6 +236,61 @@ def camera_stream():
     )
 
 
+@app.get("/model/info")
+def model_info():
+    """Real metadata about the active YOLO weights: path, size, classes,
+    inference device. No inference is run; no side effects.
+
+    In competition (Vision Sorting) mode the configured best.pt is
+    authoritative: if it is missing, a MODEL_ERROR is returned instead of
+    silently displaying yolov8n.pt as if it were the sorting model.
+    """
+    if settings.competition_mode:
+        try:
+            resolved = sort_pipeline.resolve_sorting_model()
+            sort_pipeline.assert_sorting_classes(resolved)
+        except sort_pipeline.SortingModelError as exc:
+            return JSONResponse(status_code=503, content={
+                "error": "MODEL_ERROR",
+                "message": str(exc)[:200],
+                "configured_path": settings.icam_model_path or None,
+            })
+        info = infer.model_info(resolved)
+        return {
+            **info,
+            "configured_path": settings.icam_model_path or None,
+            "base_model": settings.base_model,
+            "conf_threshold": settings.icam_conf,
+        }
+    resolved = _resolve_stream_model()
+    info = infer.model_info(resolved)
+    return {
+        **info,
+        "configured_path": settings.icam_model_path or None,
+        "base_model": settings.base_model,
+        "conf_threshold": settings.icam_conf,
+    }
+
+
+@app.get("/camera/preview")
+def camera_preview():
+    """Annotated MJPEG stream for Model Evaluation (bounding box + class +
+    confidence overlays). READ-ONLY: preview never publishes arm/command and
+    never writes detections — see preview.py safety contract."""
+    return StreamingResponse(
+        preview.preview_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/preview/latest")
+def preview_latest():
+    """Latest preview inference snapshot for the info panel and logs."""
+    snap = preview.latest_snapshot()
+    return {"ok": snap["at"] is not None, **snap}
+
+
 @app.post("/train", status_code=202)
 def start_train(req: TrainRequest, background: BackgroundTasks):
     """Accept a training job and run it in the background (returns immediately)."""
@@ -212,7 +315,11 @@ async def run_infer(
     conveyor: str | None = Form(None),
     product_id: int | None = Form(None),
 ):
-    """Run inference on one uploaded frame and return the QC verdict inline."""
+    """Run inference on one uploaded frame and return the QC verdict inline.
+
+    When competition_mode is enabled and a color class is detected, this also
+    runs the sort pipeline: signed POST to /api/camera/detection + MQTT arm/command.
+    """
     # Resolve a relative model path (models/run-x/best.pt) against Laravel storage.
     resolved_model = None
     if model_path:
@@ -225,7 +332,10 @@ async def run_infer(
         tmp_path = tmp.name
 
     try:
-        result = infer.infer_frame(tmp_path, resolved_model, conf)
+        if settings.competition_mode:
+            result = sort_pipeline.run_sort_pipeline(tmp_path, conf, resolved_model)
+        else:
+            result = infer.infer_frame(tmp_path, resolved_model, conf)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 

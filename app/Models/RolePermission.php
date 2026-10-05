@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models;
 
@@ -32,7 +32,7 @@ class RolePermission extends Model
     ];
 
     /**
-     * Seed defaults â€” the baseline matrix shipped with the app.
+     * Seed defaults — the baseline matrix shipped with the app.
      *
      * @return array<string, array<string, string>>
      */
@@ -43,20 +43,23 @@ class RolePermission extends Model
             'supervisor_qc' => [
                 'Dashboard' => 'f', 'Users' => 'r', 'Product' => 'w', 'Categories' => 'w',
                 'Live Camera' => 'f', 'Returns' => 'f', 'Training' => 'w', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => 'r',
+                'Arm' => 'r', 'Sorting' => 'f',
             ],
             'operator' => [
                 'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Categories' => '-',
                 'Live Camera' => 'w', 'Returns' => 'w', 'Training' => 'r', 'Annotation' => 'w', 'Logs' => 'r', 'Settings' => '-',
+                'Arm' => 'r', 'Sorting' => 'w',
             ],
             'viewer' => [
                 'Dashboard' => 'r', 'Users' => '-', 'Product' => 'r', 'Categories' => '-',
                 'Live Camera' => 'r', 'Returns' => 'r', 'Training' => '-', 'Annotation' => '-', 'Logs' => 'r', 'Settings' => '-',
+                'Arm' => 'r', 'Sorting' => 'r',
             ],
         ];
     }
 
     /**
-     * Full role â†’ module â†’ access matrix, sourced from the DB and backfilled
+     * Full role → module → access matrix, sourced from the DB and backfilled
      * with defaults for any missing role/module pair.
      *
      * @return array<string, array<string, string>>
