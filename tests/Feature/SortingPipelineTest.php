@@ -66,7 +66,7 @@ class SortingPipelineTest extends TestCase
             'status' => 'pending',
             'color' => 'red',
             'destination' => 'BOWL_RED',
-            'confidence' => 0.973,
+            'confidence' => 97.3,
             'command_payload' => ['action' => 'sort', 'color' => 'red'],
             'source' => 'ml_service',
             'processed' => false,
@@ -124,7 +124,7 @@ class SortingPipelineTest extends TestCase
                 'status' => 'completed',
                 'color' => 'red',
                 'destination' => 'BOWL_RED',
-                'confidence' => 0.9,
+                'confidence' => 90.0,
                 'source' => 'ml_service',
             ]);
         }
