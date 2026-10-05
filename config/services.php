@@ -41,6 +41,8 @@ return [
         // Browser-facing MJPEG stream of the ICAM-300 (served by ml-service).
         'stream_url' => env('ML_STREAM_URL', 'http://127.0.0.1:8001/camera/stream'),
         'status_url' => env('ML_STATUS_URL', 'http://127.0.0.1:8001/camera/status'),
+        // Annotated YOLO preview stream (bounding boxes; read-only, no actuation).
+        'preview_url' => env('ML_PREVIEW_URL', 'http://127.0.0.1:8001/camera/preview'),
     ],
 
     // MQTT broker (Mosquitto/EMQX) — the real-time command & telemetry bus for
@@ -59,6 +61,17 @@ return [
         'conveyor_base_topic' => env('MQTT_CONVEYOR_BASE_TOPIC', 'conveyor'),
         // Seconds to wait for a broker connection before degrading gracefully.
         'connect_timeout' => (int) env('MQTT_CONNECT_TIMEOUT', 3),
+    ],
+
+    // Competition sorting integration (Opsi A). The ml-service publishes
+    // arm/command; mock_hardware consumes it; mqtt:listen completes events.
+    'sorting' => [
+        'hardware_mode' => env('SORTING_HARDWARE_MODE', 'real'),
+        'mock_hardware' => (bool) env('SORTING_MOCK_HARDWARE', false),
+        'competition_mode' => (bool) env('COMPETITION_MODE', false),
+        'max_objects_per_color' => (int) env('SORTING_MAX_OBJECTS_PER_COLOR', 3),
+        'sort_min_confidence' => (float) env('SORTING_MIN_CONFIDENCE', 0.5),
+        'sort_cooldown_ms' => (int) env('SORTING_COOLDOWN_MS', 1000),
     ],
 
 ];

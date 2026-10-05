@@ -4,6 +4,7 @@ namespace App\Livewire\Categories;
 
 use App\Models\Category;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -91,11 +92,11 @@ class Index extends Component
     {
         $data = $this->validate();
 
-        $category = $this->editingId ? Category::findOrFail($this->editingId) : new Category();
+        $category = $this->editingId ? Category::findOrFail($this->editingId) : new Category;
 
         $category->fill([
             'name' => $data['name'],
-            'slug' => \Illuminate\Support\Str::slug($data['name']),
+            'slug' => Str::slug($data['name']),
             'description' => $data['description'] ?: null,
             'is_active' => $data['is_active'],
             'sort_order' => $data['sort_order'],

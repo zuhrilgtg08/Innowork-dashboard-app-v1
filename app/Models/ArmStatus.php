@@ -47,6 +47,14 @@ class ArmStatus extends Model
         'idle' => ['label' => 'Idle',    'color' => 'gray'],
         'running' => ['label' => 'Running', 'color' => 'green'],
         'error' => ['label' => 'Error',   'color' => 'red'],
+        // Mock hardware states (lowercased by listener)
+        'ready' => ['label' => 'Ready', 'color' => 'green'],
+        'busy' => ['label' => 'Busy', 'color' => 'amber'],
+        'picking' => ['label' => 'Picking', 'color' => 'blue'],
+        'moving' => ['label' => 'Moving', 'color' => 'indigo'],
+        'placing' => ['label' => 'Placing', 'color' => 'purple'],
+        'returning' => ['label' => 'Returning', 'color' => 'pink'],
+        'completed' => ['label' => 'Completed', 'color' => 'emerald'],
     ];
 
     /**

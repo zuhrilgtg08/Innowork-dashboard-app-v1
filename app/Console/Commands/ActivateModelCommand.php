@@ -57,7 +57,7 @@ class ActivateModelCommand extends Command
             : (float) config('services.ml.min_map', 0);
 
         if (! $this->option('force') && ! $trainingRun->meetsQualityBar($minMap)) {
-            $this->error("mAP50 ".($trainingRun->map50() ?? 'n/a')." di bawah minimum {$minMap}. Batal (pakai --force untuk memaksa).");
+            $this->error('mAP50 '.($trainingRun->map50() ?? 'n/a')." di bawah minimum {$minMap}. Batal (pakai --force untuk memaksa).");
 
             return self::FAILURE;
         }

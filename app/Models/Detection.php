@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models;
 
@@ -25,7 +25,13 @@ class Detection extends Model
         'label',
         'frame_width',
         'frame_height',
-        'detected_at',\n        'color',\n        'center_x',\n        'center_y',\n        'in_pick_zone',\n        'processed',\n        'competition_event_id',\n        'color',
+        'detected_at',
+        'color',
+        'center_x',
+        'center_y',
+        'in_pick_zone',
+        'processed',
+        'competition_event_id',
     ];
 
     protected function casts(): array
@@ -33,7 +39,6 @@ class Detection extends Model
         return [
             'detected_at' => 'datetime',
             'confidence' => 'decimal:2',
-            // [x1, y1, x2, y2] in the source frame's pixel coordinates.
             'bbox' => 'array',
         ];
     }
@@ -61,12 +66,51 @@ class Detection extends Model
 
     /**
      * Statuses that are valid visual QC classes for training. Workflow-only
-     * states ('returned', 'recheck') are excluded â€” they are not something the
+     * states ('returned', 'recheck') are excluded — they are not something the
      * vision model can learn to recognise from a frame.
      *
      * @var array<int, string>
      */
     public const TRAINABLE_STATUSES = ['passed', 'unreadable', 'damaged', 'scratched'];
+
+    /**
+     * Competition mode statuses with UI metadata.
+     *
+     * @var array<string, array{label: string, color: string}>
+     */
+    public const COMPETITION_STATUSES = [
+        'pending' => ['label' => 'Pending', 'color' => 'gray'],
+        'in_progress' => ['label' => 'In Progress', 'color' => 'amber'],
+        'completed' => ['label' => 'Completed', 'color' => 'green'],
+        'error' => ['label' => 'Error', 'color' => 'red'],
+    ];
+
+    /**
+     * Competition colors (canonical: green/yellow/red).
+     *
+     * @var array<string, array{label: string, color: string}>
+     */
+    public const COMPETITION_COLORS = [
+        'green' => ['label' => 'Green', 'color' => 'green'],
+        'yellow' => ['label' => 'Yellow', 'color' => 'amber'],
+        'red' => ['label' => 'Red', 'color' => 'red'],
+    ];
+
+    /**
+     * Get the competition color label.
+     */
+    public static function getCompetitionColorLabel(string $color): string
+    {
+        return self::COMPETITION_COLORS[$color]['label'] ?? $color;
+    }
+
+    /**
+     * Get the competition color Tailwind color.
+     */
+    public static function getCompetitionColorTint(string $color): string
+    {
+        return self::COMPETITION_COLORS[$color]['color'] ?? 'gray';
+    }
 
     public function product(): BelongsTo
     {

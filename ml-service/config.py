@@ -71,5 +71,26 @@ class Settings(BaseSettings):
     # Avg edge-density occupancy at/below this counts as off_flow (empty belt).
     flow_offflow_occupancy: float = 0.008
 
+    # --- Competition sorting integration ------------------------------------
+    # When true, the /infer endpoint runs the competition pipeline:
+    # YOLO inference → signed POST /api/camera/detection → MQTT arm/command publish.
+    competition_mode: bool = False
+
+    # MQTT broker for arm/command (mock_hardware consumes this).
+    mqtt_broker: str = "localhost"
+    mqtt_port: int = 1883
+
+    # Minimum confidence (0-1) for a detection to trigger a sort command.
+    sort_min_confidence: float = 0.5
+
+    # Maximum objects per color before SORTING_COMPLETE (default 3).
+    max_objects_per_color: int = 3
+
+    # Cooldown between sort commands in milliseconds.
+    sort_cooldown_ms: int = 1000
+
+    # Mock hardware step delay (ms).
+    mock_delay_ms: int = 300
+
 
 settings = Settings()

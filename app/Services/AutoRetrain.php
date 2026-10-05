@@ -66,7 +66,7 @@ class AutoRetrain
         SystemLog::create([
             'level' => 'info',
             'source' => 'ai',
-            'message' => "Auto-retrain queued: {$approved} approved annotations (+".($approved - $baseline)." since last run).",
+            'message' => "Auto-retrain queued: {$approved} approved annotations (+".($approved - $baseline).' since last run).',
             'context' => ['run_id' => $run->id, 'approved' => $approved, 'baseline' => $baseline],
             'logged_at' => now(),
         ]);

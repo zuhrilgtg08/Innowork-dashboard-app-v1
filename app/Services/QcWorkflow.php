@@ -25,7 +25,7 @@ class QcWorkflow
      * single arm command.
      *
      * @param  iterable<int, Detection>  $detections
-     * @return ReturnBatch|null  the batch defects were attached to, if any
+     * @return ReturnBatch|null the batch defects were attached to, if any
      */
     public function handleFrame(iterable $detections): ?ReturnBatch
     {

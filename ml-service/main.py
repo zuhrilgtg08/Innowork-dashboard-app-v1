@@ -13,6 +13,8 @@ from pydantic import BaseModel
 
 import callbacks
 import infer
+import preview
+import sort_pipeline
 import train
 from config import settings
 from flow import FlowAnalyzer
@@ -188,6 +190,39 @@ def camera_stream():
     )
 
 
+@app.get("/model/info")
+def model_info():
+    """Real metadata about the active YOLO weights: path, size, classes,
+    inference device. No inference is run; no side effects."""
+    resolved = _resolve_stream_model()
+    info = infer.model_info(resolved)
+    return {
+        **info,
+        "configured_path": settings.icam_model_path or None,
+        "base_model": settings.base_model,
+        "conf_threshold": settings.icam_conf,
+    }
+
+
+@app.get("/camera/preview")
+def camera_preview():
+    """Annotated MJPEG stream for Model Evaluation (bounding box + class +
+    confidence overlays). READ-ONLY: preview never publishes arm/command and
+    never writes detections — see preview.py safety contract."""
+    return StreamingResponse(
+        preview.preview_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/preview/latest")
+def preview_latest():
+    """Latest preview inference snapshot for the info panel and logs."""
+    snap = preview.latest_snapshot()
+    return {"ok": snap["at"] is not None, **snap}
+
+
 @app.post("/train", status_code=202)
 def start_train(req: TrainRequest, background: BackgroundTasks):
     """Accept a training job and run it in the background (returns immediately)."""
@@ -212,7 +247,11 @@ async def run_infer(
     conveyor: str | None = Form(None),
     product_id: int | None = Form(None),
 ):
-    """Run inference on one uploaded frame and return the QC verdict inline."""
+    """Run inference on one uploaded frame and return the QC verdict inline.
+
+    When competition_mode is enabled and a color class is detected, this also
+    runs the sort pipeline: signed POST to /api/camera/detection + MQTT arm/command.
+    """
     # Resolve a relative model path (models/run-x/best.pt) against Laravel storage.
     resolved_model = None
     if model_path:
@@ -225,7 +264,10 @@ async def run_infer(
         tmp_path = tmp.name
 
     try:
-        result = infer.infer_frame(tmp_path, resolved_model, conf)
+        if settings.competition_mode:
+            result = sort_pipeline.run_sort_pipeline(tmp_path, conf, resolved_model)
+        else:
+            result = infer.infer_frame(tmp_path, resolved_model, conf)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 

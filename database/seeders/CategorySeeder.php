@@ -27,7 +27,7 @@ class CategorySeeder extends Seeder
 
         foreach ($milkCategories as $cat) {
             $images = glob(public_path('assets/images/*.{jpg,jpeg,png,gif,webp}'), GLOB_BRACE);
-            $imagePath = !empty($images) ? 'assets/images/' . basename($images[array_rand($images)]) : null;
+            $imagePath = ! empty($images) ? 'assets/images/'.basename($images[array_rand($images)]) : null;
 
             Category::updateOrCreate(
                 ['slug' => Str::slug($cat['name'])],

@@ -24,6 +24,35 @@ def reload_models() -> None:
     _load.cache_clear()
 
 
+def model_info(model_path: str | None) -> dict:
+    """Real metadata about the YOLO weights (no inference run).
+
+    Loads the weights through the same shared cache as infer_frame, so this
+    adds no extra memory when the model is already warm.
+    """
+    weights = model_path if (model_path and Path(model_path).exists()) else "yolov8n.pt"
+    model = _load(weights)
+
+    size = Path(weights).stat().st_size if Path(weights).exists() else None
+
+    try:
+        import torch
+
+        cuda_available = bool(torch.cuda.is_available())
+    except Exception:  # noqa: BLE001
+        cuda_available = False
+
+    return {
+        "path": weights,
+        "file_size_bytes": size,
+        "classes": {int(k): v for k, v in dict(model.names).items()},
+        "class_count": len(model.names),
+        # infer_frame always predicts on CPU; report that honestly.
+        "inference_device": "cpu",
+        "cuda_available": cuda_available,
+    }
+
+
 def _box_status(label: str, conf_pct: float, is_qc_model: bool, conf: float) -> str:
     """QC status for one box.
 

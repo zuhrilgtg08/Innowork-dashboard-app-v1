@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SortingEvent extends Model
 {
@@ -21,69 +20,66 @@ class SortingEvent extends Model
     ];
 
     /**
-     * Possible statuses for a sorting event.
+     * Possible statuses for a sorting event with UI metadata.
      *
-     * @var array<string, string>
+     * @var array<string, array{label: string, color: string}>
      */
     public const STATUSES = [
-        'pending',
-        'in_progress',
-        'completed',
-        'error',
+        'pending' => ['label' => 'Pending', 'color' => 'gray'],
+        'in_progress' => ['label' => 'In Progress', 'color' => 'amber'],
+        'completed' => ['label' => 'Completed', 'color' => 'green'],
+        'error' => ['label' => 'Error', 'color' => 'red'],
     ];
 
     /**
-     * Competition colors mapping.
+     * Competition colors with UI metadata (canonical: green/yellow/red).
      *
-     * @var array<string, string>
+     * @var array<string, array{label: string, destination: string, color: string}>
      */
     public const COLORS = [
-        'HIJAU' => 'GREEN',
-        'KUNING' => 'YELLOW',
-        'MERAH' => 'RED',
-    ];
-
-    /**
-     * Possible destinations for sorted items.
-     *
-     * @var array<string, string>
-     */
-    public const DESTINATIONS = [
-        'BOWL_GREEN',
-        'BOWL_YELLOW',
-        'BOWL_RED',
+        'green' => ['label' => 'Green', 'destination' => 'BOWL_GREEN', 'color' => 'green'],
+        'yellow' => ['label' => 'Yellow', 'destination' => 'BOWL_YELLOW', 'color' => 'amber'],
+        'red' => ['label' => 'Red', 'destination' => 'BOWL_RED', 'color' => 'red'],
     ];
 
     /**
      * Get counts of completed events by color.
      *
-     * @return array{HIJAU: int, KUNING: int, MERAH: int}
+     * @return array{green: int, yellow: int, red: int}
      */
-    public static function countsByColor(): array
+    public static function countsByColor(?int $sessionId = null): array
     {
-        return self::where('status', 'completed')
+        $query = self::where('status', 'completed');
+
+        if ($sessionId !== null) {
+            $query->where('sorting_session_id', $sessionId);
+        }
+
+        $result = $query
             ->selectRaw('color, count(*) as cnt')
             ->groupBy('color')
             ->pluck('cnt', 'color')
-            ->toArray() + [
-            'HIJAU' => 0,
-            'KUNING' => 0,
-            'MERAH' => 0,
+            ->toArray();
+
+        return $result + [
+            'green' => 0,
+            'yellow' => 0,
+            'red' => 0,
         ];
     }
 
     /**
      * Check if all three colors have 3 completed events (SORTING_COMPLETE).
      *
-     * @return bool
+     * @return string 'SORTING_COMPLETE' or 'SORTING_IN_PROGRESS'
      */
-    public static function systemState(): string
+    public static function systemState(?int $sessionId = null): string
     {
-        $counts = self::countsByColor();
+        $counts = self::countsByColor($sessionId);
 
         $allComplete = true;
-        foreach (self::COLORS as $color => $) {
-            if ($counts[$color] ?? 0 < 3) {
+        foreach (array_keys(self::COLORS) as $color) {
+            if (($counts[$color] ?? 0) < 3) {
                 $allComplete = false;
                 break;
             }
@@ -94,41 +90,30 @@ class SortingEvent extends Model
 
     /**
      * Get the human-readable color label.
-     *
-     * @param string $color
-     * @return string
      */
     public function getColorLabel(): string
     {
-        return data_get(self::COMPETITION_COLORS, $color, $color);
+        return self::COLORS[$this->color]['label'] ?? $this->color;
     }
 
     /**
      * Get the Tailwind color for the color.
-     *
-     * @param string $color
-     * @return string
      */
     public function getColorTint(): string
     {
-        return data_get(self::COMPETITION_COLORS, $color . '.color', 'gray');
+        return self::COLORS[$this->color]['color'] ?? 'gray';
     }
 
     /**
      * Get the destination bowl name.
-     *
-     * @param string $color
-     * @return string
      */
     public function getDestination(): string
     {
-        return data_get(self::DESTINATIONS, $this->color . '.', 'BOWL_DEFAULT');
+        return self::COLORS[$this->color]['destination'] ?? 'BOWL_DEFAULT';
     }
 
     /**
      * Get the event UUID.
-     *
-     * @return string
      */
     public function getEventUuid(): string
     {
@@ -137,8 +122,6 @@ class SortingEvent extends Model
 
     /**
      * Get the associated detection.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function detection(): BelongsTo
     {

@@ -11,3 +11,4 @@ python-multipart==0.0.*
 pillow==10.*
 opencv-python==4.*
 numpy==2.*
+paho-mqtt==2.*

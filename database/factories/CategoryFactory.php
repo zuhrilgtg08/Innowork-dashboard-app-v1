@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Category>
+ * @extends Factory<Category>
  */
 class CategoryFactory extends Factory
 {
@@ -47,11 +48,12 @@ class CategoryFactory extends Factory
     private function getMilkImages(): array
     {
         $publicImagesPath = public_path('assets/images');
-        if (!is_dir($publicImagesPath)) {
+        if (! is_dir($publicImagesPath)) {
             return [];
         }
 
-        $files = glob($publicImagesPath . '/*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE);
-        return array_map(fn($file) => 'assets/images/' . basename($file), $files);
+        $files = glob($publicImagesPath.'/*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE);
+
+        return array_map(fn ($file) => 'assets/images/'.basename($file), $files);
     }
 }
