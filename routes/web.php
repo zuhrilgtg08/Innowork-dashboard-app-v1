@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CameraStreamController;
 use App\Livewire\Actions\Logout;
 use App\Livewire\Annotation\Index as AnnotationIndex;
 use App\Livewire\Categories\Index as CategoriesIndex;
@@ -53,6 +54,15 @@ Route::middleware(['auth'])->group(function () {
 
     // Model Evaluation (read-only YOLO inspection; repurposed Training entry)
     Route::get('model-evaluation', ModelEvaluationIndex::class)->name('model-evaluation');
+
+    // Same-origin relay for the iCAM-300 camera streams (see
+    // App\Http\Controllers\CameraStreamController). The browser must never
+    // talk to the ML service's internal address directly — a remote viewer
+    // would resolve 127.0.0.1 to its own machine, and the IoT Suite iframe
+    // must stay on the Laravel origin.
+    Route::get('ml/camera/stream', [CameraStreamController::class, 'stream'])->name('ml.camera.stream');
+    Route::get('ml/camera/preview', [CameraStreamController::class, 'preview'])->name('ml.camera.preview');
+    Route::get('ml/camera/frame', [CameraStreamController::class, 'frame'])->name('ml.camera.frame');
 
     // Breeze profile page (kept)
     Route::view('profile', 'profile')->name('profile');

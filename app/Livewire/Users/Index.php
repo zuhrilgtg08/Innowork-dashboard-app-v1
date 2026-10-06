@@ -73,8 +73,8 @@ class Index extends Component
     }
 
     protected array $messages = [
-        'userRole.required' => 'Role wajib dipilih.',
-        'userRole.in' => 'Role tidak valid.',
+        'userRole.required' => 'A role must be selected.',
+        'userRole.in' => 'Invalid role.',
     ];
 
     public function create(): void
@@ -107,15 +107,15 @@ class Index extends Component
         $user = $this->editingId ? User::findOrFail($this->editingId) : new User;
 
         // Guard: the sole Administrator cannot be demoted or deactivated —
-        // the admin role is tunggal (single top-level account).
+        // there is a single top-level admin account.
         if ($this->editingId && $this->isProtectedAdmin($user)) {
             if ($this->userRole !== 'admin') {
-                $this->addError('userRole', 'Administrator tunggal tidak dapat diturunkan role-nya.');
+                $this->addError('userRole', 'The sole administrator cannot be demoted.');
 
                 return;
             }
             if (! $this->is_active) {
-                $this->addError('is_active', 'Administrator tunggal tidak dapat dinonaktifkan.');
+                $this->addError('is_active', 'The sole administrator cannot be deactivated.');
 
                 return;
             }
@@ -143,7 +143,7 @@ class Index extends Component
 
         $user->save();
 
-        $this->flash = $this->editingId ? 'User berhasil diperbarui.' : 'User baru berhasil ditambahkan.';
+        $this->flash = $this->editingId ? 'User updated successfully.' : 'New user added successfully.';
         $this->closeModal();
     }
 
@@ -157,14 +157,14 @@ class Index extends Component
         $user = User::findOrFail($id);
 
         if ($this->isProtectedAdmin($user)) {
-            $this->flash = 'Administrator tunggal tidak dapat dihapus.';
+            $this->flash = 'The sole administrator cannot be deleted.';
             $this->confirmingDeleteId = null;
 
             return;
         }
 
         if ($user->id === auth()->id()) {
-            $this->flash = 'Anda tidak dapat menghapus akun sendiri.';
+            $this->flash = 'You cannot delete your own account.';
             $this->confirmingDeleteId = null;
 
             return;
@@ -175,12 +175,12 @@ class Index extends Component
         }
 
         $user->delete();
-        $this->flash = 'User berhasil dihapus.';
+        $this->flash = 'User deleted successfully.';
         $this->confirmingDeleteId = null;
     }
 
     /**
-     * True when the user is an admin and the only admin left (tunggal).
+     * True when the user is an admin and the only admin left.
      */
     protected function isProtectedAdmin(User $user): bool
     {

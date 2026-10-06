@@ -61,7 +61,9 @@ class Index extends Component
 
         $this->mlOnline = $ml->healthy();
         $this->modelInfo = $ml->modelInfo();
-        $this->previewUrl = (string) config('services.ml.preview_url');
+        // Same-origin proxy: the browser must never resolve the ML service's
+        // internal address itself (see routes/web.php ml.camera.*).
+        $this->previewUrl = route('ml.camera.preview');
 
         $setting = Setting::current();
         $this->confThreshold = (float) $setting->confidence_threshold;

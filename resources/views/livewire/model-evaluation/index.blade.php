@@ -87,7 +87,7 @@
                 </div>
             @else
                 <div class="mt-4">
-                    <x-empty-state title="ML service offline" message="Model metadata tidak tersedia. Jalankan service Python di port 8001." />
+                    <x-empty-state title="ML service offline" message="Model metadata is unavailable. Start the Python service." />
                 </div>
             @endif
         </div>
@@ -195,7 +195,7 @@
                     @endforeach
                 </div>
             @else
-                <div class="mt-4"><x-empty-state title="No data" message="Belum ada deteksi dengan konteks warna." /></div>
+                <div class="mt-4"><x-empty-state title="No data" message="No detections with color context yet." /></div>
             @endif
         </div>
 
@@ -222,7 +222,7 @@
                     @endforeach
                 </div>
             @else
-                <div class="mt-4"><x-empty-state title="No data" message="Belum ada confidence per kelas." /></div>
+                <div class="mt-4"><x-empty-state title="No data" message="No per-class confidence data yet." /></div>
             @endif
         </div>
 
@@ -270,7 +270,7 @@
                     <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
                 </div>
             @else
-                <div class="mt-4"><x-empty-state title="No data" message="Belum ada deteksi hari ini." /></div>
+                <div class="mt-4"><x-empty-state title="No data" message="No detections today yet." /></div>
             @endif
         </div>
     </div>

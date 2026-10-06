@@ -2,10 +2,10 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Settings</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Konfigurasi sistem QC &amp; model deteksi.</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">QC system &amp; detection model configuration.</p>
         </div>
         @if ($saved)
-            <span class="rounded-full bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-700 dark:bg-green-500/15 dark:text-green-400">Tersimpan {{ $saved }}</span>
+            <span class="rounded-full bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-700 dark:bg-green-500/15 dark:text-green-400">Saved {{ $saved }}</span>
         @endif
     </div>
 
@@ -13,7 +13,7 @@
         <!-- General -->
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">General</h3>
-            <p class="text-xs text-gray-400">Identitas &amp; lokal aplikasi.</p>
+            <p class="text-xs text-gray-400">Application identity &amp; locale.</p>
             <div class="mt-5 space-y-4">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Application Name</label>
@@ -34,7 +34,7 @@
         <!-- Detection -->
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">Detection Model</h3>
-            <p class="text-xs text-gray-400">Ambang keputusan &amp; otomasi.</p>
+            <p class="text-xs text-gray-400">Decision thresholds &amp; automation.</p>
             <div class="mt-5 space-y-4">
                 <div>
                     <label class="mb-1 flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -57,20 +57,20 @@
         <!-- Camera -->
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">Camera</h3>
-            <p class="text-xs text-gray-400">Sumber Live Camera.</p>
+            <p class="text-xs text-gray-400">Live Camera source.</p>
             <div class="mt-5 space-y-4">
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Sumber Kamera</label>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Camera Source</label>
                     <select wire:model.live="cameraSource" class="field py-2.5">
-                        <option value="webcam">Webcam Browser (demo)</option>
+                        <option value="webcam">Browser Webcam (demo)</option>
                         <option value="icam">ICAM-300 (RTSP via AI service)</option>
                     </select>
                     @error('cameraSource') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                 </div>
                 <div x-data x-show="$wire.cameraSource === 'icam'">
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">RTSP URL ICAM-300</label>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">ICAM-300 RTSP URL</label>
                     <input wire:model="icamRtspUrl" type="text" class="field font-mono text-xs" placeholder="rtsp://192.168.0.100:8550/video" />
-                    <p class="mt-1 text-xs text-gray-400">Set juga <span class="font-mono">ICAM_RTSP_URL</span> di <span class="font-mono">ml-service/.env</span> agar service menarik streamnya.</p>
+                    <p class="mt-1 text-xs text-gray-400">Also set <span class="font-mono">ICAM_RTSP_URL</span> in <span class="font-mono">ml-service/.env</span> so the service pulls this stream. In Vision Sorting mode the ICAM-300 server stream is used regardless of this setting unless <span class="font-mono">?source=webcam</span> is requested explicitly.</p>
                     @error('icamRtspUrl') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                 </div>
             </div>
@@ -79,13 +79,13 @@
         <!-- Notifications -->
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">Notifications</h3>
-            <p class="text-xs text-gray-400">Peringatan operasional.</p>
+            <p class="text-xs text-gray-400">Operational alerts.</p>
             <div class="mt-5 space-y-4">
                 <label class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Email alerts</span>
                     <input wire:model="emailAlerts" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                 </label>
-                <p class="text-xs text-gray-400">Kirim ringkasan defect harian ke supervisor QC.</p>
+                <p class="text-xs text-gray-400">Send a daily defect summary to the QC supervisor.</p>
             </div>
         </div>
 
@@ -93,7 +93,7 @@
         <div class="card flex flex-col justify-between p-5">
             <div>
                 <h3 class="font-bold text-gray-900 dark:text-white">Save Changes</h3>
-                <p class="text-xs text-gray-400">Perubahan diterapkan ke seluruh stasiun.</p>
+                <p class="text-xs text-gray-400">Changes apply to all stations.</p>
             </div>
             <div class="mt-5 flex gap-3">
                 <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="save">

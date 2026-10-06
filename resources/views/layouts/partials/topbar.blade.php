@@ -2,7 +2,12 @@
     $user = auth()->user();
     $pageTitle = $pageTitle ?? 'Dashboard';
 
-    // Notifikasi = peringatan sistem 24 jam terakhir (data nyata dari SystemLog).
+    // Vision Sorting mode hides the legacy product search: the Product module
+    // is not part of the Vision Sorting navigation, so the topbar must not
+    // force the user into it.
+    $visionMode = (bool) config('services.sorting.competition_mode', false);
+
+    // Notifications = system warnings from the last 24 hours (real SystemLog data).
     $alertLogs = \App\Models\SystemLog::whereIn('level', ['warning', 'error', 'critical'])
         ->where('logged_at', '>=', now()->subDay())
         ->latest('logged_at')
@@ -14,7 +19,7 @@
 <header x-data="{ mobileSearch: false }" class="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-gray-900/80">
     <div class="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
         <!-- Mobile hamburger -->
-        <button @click="sidebarOpen = true" aria-label="Buka menu navigasi" class="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-800 lg:hidden">
+        <button @click="sidebarOpen = true" aria-label="Open navigation menu" class="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-800 lg:hidden">
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
         </button>
 
@@ -22,28 +27,30 @@
         <h1 class="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">{{ $pageTitle }}</h1>
 
         <div class="ml-auto flex items-center gap-2 sm:gap-3">
-            <!-- Search (mencari produk) -->
+            @unless ($visionMode)
+            <!-- Search (legacy product catalogue; hidden in Vision Sorting mode) -->
             <form action="{{ route('products') }}" method="GET" role="search" class="relative hidden md:block">
-                <label for="topbar-search" class="sr-only">Cari produk</label>
+                <label for="topbar-search" class="sr-only">Search products</label>
                 <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-                <input id="topbar-search" name="search" type="search" value="{{ request('search') }}" placeholder="Cari produk..." class="w-52 rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 lg:w-64" />
+                <input id="topbar-search" name="search" type="search" value="{{ request('search') }}" placeholder="Search..." class="w-52 rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 lg:w-64" />
             </form>
 
             <!-- Mobile search toggle -->
             <button @click="mobileSearch = !mobileSearch; $nextTick(() => mobileSearch && $refs.mobileSearchInput.focus())"
                     :aria-expanded="mobileSearch"
-                    aria-label="Cari produk"
+                    aria-label="Search products"
                     class="rounded-xl border border-gray-200 bg-white p-2.5 text-gray-500 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 md:hidden">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
             </button>
+            @endunless
 
             <!-- Dark mode toggle -->
             <button
                 x-data="{ dark: document.documentElement.classList.contains('dark') }"
                 x-on:livewire:navigated.window="dark = document.documentElement.classList.contains('dark')"
                 @click="dark = !dark; document.documentElement.classList.toggle('dark', dark); localStorage.setItem('theme', dark ? 'dark' : 'light')"
-                :aria-label="dark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'"
-                aria-label="Ganti tema"
+                :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'"
+                aria-label="Toggle theme"
                 class="rounded-xl border border-gray-200 bg-white p-2.5 text-gray-500 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
                 <!-- Sun (shown in dark mode) -->
@@ -56,7 +63,7 @@
             <div class="relative" x-data="{ notifOpen: false }">
                 <button @click="notifOpen = !notifOpen"
                         :aria-expanded="notifOpen"
-                        aria-label="Notifikasi peringatan sistem"
+                        aria-label="System alert notifications"
                         class="relative rounded-xl border border-gray-200 bg-white p-2.5 text-gray-500 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
                     @if ($alertCount > 0)
@@ -72,8 +79,8 @@
                      class="absolute right-0 mt-2 w-80 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
                      style="display:none;">
                     <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700">
-                        <p class="text-sm font-bold text-gray-900 dark:text-white">Peringatan Sistem</p>
-                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500 dark:bg-gray-700 dark:text-gray-300">24 jam</span>
+                        <p class="text-sm font-bold text-gray-900 dark:text-white">System Alerts</p>
+                        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500 dark:bg-gray-700 dark:text-gray-300">24 hours</span>
                     </div>
                     <div class="max-h-80 overflow-y-auto">
                         @forelse ($alertLogs as $log)
@@ -85,29 +92,31 @@
                                 </div>
                             </a>
                         @empty
-                            <p class="px-4 py-8 text-center text-sm text-gray-400">Tidak ada peringatan. Semua aman ✓</p>
+                            <p class="px-4 py-8 text-center text-sm text-gray-400">No alerts. All systems normal.</p>
                         @endforelse
                     </div>
                     <a href="{{ route('logs') }}" wire:navigate class="block border-t border-gray-100 px-4 py-3 text-center text-sm font-semibold text-brand-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-brand-400 dark:hover:bg-gray-700/40">
-                        Lihat semua log
+                        View all logs
                     </a>
                 </div>
             </div>
 
             <!-- Avatar -->
-            <a href="{{ route('profile') }}" wire:navigate title="{{ $user->name }}" aria-label="Profil {{ $user->name }}"
+            <a href="{{ route('profile') }}" wire:navigate title="{{ $user->name }}" aria-label="Profile: {{ $user->name }}"
                class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 transition hover:ring-2 hover:ring-brand-500 hover:ring-offset-2 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-brand-600/20 dark:text-brand-300 dark:hover:ring-offset-gray-900">
                 {{ $user->initials() }}
             </a>
         </div>
     </div>
 
+    @unless ($visionMode)
     <!-- Mobile search row (collapsible) -->
     <div x-show="mobileSearch" x-collapse style="display:none;" class="border-t border-gray-200 px-4 pb-3 pt-2 dark:border-gray-800 md:hidden">
         <form action="{{ route('products') }}" method="GET" role="search" class="relative">
-            <label for="topbar-search-mobile" class="sr-only">Cari produk</label>
+            <label for="topbar-search-mobile" class="sr-only">Search products</label>
             <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-            <input id="topbar-search-mobile" x-ref="mobileSearchInput" name="search" type="search" value="{{ request('search') }}" placeholder="Cari produk..." class="w-full rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+            <input id="topbar-search-mobile" x-ref="mobileSearchInput" name="search" type="search" value="{{ request('search') }}" placeholder="Search..." class="w-full rounded-xl border-gray-200 bg-gray-50 pl-9 text-sm focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
         </form>
     </div>
+    @endunless
 </header>

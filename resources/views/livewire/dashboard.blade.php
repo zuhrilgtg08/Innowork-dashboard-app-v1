@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">QC Overview</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Realtime deteksi QR &amp; quality control pada conveyor sorting.</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Real-time QR detection &amp; quality control on the sorting conveyor.</p>
         </div>
         <div class="flex items-center gap-2">
             <select wire:model.live="range" class="field w-auto py-2 text-sm">
@@ -11,32 +11,33 @@
                 <option value="7d">Last 7 days</option>
                 <option value="30d">Last 30 days</option>
             </select>
-            <button class="btn-primary">
+            <button wire:click="exportReport" wire:loading.attr="disabled" wire:target="exportReport" class="btn-primary">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                Export Report
+                <span wire:loading.remove wire:target="exportReport">Export Report</span>
+                <span wire:loading wire:target="exportReport">Exporting...</span>
             </button>
         </div>
     </div>
 
     <!-- Stat cards -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <x-stat-card label="Total Scanned" :value="number_format($stats['total'])" tone="blue" sub="Barang terbaca kamera">
+        <x-stat-card label="Total Scanned" :value="number_format($stats['total'])" tone="blue" sub="Items read by the camera">
             <x-slot name="icon"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5ZM16.5 13.5h4.125c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125H16.5A1.125 1.125 0 0 1 15.375 19.5v-4.125c0-.621.504-1.125 1.125-1.125Z" /></svg></x-slot>
         </x-stat-card>
 
-        <x-stat-card label="Pass Rate" :value="$stats['passRate'].'%'" tone="green" :delta="$stats['passRate'] >= 90 ? 'Healthy' : 'Watch'" :deltaUp="$stats['passRate'] >= 90" sub="Barang lolos QC">
+        <x-stat-card label="Pass Rate" :value="$stats['passRate'].'%'" tone="green" :delta="$stats['passRate'] >= 90 ? 'Healthy' : 'Watch'" :deltaUp="$stats['passRate'] >= 90" sub="Items that passed QC">
             <x-slot name="icon"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></x-slot>
         </x-stat-card>
 
-        <x-stat-card label="QR Unreadable" :value="number_format($stats['unreadable'])" tone="amber" sub="QR rusak / tak terbaca">
+        <x-stat-card label="QR Unreadable" :value="number_format($stats['unreadable'])" tone="amber" sub="Damaged / unreadable QR">
             <x-slot name="icon"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg></x-slot>
         </x-stat-card>
 
-        <x-stat-card label="Damaged / Scratched" :value="number_format($stats['defective'])" tone="red" sub="Barang cacat / lecet">
+        <x-stat-card label="Damaged / Scratched" :value="number_format($stats['defective'])" tone="red" sub="Defective / scratched items">
             <x-slot name="icon"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg></x-slot>
         </x-stat-card>
 
-        <x-stat-card label="Returned / Recheck" :value="number_format($stats['returned'])" tone="orange" sub="Masuk alur return">
+        <x-stat-card label="Returned / Recheck" :value="number_format($stats['returned'])" tone="orange" sub="Routed to the return flow">
             <x-slot name="icon"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg></x-slot>
         </x-stat-card>
 
@@ -114,7 +115,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7"><x-empty-state title="Belum ada deteksi" message="Tidak ada deteksi untuk rentang waktu atau filter ini." /></td>
+                            <td colspan="7"><x-empty-state title="No detections yet" message="No detections match this time range or filter." /></td>
                         </tr>
                     @endforelse
                 </tbody>

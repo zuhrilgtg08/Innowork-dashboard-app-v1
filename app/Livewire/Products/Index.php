@@ -129,7 +129,7 @@ class Index extends Component
         // (Re)generate the product QR code as an SVG whenever the code/sku changes.
         $product->regenerateQr();
 
-        $this->flash = $this->editingId ? 'Produk berhasil diperbarui.' : 'Produk baru berhasil ditambahkan.';
+        $this->flash = $this->editingId ? 'Product updated successfully.' : 'New product added successfully.';
         $this->closeModal();
     }
 
@@ -150,7 +150,7 @@ class Index extends Component
         }
 
         $product->delete();
-        $this->flash = 'Produk berhasil dihapus.';
+        $this->flash = 'Product deleted successfully.';
         $this->confirmingDeleteId = null;
     }
 

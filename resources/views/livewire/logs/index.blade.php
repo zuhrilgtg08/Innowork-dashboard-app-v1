@@ -1,8 +1,8 @@
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Logs Sistem</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Catatan aktivitas &amp; kejadian sistem.</p>
+            <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">System Logs</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Activity &amp; system event history.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @foreach ($levels as $key => $color)
@@ -18,7 +18,7 @@
         <div class="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-gray-700 sm:flex-row sm:items-center">
             <div class="relative flex-1">
                 <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-                <input wire:model.live.debounce.300ms="search" type="search" placeholder="Cari pesan log..." class="field pl-9" />
+                <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search log messages..." class="field pl-9" />
             </div>
             <select wire:model.live="level" class="field w-full py-2.5 sm:w-40">
                 <option value="">All Levels</option>
@@ -55,7 +55,7 @@
                             <td class="whitespace-nowrap px-5 py-3 text-gray-500 dark:text-gray-400">{{ $log->logged_at?->format('d M H:i:s') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="4"><x-empty-state title="Tidak ada log" message="Belum ada aktivitas sistem yang cocok dengan filter ini." /></td></tr>
+                        <tr><td colspan="4"><x-empty-state title="No logs" message="No system activity matches this filter yet." /></td></tr>
                     @endforelse
                 </tbody>
             </table>

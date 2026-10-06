@@ -38,13 +38,13 @@ class Index extends Component
         // 'returned'/'recheck' are workflow states, not visual classes — the AI
         // label can't be confirmed as-is; ask the operator to pick a real class.
         if (! in_array($detection->status, Detection::TRAINABLE_STATUSES, true)) {
-            $this->addError('flash', 'Status "'.$detection->statusLabel().'" bukan kelas visual. Relabel ke kelas yang benar dulu.');
+            $this->addError('flash', 'Status "'.$detection->statusLabel().'" is not a visual class. Relabel it to the correct class first.');
 
             return;
         }
 
         $this->storeAnnotation($detection, $detection->status, 'ai');
-        $this->flash = 'Label disetujui & masuk dataset.';
+        $this->flash = 'Label approved and added to the dataset.';
     }
 
     /**
@@ -59,7 +59,7 @@ class Index extends Component
         ])->validate();
 
         $this->storeAnnotation($detection, $class, 'human');
-        $this->flash = 'Label diperbarui ke "'.Detection::STATUSES[$class]['label'].'".';
+        $this->flash = 'Label updated to "'.Detection::STATUSES[$class]['label'].'".';
     }
 
     /**
@@ -71,7 +71,7 @@ class Index extends Component
         $imagePath = $detection->frame_path ?: $detection->product?->image;
 
         if (! $imagePath) {
-            $this->addError('flash', 'Tidak ada gambar untuk dilabeli pada item ini.');
+            $this->addError('flash', 'There is no image to label for this item.');
 
             return;
         }

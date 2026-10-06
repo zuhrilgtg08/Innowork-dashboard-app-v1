@@ -44,8 +44,8 @@
                 @if (! $mlHealth)
                     <div class="absolute inset-0 flex items-center justify-center">
                         <div class="rounded-xl bg-gray-900/70 px-5 py-4 text-center">
-                            <p class="text-sm font-semibold text-white">Stream ICAM-300 tidak tersedia</p>
-                            <p class="mt-1 text-xs text-gray-300">ML service offline — periksa service Python di port 8001.</p>
+                            <p class="text-sm font-semibold text-white">Camera Stream Unavailable</p>
+                            <p class="mt-1 text-xs text-gray-300">ML service offline — check the Python service.</p>
                         </div>
                     </div>
                 @endif
@@ -92,7 +92,7 @@
                 </dl>
             @else
                 <div class="mt-4">
-                    <x-empty-state title="Belum ada deteksi" message="Jalankan inference atau gunakan kontrol simulasi di Device Status." />
+                    <x-empty-state title="No detections yet" message="Run inference or use the simulation controls in Device Status." />
                 </div>
             @endif
         </div>
@@ -180,7 +180,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5"><x-empty-state title="Belum ada event" message="Event sorting akan muncul di sini setelah inference memicu perintah sort." /></td>
+                            <td colspan="5"><x-empty-state title="No events yet" message="Sorting events will appear here once inference triggers a sort command." /></td>
                         </tr>
                     @endforelse
                 </tbody>

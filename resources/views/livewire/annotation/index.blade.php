@@ -2,7 +2,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Label &amp; Annotation</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Antrian review &amp; pelabelan hasil deteksi.</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Review queue &amp; labelling of detection results.</p>
         </div>
         <div class="flex items-center gap-2">
             <span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">{{ number_format($pending) }} pending</span>
@@ -63,8 +63,8 @@
                         <template x-if="relabel">
                             <div class="w-full">
                                 <div class="mb-2 flex items-center justify-between">
-                                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Pilih label benar:</span>
-                                    <button @click="relabel = false" class="text-xs text-gray-400 hover:text-gray-600">Batal</button>
+                                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Select the correct label:</span>
+                                    <button @click="relabel = false" class="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
                                 </div>
                                 <div class="flex flex-wrap gap-1.5">
                                     @foreach ($trainable as $key => $meta)
@@ -81,7 +81,7 @@
             </div>
         @empty
             <div class="card col-span-full">
-                <x-empty-state title="Antrian kosong" message="Semua deteksi sudah dilabeli. Kerja bagus!" />
+                <x-empty-state title="Queue is empty" message="All detections have been labelled. Great work!" />
             </div>
         @endforelse
     </div>
