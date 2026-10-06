@@ -36,8 +36,8 @@ class ArmMqttService
     public function newClient(?string $clientIdSuffix = null): MqttClient
     {
         $clientId = trim((string) config('services.mqtt.client_id_prefix', 'sortvision'))
-            .'-'.($clientIdSuffix ?: 'client')
-            .'-'.Str::random(6);
+            . '-' . ($clientIdSuffix ?: 'client')
+            . '-' . Str::random(6);
 
         return new MqttClient(
             (string) config('services.mqtt.host', '127.0.0.1'),
@@ -52,20 +52,27 @@ class ArmMqttService
     public function connectionSettings(): ConnectionSettings
     {
         $settings = (new ConnectionSettings)
-            ->setConnectTimeout((int) config('services.mqtt.connect_timeout', 3))
+            ->setConnectTimeout((int) config('services.mqtt.connect_timeout', 5))
             ->setKeepAliveInterval(60)
             ->setUseTls((bool) config('services.mqtt.use_tls', false));
+        /*
+     * Normalize MQTT credentials before giving them to php-mqtt/client.
+     *
+     * A hidden leading/trailing whitespace character in an environment value
+     * produces a different MQTT username/password and Mosquitto responds with
+     * CONNACK "Not authorized".
+     *
+     * The same credentials work when supplied directly to ConnectionSettings,
+     * so normalize the env-driven values here as well.
+     */
+        $username = trim((string) config('services.mqtt.username', ''));
+        $password = trim((string) config('services.mqtt.password', ''));
 
-        // Anonymous brokers (local Mosquitto default) need no credentials.
-        // php-mqtt rejects a blank username, so only set auth when configured.
-        $username = config('services.mqtt.username');
-        $password = config('services.mqtt.password');
-
-        if (is_string($username) && trim($username) !== '') {
+        if ($username !== '') {
             $settings->setUsername($username);
         }
 
-        if (is_string($password) && trim($password) !== '') {
+        if ($password !== '') {
             $settings->setPassword($password);
         }
 
@@ -82,17 +89,17 @@ class ArmMqttService
 
     public function commandTopic(): string
     {
-        return $this->baseTopic().'/command';
+        return $this->baseTopic() . '/command';
     }
 
     public function statusTopic(): string
     {
-        return $this->baseTopic().'/status';
+        return $this->baseTopic() . '/status';
     }
 
     public function detectionTopic(): string
     {
-        return $this->baseTopic().'/detection';
+        return $this->baseTopic() . '/detection';
     }
 
     /**
