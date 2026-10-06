@@ -57,6 +57,14 @@ class CameraSource:
         with self._lock:
             return self._seq
 
+    def frame_dims(self) -> tuple:
+        """Latest frame dimensions as (width, height) — no frame copy."""
+        with self._lock:
+            if self._frame is None:
+                return (0, 0)
+            h, w = self._frame.shape[:2]
+            return (w, h)
+
     def latest_jpeg(self, quality: int = 80):
         frame = self.latest_frame()
         if frame is None:

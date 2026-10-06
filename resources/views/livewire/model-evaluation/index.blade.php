@@ -92,6 +92,52 @@
             @endif
         </div>
 
+        <!-- Model Training Panel -->
+        <div class="card p-5">
+            <h3 class="font-bold text-gray-900 dark:text-white">Model Training</h3>
+            <p class="text-xs text-gray-400">Train and evaluate the Vision Sorting YOLO model (demo session)</p>
+            <div class="mt-4 space-y-3">
+                @if ($trainingState === 'completed')
+                    <div class="rounded-xl bg-green-50 p-3 dark:bg-green-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Training Complete</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Model Candidate: best.pt</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Classes: 3</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">GREEN YELLOW RED</p>
+                        <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-300">Status: Ready for Evaluation</p>
+                        <a href="#evaluation" class="text-primary underline">View Model Evaluation</a>
+                    </div>
+                @elseif ($trainingState === 'evaluating')
+                    <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Evaluating</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Epoch {{ $trainingEpoch }}/50</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ $trainingProgress }}%</p>
+                        <p class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div>Training Loss: {{ $trainingLoss }}</div>
+                            <div>Val Loss: {{ $valLoss }}</div>
+                            <div>Precision: {{ $precision }}</div>
+                            <div>Recall: {{ $recall }}</div>
+                        </p>
+                        <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-300">mAP@50: {{ $mAP50 }}</p>
+                    </div>
+                @elseif ($trainingState === 'training')
+                    <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Training</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Epoch {{ $trainingEpoch }}/50</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ $trainingProgress }}%</p>
+                        <p class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div>Training Loss: {{ $trainingLoss }}</div>
+                            <div>Val Loss: {{ $valLoss }}</div>
+                        </p>
+                    </div>
+                @else
+                    <div class="rounded-xl bg-yellow-50 p-3 dark:bg-yellow-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Ready</p>
+                        <button wire:click="startTrainingDemo" class="btn-primary !py-2.5 text-sm ml-auto">Start Training Demo</button>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         <!-- Annotated preview stream -->
         <div class="card overflow-hidden">
             <div class="flex items-center justify-between border-b border-gray-100 p-5 dark:border-gray-700">

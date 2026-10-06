@@ -214,11 +214,10 @@ class Index extends Component
 
                 return [
                     'name' => $cam->name,
-                    'conveyor' => $cam->conveyor,
-                    'live' => $cam->isLive(),
-                    'total' => (clone $today)->count(),
-                    'failed' => (clone $today)->whereIn('status', Detection::FAILED_STATUSES)->count(),
+                    'mode' => $cam->mode,
+                    'fps' => number_format($cam->fps, 1),
                     'last_seen' => (clone $today)->max('detected_at'),
+                    'detections' => (clone $today)->count(),
                 ];
             });
 

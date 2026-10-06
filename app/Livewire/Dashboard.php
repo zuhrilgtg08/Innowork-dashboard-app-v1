@@ -157,7 +157,13 @@ class Dashboard extends Component
         $timeline = Cache::remember('ml.stats.timeline', now()->addSeconds(10),
             fn () => $ml->timelineStats(60, 60));
 
-        $online = is_array($summary);
+        $online = is_array($summary) && ($summary['model_loaded'] ?? false);
+        $modelLoaded = $online ? ($summary['model_loaded'] ?? false) : false;
+        $cameraConnected = $online ? ($summary['camera_connected'] ?? false) : false;
+        $cameraFps = $online ? ($summary['camera_fps'] ?? null) : null;
+        $inferenceFps = $online ? ($summary['inference_fps'] ?? null) : null;
+        $latencyMs = $online ? ($summary['last_latency_ms'] ?? null) : null;
+
         $green = $online ? (int) ($summary['green'] ?? 0) : 0;
         $yellow = $online ? (int) ($summary['yellow'] ?? 0) : 0;
         $red = $online ? (int) ($summary['red'] ?? 0) : 0;
@@ -177,16 +183,17 @@ class Dashboard extends Component
 
         return view('livewire.dashboard', [
             'mlOnline' => $online,
+            'modelLoaded' => $modelLoaded,
+            'cameraConnected' => $cameraConnected,
             'stats' => [
                 'total' => $online ? $total : null,
                 'green' => $online ? $green : null,
                 'yellow' => $online ? $yellow : null,
                 'red' => $online ? $red : null,
-                'inferenceFps' => $online ? ($summary['inference_fps'] ?? null) : null,
-                'latencyMs' => $online ? ($summary['last_latency_ms'] ?? null) : null,
-                'cameraFps' => $online ? ($summary['camera_fps'] ?? null) : null,
+                'inferenceFps' => $inferenceFps,
+                'latencyMs' => $latencyMs,
+                'cameraFps' => $cameraFps,
                 'avgLatencyMs' => $online ? ($summary['average_latency_ms'] ?? null) : null,
-                'uptime' => $online ? ($summary['uptime_seconds'] ?? null) : null,
                 'cameraMode' => $online ? ($summary['camera_mode'] ?? null) : null,
             ],
             'distribution' => $distribution,

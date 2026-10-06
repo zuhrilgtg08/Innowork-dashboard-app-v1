@@ -141,7 +141,10 @@ class RuntimeState:
             self._latency.append(round(float(latency_ms), 1))
             self._processed_frames += 1
 
-            # Statistics: count newly-appeared objects only.
+            # Statistics: a detection event is recorded only when its object
+            # signature (class + quantized center) is newly detected — a
+            # stationary object is counted once, keeping Total Detections,
+            # the timeline, and the confidence history mutually consistent.
             signatures = set()
             for det in detections:
                 n = det.get("normalized", {})
@@ -151,11 +154,12 @@ class RuntimeState:
                     _quantize(n.get("center_y", 0.0)),
                 )
                 signatures.add(sig)
-                if sig not in self._last_signatures:
-                    name = det.get("class_name")
-                    if name in self._counts:
-                        self._counts[name] += 1
-                        self._total += 1
+                if sig in self._last_signatures:
+                    continue
+                name = det.get("class_name")
+                if name in self._counts:
+                    self._counts[name] += 1
+                    self._total += 1
                 self._confidence_history.append({
                     "at": now_iso,
                     "class": det.get("class_name"),
@@ -398,6 +402,26 @@ class InferenceWorker(threading.Thread):
     def stop(self) -> None:
         self._running = False
 
+    def _mirror_camera(self) -> None:
+        """Mirror capture telemetry into shared state.
+
+        Runs on EVERY loop pass — including model-error idle and frames
+        skipped as duplicates — so camera health (connected/mode/fps) never
+        depends on YOLO succeeding. Camera Connected = true with Model
+        Loaded = false is a normal, reportable combination.
+        """
+        from stream import camera_source  # lazy: stream never imports runtime
+
+        status = camera_source.status()
+        w, h = camera_source.frame_dims()
+        if w <= 0 or h <= 0:
+            prev = self._state.snapshot_camera()
+            w, h = prev["frame_width"], prev["frame_height"]
+        self._state.update_camera(
+            status.get("connected", False), status.get("mode", "offline"),
+            status.get("fps", 0.0), w, h, status.get("source", ""),
+        )
+
     def run(self) -> None:
         from stream import camera_source  # lazy: stream never imports runtime
 
@@ -405,6 +429,15 @@ class InferenceWorker(threading.Thread):
         last_seq = -1
         retry_at = 0.0
         while self._running:
+            # Camera telemetry first: independent of model/inference health.
+            self._mirror_camera()
+            # A /reload-model request drops the shared handle so the next
+            # _ensure_model() reloads + revalidates current disk weights.
+            if _reload_requested.is_set():
+                _reload_requested.clear()
+                self._model = None
+                last_seq = -1
+                print("[runtime] model handle invalidated, reloading", flush=True)
             now = time.monotonic()
             if self._model is None:
                 # MODEL_ERROR until best.pt loads + validates; retry slowly.
@@ -440,12 +473,8 @@ class InferenceWorker(threading.Thread):
                 ok_r, buf_r = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
                 if not (ok_a and ok_r):
                     continue
-                # Mirror capture telemetry into shared state.
-                status = camera_source.status()
-                self._state.update_camera(
-                    status.get("connected", False), status.get("mode", "offline"),
-                    status.get("fps", 0.0), w, h, status.get("source", ""),
-                )
+                # Camera telemetry was already mirrored at the top of this
+                # loop pass; publish result, JPEGs, and statistics together.
                 self._state.publish(w, h, buf_r.tobytes(), buf_a.tobytes(),
                                     detections, latency_ms)
             except Exception as exc:  # noqa: BLE001
@@ -467,8 +496,10 @@ class InferenceWorker(threading.Thread):
             for b in r.boxes:
                 cls_id = int(b.cls[0])
                 raw = str(names.get(cls_id, str(cls_id)))
-                if raw not in vision_model.ENGLISH_NAMES:
-                    continue  # authoritative model has exactly 3 classes
+                # Authoritative model covers exactly the three semantic
+                # colors (either raw language); anything else is skipped.
+                if vision_model.semantic_name(raw) is None:
+                    continue
                 conf_pct = round(float(b.conf[0]) * 100, 1)
                 x1, y1, x2, y2 = (float(v) for v in b.xyxy[0].tolist())
                 detections.append(vision_model.build_detection(
@@ -479,6 +510,16 @@ class InferenceWorker(threading.Thread):
 
 
 _worker: InferenceWorker | None = None
+
+# Set by POST /reload-model: the inference worker drops its YOLO handle on
+# the next loop pass and reloads + revalidates from disk, so clearing only
+# infer.py's cache can never leave the worker on stale weights.
+_reload_requested = threading.Event()
+
+
+def request_reload() -> None:
+    """Ask the inference worker to drop and reload its model handle."""
+    _reload_requested.set()
 
 
 def start() -> InferenceWorker:

@@ -2,9 +2,11 @@
 
 best.pt is the single authoritative Vision Sorting model. This module owns:
 
-- the exact required class map {0: HIJAU, 1: KUNING, 2: MERAH},
-- the user-facing English mapping HIJAU->GREEN, KUNING->YELLOW, MERAH->RED,
-- model resolution + class-map validation (MODEL_ERROR on any mismatch),
+- the required semantic class coverage {GREEN, YELLOW, RED} (Indonesian or
+  English raw labels, any class-ID order),
+- the user-facing English mapping HIJAU/GREEN->GREEN, KUNING/YELLOW->YELLOW,
+  MERAH/RED->RED,
+- model resolution + class validation (MODEL_ERROR on any mismatch),
 - the canonical per-detection data structure (pixel + normalized geometry).
 
 Deliberately free of paho.mqtt, httpx, and Laravel callbacks so the
@@ -15,17 +17,29 @@ actually loaded.
 
 from pathlib import Path
 
-# Exact class map the authoritative Vision Sorting model must expose.
-# ID AND order are enforced (a model with the right names on the wrong IDs
-# would sort colors into the wrong bowls).
+# Canonical reference class map of the production best.pt (Indonesian raws).
+# Class IDs are NOT assumed: any ID order is accepted, and English raw
+# labels (GREEN/YELLOW/RED) are accepted too — see RAW_TO_SEMANTIC.
 EXPECTED_CLASS_MAP = {0: "HIJAU", 1: "KUNING", 2: "MERAH"}
 
-# Raw YOLO class name -> user-facing English name (overlay text, API, UI).
-ENGLISH_NAMES = {
+# Canonical semantic colors every valid model must cover after normalization.
+EXPECTED_SEMANTICS = {"GREEN", "YELLOW", "RED"}
+
+# Raw YOLO label (either language) -> canonical semantic color. Class IDs are
+# NOT assumed: any ID order is accepted as long as the normalized set is
+# exactly {GREEN, YELLOW, RED} with no missing/duplicated/extra classes.
+RAW_TO_SEMANTIC = {
     "HIJAU": "GREEN",
+    "GREEN": "GREEN",
     "KUNING": "YELLOW",
+    "YELLOW": "YELLOW",
     "MERAH": "RED",
+    "RED": "RED",
 }
+
+# User-facing English class name (overlay text, API, UI). Raw labels in
+# either language normalize to these; unknown raws pass through unchanged.
+ENGLISH_NAMES = dict(RAW_TO_SEMANTIC)
 
 # Canonical English color -> destination bowl (sorting actuation only).
 DESTINATION_MAP = {
@@ -73,28 +87,58 @@ def resolve_sorting_model(explicit: str | None = None) -> str:
     return str(candidate)
 
 
-def validate_class_map(names: dict) -> tuple[bool, str]:
-    """Pure check of a {index: name} mapping against the required class map.
+def normalize_class_map(names: dict) -> dict | None:
+    """Normalize a {index: raw_label} mapping to {index: semantic color}.
 
-    Returns (ok, error_message). Anything but an exact match is rejected —
-    wrong IDs would silently sort colors into the wrong bowls.
+    Returns None when the map is invalid: unreadable entries, unknown raw
+    labels, missing semantic colors, duplicated semantic colors, or any
+    extra classes. Exactly {GREEN, YELLOW, RED} is required.
     """
     try:
-        normalized = {int(k): str(v) for k, v in dict(names).items()}
+        items = [(int(k), str(v).strip().upper()) for k, v in dict(names).items()]
     except (TypeError, ValueError):
-        return False, f"sorting model class map {dict(names)!r} is not readable"
-    if normalized != EXPECTED_CLASS_MAP:
+        return None
+    if len(items) != 3:
+        return None
+    normalized = {}
+    seen = set()
+    for idx, raw in items:
+        semantic = RAW_TO_SEMANTIC.get(raw)
+        if semantic is None or semantic in seen:
+            return None
+        seen.add(semantic)
+        normalized[idx] = semantic
+    if seen != EXPECTED_SEMANTICS:
+        return None
+    return normalized
+
+
+def validate_class_map(names: dict) -> tuple[bool, str]:
+    """Pure check of a {index: name} mapping against the semantic requirement.
+
+    Accepts Indonesian or English raw labels in any ID order; rejects
+    missing/duplicated/extra/unsupported classes. Returns (ok, error).
+    """
+    normalized = normalize_class_map(names)
+    if normalized is None:
+        try:
+            shown = {int(k): str(v) for k, v in dict(names).items()}
+        except (TypeError, ValueError):
+            shown = dict(names)
         return False, (
-            f"sorting model class map {normalized} != required {EXPECTED_CLASS_MAP}"
+            f"sorting model class map {shown} does not cover exactly "
+            f"GREEN/YELLOW/RED (Indonesian or English raw labels, any ID order)"
         )
     return True, ""
 
 
 def assert_sorting_classes(model_path: str, loader=None) -> dict:
-    """Load the weights and verify the EXACT Vision Sorting class map.
+    """Load the weights and verify the Vision Sorting class coverage.
 
-    Returns the {index: name} mapping. Raises SortingModelError on load
-    failure or any mismatch. `loader` is injectable for unit tests.
+    The normalized map must be exactly {GREEN, YELLOW, RED} — Indonesian or
+    English raw labels, any ID order; missing/duplicated/extra classes are
+    rejected. Returns the normalized {index: semantic} mapping. Raises
+    SortingModelError on load failure or any mismatch.
     """
     if loader is None:
         import infer  # lazy: keeps torch/ultralytics out of the import chain
@@ -105,15 +149,24 @@ def assert_sorting_classes(model_path: str, loader=None) -> dict:
     except Exception as exc:  # noqa: BLE001
         raise SortingModelError(f"cannot load sorting model {model_path}: {exc}") from exc
     names = {int(k): v for k, v in dict(model.names).items()}
-    ok, error = validate_class_map(names)
-    if not ok:
+    normalized = normalize_class_map(names)
+    if normalized is None:
+        _, error = validate_class_map(names)
         raise SortingModelError(error)
-    return names
+    return normalized
+
+
+def semantic_name(class_name_raw: str) -> str | None:
+    """Canonical semantic color for a raw YOLO label, or None if unsupported.
+
+    Accepts Indonesian or English labels, case-insensitive.
+    """
+    return RAW_TO_SEMANTIC.get(str(class_name_raw).strip().upper())
 
 
 def english_name(class_name_raw: str) -> str:
     """User-facing English class name; unknown raws pass through unchanged."""
-    return ENGLISH_NAMES.get(class_name_raw, class_name_raw)
+    return semantic_name(class_name_raw) or str(class_name_raw)
 
 
 def clamp01(value: float) -> float:

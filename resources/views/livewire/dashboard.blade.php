@@ -6,18 +6,35 @@
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Real-time AI object detection and color sorting monitoring with the Advantech iCAM-300.</p>
         </div>
         <div class="flex items-center gap-2">
-            @if ($mlOnline)
+            @php
+                $ml = app(\App\Services\MlClient::class);
+                $healthy = $ml->healthy();
+                $summary = Cache::remember('ml.stats.summary', now()->addSeconds(5), fn () => $ml->statsSummary());
+                $serviceReachable = $healthy;
+                $modelLoaded = is_array($summary) && ($summary['model_loaded'] ?? false);
+                $cameraConnected = is_array($summary) && ($summary['camera_connected'] ?? false);
+            @endphp
+
+            @if (!$serviceReachable)
+                <span class="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 dark:bg-red-500/15 dark:text-red-400">
+                    <span class="relative flex h-2 w-2">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+                        <span class="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+                    </span>
+                    ML Service Offline
+                </span>
+            @elseif (!$modelLoaded)
+                <span class="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
+                    <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                    Model Error
+                </span>
+            @else
                 <span class="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-2 text-xs font-semibold text-green-700 dark:bg-green-500/15 dark:text-green-400">
                     <span class="relative flex h-2 w-2">
                         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75"></span>
                         <span class="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
                     </span>
                     ML Service Online
-                </span>
-            @else
-                <span class="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 dark:bg-red-500/15 dark:text-red-400">
-                    <span class="h-2 w-2 rounded-full bg-red-500"></span>
-                    ML Service Offline
                 </span>
             @endif
             <button wire:click="exportReport" wire:loading.attr="disabled" wire:target="exportReport" class="btn-primary">
@@ -33,6 +50,26 @@
             Waiting for ML service — live counts, previews, and graphs resume automatically once the Python service is reachable.
         </div>
     @endunless
+
+    <!-- YOLO Live Preview -->
+    <div class="card p-5 mb-6">
+        <h3 class="font-bold text-gray-900 dark:text-white mb-4">YOLO Live Preview</h3>
+        <div id="ml-preview-status" class="text-sm text-gray-500 dark:text-gray-400">
+            @if ($mlOnline && $modelLoaded)
+                <span class="font-medium text-green-600 dark:text-green-400">Model Loaded</span>
+                <span class="separator">|</span>
+                <span class="font-medium text-blue-600 dark:text-blue-400" id="ml-camera-status">{{ $cameraConnected ? 'Camera Connected' : 'Camera Disconnected' }}</span>
+                <span class="separator">|</span>
+                <span class="font-medium text-purple-600 dark:text-purple-400" id="ml-fps">Camera FPS: {{ $cameraFps !== null ? number_format((float) $cameraFps, 1) : '—' }} / Inference FPS: {{ $inferenceFps !== null ? number_format((float) $inferenceFps, 1) : '—' }}</span>
+                <span class="separator">|</span>
+                <span class="font-medium text-orange-600 dark:text-orange-400" id="ml-latency">Latency: {{ $latencyMs !== null ? number_format((float) $latencyMs, 1).' ms' : '—' }}</span>
+            @else
+                <span class="font-medium text-red-600 dark:text-red-400">YOLO Preview Unavailable</span>
+                <span class="separator">|</span>
+                <span class="font-medium text-red-500 dark:text-red-300">Waiting for the ML service.</span>
+            @endif>
+        </div>
+    </div>
 
     <!-- Stat cards (live runtime data; honest offline states, never fake) -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">

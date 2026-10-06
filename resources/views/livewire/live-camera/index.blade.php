@@ -36,12 +36,12 @@
                     <p class="mt-0.5 text-xs text-gray-400">{{ $cam['conveyor'] ?? '—' }}</p>
                     <div class="mt-3 flex items-end justify-between">
                         <div>
-                            <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($cam['total']) }}</p>
+                            <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($cam['detections']) }}</p>
                             <p class="text-[11px] uppercase tracking-wider text-gray-400">Today's Detections</p>
                         </div>
                         <div class="text-right">
                             <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ number_format($cam['failed']) }}</p>
-                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Defects</p>
+                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Errors</p>
                         </div>
                     </div>
                     <p class="mt-2 text-[11px] text-gray-400">
@@ -93,7 +93,7 @@
                             <span class="h-1.5 w-1.5 rounded-full bg-red-500" :class="streamOk && 'animate-pulse'"></span>
                             <span x-text="streamOk ? 'LIVE' : 'OFF'"></span>
                         </span>
-                        <span class="absolute right-3 top-3 rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white">{{ $camera }} · {{ $conveyor }}</span>
+<span class="absolute right-3 top-3 rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white">{{ $camera }} · Vision Stream</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
                         <div>
@@ -351,7 +351,7 @@
                 </div>
                 <div class="card p-4 text-center">
                     <p class="text-2xl font-extrabold text-red-600 dark:text-red-400">{{ number_format($stats['failed']) }}</p>
-                    <p class="text-xs text-gray-400">Defects</p>
+                    <p class="text-xs text-gray-400">Errors</p>
                 </div>
             </div>
         </div>

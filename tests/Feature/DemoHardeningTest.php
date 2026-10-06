@@ -139,4 +139,46 @@ class DemoHardeningTest extends TestCase
         $response->assertSee('Live Runtime Detection', escape: false);
         $response->assertSee('Runtime Offline', escape: false);
     }
+
+    public function test_dashboard_shows_yolo_preview_markup(): void
+    {
+        $response = $this->actingAs($this->admin())->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('YOLO Live Preview', escape: false);
+        // Panel is always present; content varies by online state.
+        $response->assertSee('ML Service', escape: false);
+    }
+
+    public function test_dashboard_model_error_state_honest(): void
+    {
+        // Dashboard shows honest state: when ML service is offline, it shows
+        // 'ML Service Offline', not 'Model Error' or 'ML Service Online'.
+        $response = $this->actingAs($this->admin())->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('ML Service Offline', escape: false);
+        $response->assertDontSee('ML Service Online', escape: false);
+    }
+
+    public function test_no_qr_qc_legacy_on_dashboard(): void
+    {
+        $response = $this->actingAs($this->admin())->get(route('dashboard'));
+
+        $response->assertOk();
+        // Legacy QC terminology must not appear on the demo dashboard.
+        foreach (['QC Overview', 'QR Unreadable', 'Damaged / Scratched', 'Returned / Recheck', 'Pass Rate',
+                    'Defects', 'conveyor', 'LINE-A'] as $legacy) {
+            $response->assertDontSee($legacy, escape: false);
+        }
+    }
+
+    public function test_training_demo_starts_in_ready_state(): void
+    {
+        $response = $this->actingAs($this->admin())->get(route('model-evaluation'));
+
+        $response->assertOk();
+        $response->assertSee('Ready', escape: false);
+        $response->assertSee('Start Training Demo', escape: false);
+    }
 }

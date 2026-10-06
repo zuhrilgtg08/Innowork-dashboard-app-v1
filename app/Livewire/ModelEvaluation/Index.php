@@ -60,6 +60,16 @@ class Index extends Component
 
     public ?array $runtimeLatest = null;
 
+    public $trainingState = 'ready';
+    public $trainingProgress = 0;
+    public $trainingEpoch = 0;
+    public $trainingLoss = 0.0;
+    public $valLoss = 0.0;
+    public $precision = 0.0;
+    public $recall = 0.0;
+    public $mAP50 = 0.0;
+    public $trainingLog = [];
+
     public function mount()
     {
         $ml = app(MlClient::class);
@@ -84,6 +94,79 @@ class Index extends Component
         $this->scanArtifacts();
         // First-paint runtime telemetry (subsequent refreshes come via poll).
         $this->refreshRuntimeOnly();
+    }
+
+    public function startTrainingDemo(): void
+    {
+        $this->trainingState = 'preparing';
+        $this->trainingProgress = 0;
+        $this->trainingEpoch = 0;
+        $this->trainingLog = [];
+
+        $this->trainingLog[] = ['at' => now->format('H:i:s'), 'msg' => 'Preparing Vision Sorting dataset...'];
+        $this->trainingLog[] = ['at' => now->addSecond(1)->format('H:i:s'), 'msg' => 'Classes: GREEN, YELLOW, RED'];
+        $this->trainingLog[] = ['at' => now->addSecond(2)->format('H:i:s'), 'msg' => 'Loading YOLO architecture...'];
+        $this->trainingLog[] = ['at' => now->addSecond(3)->format('H:i:s'), 'msg' => 'Starting training session...'];
+
+        $this->advanceTraining();
+    }
+
+    protected function advanceTraining(): void
+    {
+        switch ($this->trainingState) {
+            case 'preparing':
+                $this->trainingProgress = 10;
+                $this->trainingState = 'training';
+                $this->advanceTraining();
+                break;
+
+            case 'training':
+                if ($this->trainingEpoch < 50) {
+                    $this->trainingEpoch++;
+                    $this->trainingProgress = 20 + intval(($this->trainingEpoch - 20) * 70 / 50);
+                    $this->trainingLoss = round(1.0 - ($this->trainingEpoch * 0.019), 3);
+                    $this->valLoss = round(1.1 - ($this->trainingEpoch * 0.019), 3);
+                    $this->precision = round(0.95 - ($this->trainingEpoch * 0.003), 2);
+                    $this->recall = round(0.92 - ($this->trainingEpoch * 0.003), 2);
+                    $this->mAP50 = round(0.90 + ($this->trainingEpoch * 0.002), 2);
+                    $this->trainingLog[] = ['at' => now->format('H:i:s'), "msg" => "Epoch {$this->trainingEpoch}/50"];
+                    $this->trainingLog[] = ['at' => now->addSecond(1)->format('H:i:s'), "msg" => "loss={$this->trainingLoss}"];
+                    $this->trainingLog = array_slice($this->trainingLog, -50);
+                    $this->advanceTraining();
+                } else {
+                    $this->trainingState = 'evaluating';
+                    $this->trainingProgress = 85;
+                    $this->trainingLog[] = ['at' => now->format('H:i:s'), 'msg' => 'Evaluating model...'];
+                    $this->advanceTraining();
+                }
+                break;
+
+            case 'evaluating':
+                if ($this->trainingProgress < 95) {
+                    $this->trainingProgress += 5;
+                    $this->precision = round(0.91 + $this->trainingProgress / 20 * 0.05, 2);
+                    $this->recall = round(0.89 + $this->trainingProgress / 20 * 0.05, 2);
+                    $this->mAP50 = round(0.93 + $this->trainingProgress / 20 * 0.05, 2);
+                    $this->trainingLog[] = ['at' => now->format('H:i:s'), "msg" => "precision={$this->precision}"];
+                    $this->trainingLog = array_slice($this->trainingLog, -50);
+                    $this->advanceTraining();
+                } else {
+                    $this->trainingState = 'completed';
+                    $this->trainingProgress = 100;
+                    $this->trainingLog[] = ['at' => now->format('H:i:s'), 'msg' => '[Complete] Demo training session finished.'];
+                }
+                break;
+
+            default:
+                $this->trainingState = 'ready';
+                $this->trainingProgress = 0;
+                $this->trainingEpoch = 0;
+                $this->trainingLoss = 0.0;
+                $this->valLoss = 0.0;
+                $this->precision = 0.0;
+                $this->recall = 0.0;
+                $this->mAP50 = 0.0;
+        }
     }
 
     public function startPreview(): void
@@ -229,6 +312,15 @@ class Index extends Component
             'avgConfidence' => $avgConfidence,
             'hourly' => $hourly,
             'recentDetections' => $recentDetections,
+            'trainingState' => $this->trainingState,
+            'trainingProgress' => $this->trainingProgress,
+            'trainingEpoch' => $this->trainingEpoch,
+            'trainingLoss' => $this->trainingLoss,
+            'valLoss' => $this->valLoss,
+            'precision' => $this->precision,
+            'recall' => $this->recall,
+            'mAP50' => $this->mAP50,
+            'trainingLog' => $this->trainingLog,
         ]);
     }
 }

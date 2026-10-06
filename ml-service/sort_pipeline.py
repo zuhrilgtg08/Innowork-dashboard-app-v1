@@ -44,11 +44,16 @@ from config import settings
 from vision_model import SortingModelError  # noqa: F401 — re-exported for callers
 
 
-# YOLO class name → canonical color (green/yellow/red)
+# YOLO class name → canonical color (green/yellow/red). Both raw languages
+# are accepted — the authoritative model covers the three semantic colors
+# (see vision_model.RAW_TO_SEMANTIC); IDs are never assumed here.
 COLOR_ALIAS = {
     "HIJAU": "green",
+    "GREEN": "green",
     "KUNING": "yellow",
+    "YELLOW": "yellow",
     "MERAH": "red",
+    "RED": "red",
 }
 
 # Canonical color → destination bowl
@@ -58,8 +63,8 @@ DESTINATION_MAP = {
     "red": "BOWL_RED",
 }
 
-# Exact class map the authoritative Vision Sorting model must expose.
-# Single source of truth lives in vision_model (ID AND order enforced).
+# Canonical reference class map of the production best.pt (see vision_model:
+# semantic coverage {GREEN, YELLOW, RED} is enforced, never fixed IDs).
 EXPECTED_CLASS_MAP = vision_model.EXPECTED_CLASS_MAP
 
 # Anti-duplicate state: signature of the last COMMANDED object plus the time
