@@ -20,11 +20,9 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        // Vision Sorting mode prioritises the operational board after login.
+        // Demo landing: the Vision Sorting Overview is the home board.
         // redirectIntended still honours a directly requested URL.
-        $home = config('services.sorting.competition_mode')
-            ? route('sorting.dashboard', absolute: false)
-            : route('dashboard', absolute: false);
+        $home = route('dashboard', absolute: false);
 
         $this->redirectIntended(default: $home, navigate: true);
     }
@@ -68,10 +66,5 @@ new #[Layout('layouts.guest')] class extends Component
         </label>
 
         <button type="submit" class="btn-primary w-full">{{ __('Sign in') }}</button>
-
-        <p class="text-center text-sm text-gray-500 dark:text-gray-400">
-            {{ __("Don't have an account?") }}
-            <a href="{{ route('register') }}" wire:navigate class="font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400">{{ __('Sign up') }}</a>
-        </p>
     </form>
 </div>

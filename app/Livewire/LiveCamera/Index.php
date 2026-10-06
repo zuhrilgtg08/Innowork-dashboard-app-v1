@@ -31,6 +31,60 @@ class Index extends Component
 
     public string $conveyor = 'LINE-A';
 
+    /** Live YOLO runtime telemetry (refreshed by poll, cached). */
+    public ?array $runtime = null;
+
+    public ?array $runtimeCamera = null;
+
+    public ?array $runtimeSummary = null;
+
+    public array $runtimeDetections = [];
+
+    public ?string $runtimeFrameAt = null;
+
+    public ?array $runtimeFrame = null;
+
+    public ?string $runtimeFrameCamera = null;
+
+    public array $runtimeConfidence = [];
+
+    public array $runtimeTimeline = ['bucket_seconds' => 60, 'labels' => [], 'series' => []];
+
+    /**
+     * Refresh live YOLO runtime telemetry (polled from the view).
+     *
+     * All ML calls are cached and best-effort: when the service is offline
+     * every prop degrades to null/empty and the view renders the clean
+     * offline state instead of failing.
+     */
+    public function refreshRuntime(): void
+    {
+        $ml = app(MlClient::class);
+
+        $this->runtime = Cache::remember('live.runtime.health', now()->addSeconds(5),
+            fn () => $ml->runtimeHealth());
+        $this->runtimeCamera = Cache::remember('live.runtime.camera', now()->addSeconds(5),
+            fn () => $ml->cameraStatus());
+        $this->runtimeSummary = Cache::remember('live.runtime.summary', now()->addSeconds(5),
+            fn () => $ml->statsSummary());
+
+        $latest = Cache::remember('live.runtime.latest', now()->addSeconds(3),
+            fn () => $ml->detectionsLatest());
+        $this->runtimeDetections = is_array($latest['detections'] ?? null)
+            ? array_slice($latest['detections'], 0, 8)
+            : [];
+        $this->runtimeFrameAt = $latest['timestamp'] ?? null;
+        $this->runtimeFrame = $latest['frame'] ?? null;
+        $this->runtimeFrameCamera = $latest['camera'] ?? null;
+
+        $confidence = Cache::remember('live.runtime.confidence', now()->addSeconds(5),
+            fn () => $ml->confidenceStats(120));
+        $this->runtimeConfidence = $confidence['samples'] ?? [];
+
+        $this->runtimeTimeline = Cache::remember('live.runtime.timeline', now()->addSeconds(10),
+            fn () => $ml->timelineStats(60, 60));
+    }
+
     /**
      * Receive a captured frame, run it through the ML service, and persist a
      * Detection built from the model's verdict.
@@ -129,6 +183,10 @@ class Index extends Component
 
         // Cache the health probe so wire:poll doesn't hammer the ML service.
         $mlOnline = Cache::remember('ml.health', now()->addSeconds(10), fn () => app(MlClient::class)->healthy());
+
+        // Live YOLO runtime telemetry for the preview panels (cached,
+        // best-effort; null/empty when the ML service is offline).
+        $this->refreshRuntime();
 
         // Source mode: 'webcam' (browser getUserMedia) or 'icam' (ICAM-300 RTSP
         // relayed as MJPEG through the same-origin Laravel proxy).

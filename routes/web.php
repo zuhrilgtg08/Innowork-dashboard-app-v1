@@ -22,9 +22,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     if (auth()->check()) {
-        return config('services.sorting.competition_mode')
-            ? redirect()->route('sorting.dashboard')
-            : redirect()->route('dashboard');
+        return redirect()->route('dashboard');
     }
 
     return redirect()->route('login');
@@ -61,8 +59,14 @@ Route::middleware(['auth'])->group(function () {
     // would resolve 127.0.0.1 to its own machine, and the IoT Suite iframe
     // must stay on the Laravel origin.
     Route::get('ml/camera/stream', [CameraStreamController::class, 'stream'])->name('ml.camera.stream');
+    Route::get('ml/camera/raw', [CameraStreamController::class, 'raw'])->name('ml.camera.raw');
     Route::get('ml/camera/preview', [CameraStreamController::class, 'preview'])->name('ml.camera.preview');
     Route::get('ml/camera/frame', [CameraStreamController::class, 'frame'])->name('ml.camera.frame');
+    Route::get('ml/camera/preview/frame', [CameraStreamController::class, 'previewFrame'])->name('ml.camera.preview-frame');
+    Route::get('ml/detections/latest', [CameraStreamController::class, 'detectionsLatest'])->name('ml.detections.latest');
+    Route::get('ml/stats/summary', [CameraStreamController::class, 'statsSummary'])->name('ml.stats.summary');
+    Route::get('ml/stats/confidence', [CameraStreamController::class, 'confidenceStats'])->name('ml.stats.confidence');
+    Route::get('ml/stats/timeline', [CameraStreamController::class, 'timelineStats'])->name('ml.stats.timeline');
 
     // Breeze profile page (kept)
     Route::view('profile', 'profile')->name('profile');
@@ -75,3 +79,12 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+// Public registration is disabled for the demo: accounts are managed by
+// administrators (Users page). These are intentionally defined AFTER
+// auth.php: Laravel keys routes by method+URI with last registration
+// winning, so these overrides take precedence over the Breeze register
+// route for actual requests (the `register` route name itself is kept so
+// any stray route('register') link degrades to /login instead of 404ing).
+Route::redirect('/register', '/login');
+Route::match(['post', 'put', 'patch'], '/register', fn () => redirect('/login'));

@@ -38,8 +38,10 @@ return [
         // Minimum mAP@50 (0–100) a freshly trained run must reach to be
         // auto-activated as the live model. 0 disables the gate.
         'min_map' => (float) env('ML_MIN_MAP50', 0),
-        // Browser-facing MJPEG stream of the ICAM-300 (served by ml-service).
+        // Server-side only: the browser uses the same-origin Laravel proxy
+        // (/ml/camera/*), so these internal addresses are never exposed.
         'stream_url' => env('ML_STREAM_URL', 'http://127.0.0.1:8001/camera/stream'),
+        'raw_url' => env('ML_RAW_URL', 'http://127.0.0.1:8001/camera/raw'),
         'status_url' => env('ML_STATUS_URL', 'http://127.0.0.1:8001/camera/status'),
         // Annotated YOLO preview stream (bounding boxes; read-only, no actuation).
         'preview_url' => env('ML_PREVIEW_URL', 'http://127.0.0.1:8001/camera/preview'),

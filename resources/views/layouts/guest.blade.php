@@ -36,12 +36,12 @@
                 </div>
 
                 <div class="relative text-white">
-                    <h2 class="max-w-md text-3xl font-extrabold leading-tight">AI Visual Quality Control for Sorting &amp; Logistics</h2>
-                    <p class="mt-4 max-w-md text-brand-100">Real-time QR detection on the conveyor, defective/scratched item identification, and automated return &amp; recheck flows - all in one dashboard.</p>
+                    <h2 class="max-w-md text-3xl font-extrabold leading-tight">AI-Powered Vision Sorting System</h2>
+                    <p class="mt-4 max-w-md text-brand-100">Real-time color detection using the Advantech iCAM-300 and YOLO AI, with live monitoring, object coordinates, and detection analytics in one dashboard.</p>
                     <div class="mt-8 flex gap-8">
-                        <div><p class="text-3xl font-extrabold">99.2%</p><p class="text-sm text-brand-200">Detection Accuracy</p></div>
-                        <div><p class="text-3xl font-extrabold">4×</p><p class="text-sm text-brand-200">Active Cameras</p></div>
-                        <div><p class="text-3xl font-extrabold">Realtime</p><p class="text-sm text-brand-200">Multi-Detection</p></div>
+                        <div><p class="text-3xl font-extrabold">AI Vision</p><p class="text-sm text-brand-200">YOLO Detection</p></div>
+                        <div><p class="text-3xl font-extrabold">Live</p><p class="text-sm text-brand-200">Camera Monitoring</p></div>
+                        <div><p class="text-3xl font-extrabold">Realtime</p><p class="text-sm text-brand-200">Detection Analytics</p></div>
                     </div>
                 </div>
 

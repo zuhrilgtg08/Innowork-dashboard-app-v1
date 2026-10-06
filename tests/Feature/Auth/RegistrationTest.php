@@ -2,35 +2,37 @@
 
 namespace Tests\Feature\Auth;
 
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Volt\Volt;
 use Tests\TestCase;
 
+/**
+ * Public registration is disabled for the demo: accounts are managed by
+ * administrators (Users page). /register redirects to /login for every
+ * method and never creates a user.
+ */
 class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_screen_can_be_rendered(): void
+    public function test_register_redirects_to_login(): void
     {
-        $response = $this->get('/register');
-
-        $response
-            ->assertOk()
-            ->assertSeeVolt('pages.auth.register');
+        $this->get('/register')->assertRedirect('/login');
     }
 
-    public function test_new_users_can_register(): void
+    public function test_register_post_redirects_to_login_without_creating_users(): void
     {
-        $component = Volt::test('pages.auth.register')
-            ->set('name', 'Test User')
-            ->set('email', 'test@example.com')
-            ->set('password', 'password')
-            ->set('password_confirmation', 'password');
+        $response = $this->withoutMiddleware(
+            VerifyCsrfToken::class
+        )->post('/register', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
 
-        $component->call('register');
-
-        $component->assertRedirect(route('dashboard', absolute: false));
-
-        $this->assertAuthenticated();
+        $response->assertRedirect('/login');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'test@example.com']);
     }
 }

@@ -68,15 +68,25 @@ class CameraSource:
         return {
             "connected": self._connected,
             "mode": self._mode,
-            "source": settings.icam_rtsp_url or settings.icam_sim_source,
+            "source": (settings.icam_rtsp_url or settings.icam_stream_url
+                       or settings.icam_sim_source),
             "fps": round(self._fps, 1),
         }
 
     # -- internals ---------------------------------------------------------
     def _open_primary(self):
-        """Try the real RTSP stream first; return (cap, mode) or (None, ...)."""
-        if settings.icam_rtsp_url:
-            cap = cv2.VideoCapture(settings.icam_rtsp_url, cv2.CAP_FFMPEG)
+        """Try the real camera inputs first; return (cap, mode) or (None, ...).
+
+        Order: configured RTSP URL(s), then the optional HTTP stream URL
+        (MJPEG-over-HTTP opens directly in OpenCV), then simulator fallback.
+        """
+        for url in settings.rtsp_url_list:
+            cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+            if cap.isOpened():
+                return cap, "live"
+            cap.release()
+        if settings.icam_stream_url:
+            cap = cv2.VideoCapture(settings.icam_stream_url)
             if cap.isOpened():
                 return cap, "live"
             cap.release()

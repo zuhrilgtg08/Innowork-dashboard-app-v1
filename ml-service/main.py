@@ -330,7 +330,7 @@ def detections_latest():
             "detections": [],
         })
     snap = runtime.state.snapshot_latest()
-    return {"ok": True, **snap}
+    return {"ok": True, "camera": settings.icam_camera, **snap}
 
 
 @app.get("/stats/summary")

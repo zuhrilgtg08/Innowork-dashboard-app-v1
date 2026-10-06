@@ -103,6 +103,34 @@ Test without hardware: leave `ICAM_RTSP_URL` empty, start the service, open
 `/model/info`, `/detections/latest`, and `/stats/summary` for the runtime
 telemetry the dashboard graphs consume.
 
+## Manual bring-up (operator only)
+
+MANUAL COMMAND — DO NOT RUN DURING AGENT TASK. The agent must never start
+services; the commands below are for a human operator validating the demo.
+
+```bash
+# 1. Activate the ML venv (from the repo root or ml-service/)
+# 2. Validate best.pt (exact class map required)
+python -c "from ultralytics import YOLO; print(YOLO('storage/app/models/run-100/best.pt').names)"
+#    expected: {0: 'HIJAU', 1: 'KUNING', 2: 'MERAH'}
+# 3. Start FastAPI (foreground, for the demo check)
+uvicorn main:app --host 127.0.0.1 --port 8001
+# 4-10. In another terminal:
+curl http://127.0.0.1:8001/health            # model_loaded, camera + inference telemetry
+curl http://127.0.0.1:8001/model/info        # path, size, class map, device, threshold
+curl http://127.0.0.1:8001/camera/status     # LIVE | SIMULATOR | OFFLINE
+#    open http://127.0.0.1:8001/camera/raw        # raw MJPEG (browser)
+#    open http://127.0.0.1:8001/camera/preview    # annotated MJPEG (browser)
+curl http://127.0.0.1:8001/detections/latest # YOLO result + coordinates
+curl http://127.0.0.1:8001/stats/summary     # counts, fps, latency, uptime
+# 11-17. Start Laravel separately, open Live Camera, confirm the YOLO
+# preview, RED/GREEN/YELLOW labels, X/Y coordinates, updating graphs, and
+# that no browser camera permission prompt appears.
+```
+
+Production installs the `deploy/sortvision-ml.service.example` template
+manually (see the header comment inside that file).
+
 ## Notes
 
 - Training defaults are demo-scale: `imgsz=320`, `batch=4`, `device=cpu`.

@@ -167,6 +167,71 @@
         </div>
     </div>
 
+    <!-- Live runtime detection (read-only, shared ML runtime state) -->
+    <div class="card p-5">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div>
+                <h3 class="font-bold text-gray-900 dark:text-white">Live Runtime Detection</h3>
+                <p class="text-xs text-gray-400">Latest best.pt result · coordinates · latency (read-only)</p>
+            </div>
+            @if ($runtimeSummary)
+                <x-status-badge color="green" label="Runtime Online" />
+            @else
+                <x-status-badge color="red" label="Runtime Offline" />
+            @endif
+        </div>
+        @php
+            $rtDets = $runtimeLatest['detections'] ?? [];
+            $rtTop = $rtDets[0] ?? null;
+            $rtTone = ['GREEN' => 'green', 'YELLOW' => 'amber', 'RED' => 'red'][$rtTop['class_name'] ?? ''] ?? 'gray';
+            $rtBox = $rtTop['bbox'] ?? []; $rtCtr = $rtTop['center'] ?? []; $rtNrm = $rtTop['normalized'] ?? [];
+        @endphp
+        @if ($rtTop)
+            <div class="flex flex-wrap items-center gap-3">
+                <x-status-badge :color="$rtTone" :label="$rtTop['class_name'] ?? '—'" />
+                <p class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">{{ isset($rtTop['confidence']) ? number_format((float) $rtTop['confidence'], 1).'%' : '—' }}</p>
+                <p class="text-xs text-gray-400">
+                    @if (! empty($runtimeLatest['timestamp'])){{ \Carbon\Carbon::parse($runtimeLatest['timestamp'])->format('H:i:s') }}@endif
+                    @if (! empty($runtimeLatest['camera']))· {{ $runtimeLatest['camera'] }}@endif
+                </p>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Class</p>
+                    <p class="mt-1 font-bold text-gray-900 dark:text-white">{{ $rtTop['class_name'] ?? '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">BBox</p>
+                    <p class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ isset($rtBox['x1']) ? "{$rtBox['x1']},{$rtBox['y1']} → {$rtBox['x2']},{$rtBox['y2']}" : '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Center X / Y</p>
+                    <p class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $rtCtr['x'] ?? '—' }} / {{ $rtCtr['y'] ?? '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Normalized X / Y</p>
+                    <p class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ isset($rtNrm['center_x']) ? number_format((float) $rtNrm['center_x'], 4) : '—' }} / {{ isset($rtNrm['center_y']) ? number_format((float) $rtNrm['center_y'], 4) : '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Inference FPS</p>
+                    <p class="mt-1 font-bold text-gray-900 dark:text-white">{{ isset($runtimeSummary['inference_fps']) ? number_format((float) $runtimeSummary['inference_fps'], 1) : '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Latency</p>
+                    <p class="mt-1 font-bold text-gray-900 dark:text-white">{{ isset($runtimeSummary['last_latency_ms']) ? number_format((float) $runtimeSummary['last_latency_ms'], 1).' ms' : '—' }}</p>
+                </div>
+            </div>
+        @else
+            <div>
+                @if ($runtimeSummary)
+                    <x-empty-state title="No detections yet" message="Objects will appear here when best.pt detects GREEN, YELLOW, or RED objects." />
+                @else
+                    <x-empty-state title="Runtime Offline" message="Waiting for the ML service. Live runtime data resumes automatically once it is reachable." />
+                @endif
+            </div>
+        @endif
+    </div>
+
     <!-- Runtime graphs (real inference data) -->
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <!-- Detection distribution -->

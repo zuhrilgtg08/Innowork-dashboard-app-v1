@@ -1,0 +1,35 @@
+# SortVision ML service — systemd template for future manual installation.
+#
+# THIS FILE IS A TEMPLATE ONLY. Do NOT install/enable/start it during
+# development tasks. An operator installs it manually on the ML host with:
+#
+#   MANUAL COMMAND — DO NOT RUN DURING AGENT TASK:
+#   sudo cp deploy/sortvision-ml.service.example /etc/systemd/system/sortvision-ml.service
+#   (then edit paths/user below to match the host)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now sortvision-ml.service
+#
+# The service must run on the machine that can reach the camera and holds
+# storage/app/models/run-100/best.pt (the YOLO weights stay close to the
+# camera; the VPS only proxies Laravel + dashboard + API).
+[Unit]
+Description=SortVision ML Service (FastAPI + YOLO best.pt)
+After=network.target
+
+[Service]
+# Adjust to the deployment host:
+User=sortvision
+Group=sortvision
+WorkingDirectory=/opt/sortvision/Innowork-dashboard-app-v1/ml-service
+# Dedicated venv with torch (CPU) + requirements.txt installed.
+ExecStart=/opt/sortvision/Innowork-dashboard-app-v1/ml-service/.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8001
+# Service-local .env provides ICAM_MODEL_PATH, ICAM_RTSP_URL / ICAM_STREAM_URL,
+# ICAM_CONF, LARAVEL_URL, LARAVEL_STORAGE_PATH, ML_CALLBACK_SECRET.
+EnvironmentFile=/opt/sortvision/Innowork-dashboard-app-v1/ml-service/.env
+Restart=on-failure
+RestartSec=5
+# One capture connection + one inference worker; keep memory bounded.
+MemoryMax=8G
+
+[Install]
+WantedBy=multi-user.target

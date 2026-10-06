@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     # Camera registry in Laravel). Empty falls back to the single icam_rtsp_url.
     icam_rtsp_urls: str = ""
 
+    # Optional HTTP(S) stream URL (e.g. an MJPEG preview endpoint served by
+    # the camera network, such as the known 192.168.0.100:5001 context).
+    # This is NOT assumed to be the YOLO frame source — it is simply tried as
+    # a capture input when ICAM_RTSP_URL is empty/unreachable. OpenCV can open
+    # MJPEG-over-HTTP directly. No credentials are ever hardcoded: embed them
+    # in the URL only if the deployment requires it.
+    icam_stream_url: str = ""
+
     @property
     def rtsp_url_list(self) -> list[str]:
         """Parsed, de-duplicated list of camera RTSP URLs (multi-camera)."""

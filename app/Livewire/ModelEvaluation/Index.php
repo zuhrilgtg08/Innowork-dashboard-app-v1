@@ -55,6 +55,11 @@ class Index extends Component
     /** Expected Ultralytics artifacts with found/not-found flags. */
     public array $artifactChecklist = [];
 
+    /** Live runtime telemetry (summary + latest YOLO result, cached). */
+    public ?array $runtimeSummary = null;
+
+    public ?array $runtimeLatest = null;
+
     public function mount()
     {
         $ml = app(MlClient::class);
@@ -77,6 +82,8 @@ class Index extends Component
 
         $this->lastInferenceAt = Detection::max('detected_at');
         $this->scanArtifacts();
+        // First-paint runtime telemetry (subsequent refreshes come via poll).
+        $this->refreshRuntimeOnly();
     }
 
     public function startPreview(): void
@@ -94,9 +101,27 @@ class Index extends Component
      * Slow poll target: fetch the latest preview snapshot and append new
      * frames to the session log. No-op unless previewing; writes nothing to
      * the database and issues no robot commands.
+     *
+     * Also refreshes the read-only live runtime telemetry (model/result
+     * panels) from the shared ML runtime cache.
      */
+    /**
+     * Refresh the read-only live runtime telemetry only (no preview logic).
+     */
+    public function refreshRuntimeOnly(): void
+    {
+        $ml = app(MlClient::class);
+
+        $this->runtimeSummary = Cache::remember('modeleval.runtime.summary', now()->addSeconds(5),
+            fn () => $ml->statsSummary());
+        $this->runtimeLatest = Cache::remember('modeleval.runtime.latest', now()->addSeconds(3),
+            fn () => $ml->detectionsLatest());
+    }
+
     public function refreshPreview(): void
     {
+        $this->refreshRuntimeOnly();
+
         if (! $this->previewing) {
             return;
         }
