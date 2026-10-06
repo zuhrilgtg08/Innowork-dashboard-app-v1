@@ -6,14 +6,14 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Roles &amp; Permission</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Hak akses tiap peran terhadap modul sistem.</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Access rights of each role across system modules.</p>
         </div>
     </div>
 
     @if ($saved)
         <div class="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-            Permission untuk <span class="font-semibold">{{ $roles[$saved] ?? $saved }}</span> berhasil diperbarui.
+            Permissions for <span class="font-semibold">{{ $roles[$saved] ?? $saved }}</span> were updated successfully.
         </div>
     @endif
 
@@ -25,13 +25,13 @@
                     <x-status-badge :color="$roleColors[$key] ?? 'gray'" :label="$label" />
                     <span class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($counts[$key] ?? 0) }}</span>
                 </div>
-                <p class="mt-3 text-xs text-gray-400">member dengan peran ini</p>
+                <p class="mt-3 text-xs text-gray-400">members with this role</p>
                 <div class="mt-4 flex gap-2">
-                    <a href="{{ route('roles', ['role' => $key]) }}" wire:navigate aria-label="Lihat permission {{ $label }}"
+                    <a href="{{ route('roles', ['role' => $key]) }}" wire:navigate aria-label="View permissions for {{ $label }}"
                        class="flex-1 rounded-lg bg-gray-100 py-2 text-center text-xs font-semibold text-gray-600 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
                         View
                     </a>
-                    <button wire:click="edit('{{ $key }}')" aria-label="Edit permission {{ $label }}"
+                    <button wire:click="edit('{{ $key }}')" aria-label="Edit permissions for {{ $label }}"
                             class="flex-1 rounded-lg bg-brand-50 py-2 text-center text-xs font-semibold text-brand-700 transition hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-brand-600/15 dark:text-brand-400 dark:hover:bg-brand-600/25 {{ auth()->user()->role !== 'admin' ? 'hidden' : '' }}">
                         Edit
                     </button>
@@ -46,10 +46,10 @@
             <h3 class="font-bold text-gray-900 dark:text-white">Permission Matrix</h3>
             <p class="mt-1 text-xs text-gray-400">
                 @if ($role)
-                    Menampilkan peran: <span class="font-semibold text-brand-600 dark:text-brand-400">{{ $roles[$role] ?? $role }}</span>
-                    &middot; <a href="{{ route('roles') }}" wire:navigate class="underline">tampilkan semua</a>
+                    Showing role: <span class="font-semibold text-brand-600 dark:text-brand-400">{{ $roles[$role] ?? $role }}</span>
+                    &middot; <a href="{{ route('roles') }}" wire:navigate class="underline">show all</a>
                 @else
-                    Full = akses penuh, Write = ubah data, Read = lihat saja, None = tanpa akses.
+                    Full = full access, Write = modify data, Read = view only, None = no access.
                 @endif
             </p>
         </div>
@@ -93,9 +93,9 @@
                 <div class="flex items-center justify-between border-b border-gray-100 p-5 dark:border-gray-700">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Edit Permission</h3>
-                        <p class="text-xs text-gray-400">Peran: <span class="font-semibold text-brand-600 dark:text-brand-400">{{ $roles[$editingRole] ?? $editingRole }}</span></p>
+                        <p class="text-xs text-gray-400">Role: <span class="font-semibold text-brand-600 dark:text-brand-400">{{ $roles[$editingRole] ?? $editingRole }}</span></p>
                     </div>
-                    <button wire:click="cancel" aria-label="Tutup" class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-700">
+                    <button wire:click="cancel" aria-label="Close" class="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:hover:bg-gray-700">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>

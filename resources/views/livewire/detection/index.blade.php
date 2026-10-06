@@ -3,7 +3,7 @@
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Real-Time Object Detection</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Inferensi di browser menggunakan TensorFlow.js &amp; COCO-SSD.
+                In-browser inference using TensorFlow.js &amp; COCO-SSD.
             </p>
         </div>
         <div class="flex items-center gap-2">
@@ -38,14 +38,14 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"/>
                             </svg>
                         </template>
-                        <p class="text-sm font-medium" x-text="error || 'Kamera nonaktif'"></p>
+                        <p class="text-sm font-medium" x-text="error || 'Camera inactive'"></p>
                         <button @click="start()" x-show="!error && !modelReady" disabled class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white opacity-60">
-                            Memuat model...
+                            Loading model...
                         </button>
                         <button @click="start()" x-show="!error && modelReady" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-gray-900">
-                            Aktifkan Kamera
+                            Start Camera
                         </button>
-                        <p x-show="loading" class="text-xs text-gray-400">Sedang memuat COCO-SSD model...</p>
+                        <p x-show="loading" class="text-xs text-gray-400">Loading the COCO-SSD model...</p>
                     </div>
 
                     <!-- LIVE badge -->
@@ -64,7 +64,7 @@
                         <span class="mx-1.5 text-gray-400">|</span>
                         Inference: <span x-text="stats.inferenceMs + ' ms'"></span>
                         <span class="mx-1.5 text-gray-400">|</span>
-                        Objek: <span x-text="stats.objects"></span>
+                        Objects: <span x-text="stats.objects"></span>
                     </div>
                 </div>
 
@@ -72,7 +72,7 @@
                 <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p class="font-bold text-gray-900 dark:text-white">
-                            Perangkat: <span x-text="deviceLabel || '—'"></span>
+                            Device: <span x-text="deviceLabel || '—'"></span>
                         </p>
                         <p class="text-xs text-gray-400">
                             Confidence threshold: <span x-text="(minConfidence * 100) + '%'"></span>
@@ -97,12 +97,12 @@
         <!-- Sidebar: Detected objects list -->
         <div class="card flex flex-col">
             <div class="border-b border-gray-100 p-4 dark:border-gray-700">
-                <h3 class="font-bold text-gray-900 dark:text-white">Deteksi Langsung</h3>
-                <p class="text-xs text-gray-400">Objek terdeteksi di frame terbaru</p>
+                <h3 class="font-bold text-gray-900 dark:text-white">Live Detection</h3>
+                <p class="text-xs text-gray-400">Objects detected in the latest frame</p>
             </div>
             <div class="scrollbar-thin flex-1 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-700">
                 <template x-if="detections.length === 0">
-                    <div class="p-4 text-xs text-gray-400">Belum ada objek terdeteksi.</div>
+                    <div class="p-4 text-xs text-gray-400">No objects detected yet.</div>
                 </template>
                 <template x-for="(d, i) in detections" :key="i">
                     <div class="flex items-center justify-between px-4 py-3">

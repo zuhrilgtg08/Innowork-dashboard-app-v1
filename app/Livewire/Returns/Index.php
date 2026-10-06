@@ -48,7 +48,7 @@ class Index extends Component
         $batch->resolve(auth()->id());
 
         $this->closeModal();
-        session()->flash('flash', "Return batch #{$batch->id} ditandai selesai.");
+        session()->flash('flash', "Return batch #{$batch->id} marked as resolved.");
     }
 
     public function render()

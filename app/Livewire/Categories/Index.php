@@ -112,7 +112,7 @@ class Index extends Component
 
         $category->save();
 
-        $this->flash = $this->editingId ? 'Kategori berhasil diperbarui.' : 'Kategori baru berhasil ditambahkan.';
+        $this->flash = $this->editingId ? 'Category updated successfully.' : 'New category added successfully.';
         $this->closeModal();
     }
 
@@ -130,7 +130,7 @@ class Index extends Component
         }
 
         $category->delete();
-        $this->flash = 'Kategori berhasil dihapus.';
+        $this->flash = 'Category deleted successfully.';
         $this->confirmingDeleteId = null;
     }
 

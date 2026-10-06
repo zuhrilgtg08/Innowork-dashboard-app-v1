@@ -39,19 +39,19 @@ class Index extends Component
         $approved = Annotation::where('status', 'approved')->count();
 
         if ($approved < self::MIN_SAMPLES) {
-            $this->error = 'Butuh minimal '.self::MIN_SAMPLES.' anotasi disetujui (saat ini '.$approved.'). Labeli dulu di menu Annotation.';
+            $this->error = 'At least '.self::MIN_SAMPLES.' approved annotations are required (currently '.$approved.'). Label items in Annotation first.';
 
             return;
         }
 
         if (! app(MlClient::class)->healthy()) {
-            $this->error = 'ML service offline. Jalankan service Python di port 8001 lalu coba lagi.';
+            $this->error = 'ML service is offline. Start the Python service and try again.';
 
             return;
         }
 
         if (TrainingRun::whereIn('status', ['queued', 'exporting', 'training'])->exists()) {
-            $this->error = 'Sudah ada training yang berjalan. Tunggu sampai selesai.';
+            $this->error = 'A training run is already in progress. Please wait for it to finish.';
 
             return;
         }
@@ -72,7 +72,7 @@ class Index extends Component
             'logged_at' => now(),
         ]);
 
-        $this->flash = "Training {$run->name} dimulai. Progres akan tampil realtime.";
+        $this->flash = "Training {$run->name} started. Progress will appear in real time.";
     }
 
     public function render()

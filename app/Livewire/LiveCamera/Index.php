@@ -58,7 +58,7 @@ class Index extends Component
         if (! $result) {
             // Keep the frame but tell the user the service is unreachable.
             $this->lastResult = ['status' => 'error', 'confidence' => 0];
-            $this->addError('frame', 'ML service tidak merespons. Pastikan service berjalan di port 8001.');
+            $this->addError('frame', 'The ML service is not responding. Make sure the service is running.');
 
             return;
         }
@@ -131,8 +131,19 @@ class Index extends Component
         $mlOnline = Cache::remember('ml.health', now()->addSeconds(10), fn () => app(MlClient::class)->healthy());
 
         // Source mode: 'webcam' (browser getUserMedia) or 'icam' (ICAM-300 RTSP
-        // relayed as MJPEG by the ml-service).
-        $cameraSource = Setting::current()->camera_source ?? 'webcam';
+        // relayed as MJPEG through the same-origin Laravel proxy).
+        $settingSource = Setting::current()->camera_source ?? 'webcam';
+        $visionMode = (bool) config('services.sorting.competition_mode', false);
+
+        // In Vision Sorting mode the production source is the Advantech
+        // iCAM-300 server stream: the page must never depend on the viewer's
+        // laptop webcam, which IoT Suite iframes typically block. An explicit
+        // ?source=webcam override keeps the legacy webcam reachable for
+        // development without changing the stored setting.
+        $explicitWebcam = request()->query('source') === 'webcam';
+        $cameraSource = ($visionMode && $settingSource === 'webcam' && ! $explicitWebcam)
+            ? 'icam'
+            : $settingSource;
 
         // Camera fleet overview: each configured camera with today's throughput.
         $startOfDay = now()->startOfDay();
@@ -158,8 +169,12 @@ class Index extends Component
             'feed' => $feed,
             'mlOnline' => $mlOnline,
             'cameraSource' => $cameraSource,
-            'streamUrl' => config('services.ml.stream_url'),
+            // Same-origin proxy (routes/web.php): never expose the ML
+            // service's internal address to the browser.
+            'streamUrl' => route('ml.camera.stream'),
+            'previewUrl' => route('ml.camera.preview'),
             'fleet' => $fleet,
+            'visionMode' => $visionMode,
         ]);
     }
 }

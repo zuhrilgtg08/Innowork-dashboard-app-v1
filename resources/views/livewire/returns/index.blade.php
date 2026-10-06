@@ -2,7 +2,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">QC Returns</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Batch barang cacat yang dialihkan otomatis dari lini untuk ditinjau.</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Defective-item batches diverted automatically off the line for review.</p>
         </div>
         <span class="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
             Open: {{ number_format($openCount) }}
@@ -19,7 +19,7 @@
         <!-- Filters -->
         <div class="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-gray-700 sm:flex-row sm:items-center">
             <select wire:model.live="status" class="field w-full py-2.5 sm:w-48">
-                <option value="">Semua Status</option>
+                <option value="">All Statuses</option>
                 @foreach ($statuses as $key => $meta)
                     <option value="{{ $key }}">{{ $meta['label'] }}</option>
                 @endforeach
@@ -32,11 +32,11 @@
                     <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400 dark:border-gray-700">
                         <th class="px-5 py-3 font-semibold">Batch</th>
                         <th class="px-5 py-3 font-semibold">Conveyor</th>
-                        <th class="px-5 py-3 font-semibold">Alasan</th>
+                        <th class="px-5 py-3 font-semibold">Reason</th>
                         <th class="px-5 py-3 font-semibold">Items</th>
                         <th class="px-5 py-3 font-semibold">Status</th>
-                        <th class="px-5 py-3 font-semibold">Dibuat</th>
-                        <th class="px-5 py-3 font-semibold text-right">Aksi</th>
+                        <th class="px-5 py-3 font-semibold">Created</th>
+                        <th class="px-5 py-3 font-semibold text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -52,15 +52,15 @@
                             <td class="whitespace-nowrap px-5 py-3 text-gray-500 dark:text-gray-400">{{ $batch->created_at?->format('d M H:i') }}</td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center justify-end gap-2">
-                                    <button wire:click="view({{ $batch->id }})" class="rounded-lg px-3 py-1.5 text-xs font-semibold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10">Detail</button>
+                                    <button wire:click="view({{ $batch->id }})" class="rounded-lg px-3 py-1.5 text-xs font-semibold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10">Details</button>
                                     @if ($batch->status === 'open')
-                                        <button wire:click="resolve({{ $batch->id }})" wire:confirm="Tandai batch #{{ $batch->id }} sebagai selesai?" class="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700">Resolve</button>
+                                        <button wire:click="resolve({{ $batch->id }})" wire:confirm="Mark batch #{{ $batch->id }} as resolved?" class="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700">Resolve</button>
                                     @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7"><x-empty-state title="Tidak ada return" message="Belum ada batch retur yang cocok dengan filter ini." /></td></tr>
+                        <tr><td colspan="7"><x-empty-state title="No returns" message="No return batches match this filter yet." /></td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -87,16 +87,16 @@
                 </div>
 
                 <div class="max-h-[60vh] overflow-y-auto px-6 py-4">
-                    @if ($viewing->status === 'resolved')
+                            @if ($viewing->status === 'resolved')
                         <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                            Diselesaikan {{ $viewing->resolved_at?->format('d M Y H:i') }}{{ $viewing->resolver ? ' oleh '.$viewing->resolver->name : '' }}.
+                            Resolved {{ $viewing->resolved_at?->format('d M Y H:i') }}{{ $viewing->resolver ? ' by '.$viewing->resolver->name : '' }}.
                         </p>
                     @endif
                     <table class="min-w-full text-sm">
                         <thead>
                             <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wider text-gray-400 dark:border-gray-700">
-                                <th class="py-2 pr-3 font-semibold">Kode</th>
-                                <th class="py-2 pr-3 font-semibold">Produk</th>
+                                <th class="py-2 pr-3 font-semibold">Code</th>
+                                <th class="py-2 pr-3 font-semibold">Product</th>
                                 <th class="py-2 pr-3 font-semibold">Status</th>
                                 <th class="py-2 pr-3 font-semibold">Conf.</th>
                             </tr>
@@ -110,7 +110,7 @@
                                     <td class="py-2 pr-3 text-gray-500 dark:text-gray-400">{{ $d->confidence }}%</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="py-4 text-center text-gray-400">Tidak ada deteksi.</td></tr>
+                                <tr><td colspan="4" class="py-4 text-center text-gray-400">No detections.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -118,8 +118,8 @@
 
                 @if ($viewing->status === 'open')
                     <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-4 dark:border-gray-700">
-                        <button wire:click="closeModal" class="rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">Tutup</button>
-                        <button wire:click="resolve({{ $viewing->id }})" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700">Tandai Selesai</button>
+                        <button wire:click="closeModal" class="rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">Close</button>
+                        <button wire:click="resolve({{ $viewing->id }})" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700">Mark Resolved</button>
                     </div>
                 @endif
             </div>

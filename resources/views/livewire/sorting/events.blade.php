@@ -47,7 +47,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5"><x-empty-state title="Belum ada event" message="Tidak ada sorting event untuk filter ini." /></td>
+                            <td colspan="5"><x-empty-state title="No events yet" message="No sorting events match this filter." /></td>
                         </tr>
                     @endforelse
                 </tbody>

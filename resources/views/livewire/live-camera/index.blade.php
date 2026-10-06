@@ -2,7 +2,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">Live Camera</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Satu kamera webcam yang tersinkron dengan dashboard.</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Real-time visual monitoring for the Vision Sorting system.</p>
         </div>
         @if ($mlOnline)
             <span class="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-700 dark:bg-green-500/15 dark:text-green-400">
@@ -37,15 +37,15 @@
                     <div class="mt-3 flex items-end justify-between">
                         <div>
                             <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($cam['total']) }}</p>
-                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Scan hari ini</p>
+                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Today's Detections</p>
                         </div>
                         <div class="text-right">
                             <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ number_format($cam['failed']) }}</p>
-                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Defect</p>
+                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Defects</p>
                         </div>
                     </div>
                     <p class="mt-2 text-[11px] text-gray-400">
-                        {{ $cam['last_seen'] ? 'Terakhir '.\Illuminate\Support\Carbon::parse($cam['last_seen'])->diffForHumans() : 'Belum ada aktivitas' }}
+                        {{ $cam['last_seen'] ? 'Last seen '.\Illuminate\Support\Carbon::parse($cam['last_seen'])->diffForHumans() : 'No activity yet' }}
                     </p>
                 </div>
             @endforeach
@@ -56,26 +56,28 @@
         <!-- Single live camera card -->
         <div class="lg:col-span-2">
             @if ($cameraSource === 'icam')
-            <!-- ICAM-300 live stream (MJPEG relayed by ml-service) -->
-            <div class="card overflow-hidden" x-data="{ streamOk: true }">
+            <!-- ICAM-300 live stream (same-origin relay of the ml-service MJPEG feed) -->
+            <div class="card overflow-hidden" x-data="{ streamOk: {{ $mlOnline ? 'true' : 'false' }} }">
                 <div class="relative aspect-video bg-gray-900">
-                    <img src="{{ $streamUrl }}" alt="ICAM-300 live stream"
+                    <img src="{{ $streamUrl }}" alt="Advantech iCAM-300 live stream"
                          class="h-full w-full object-cover"
+                         x-show="streamOk"
                          x-on:error="streamOk = false" x-on:load="streamOk = true" />
-                    <div x-show="!streamOk" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-400">
+                    <div x-show="!streamOk" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-gray-400">
                         <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
-                        <p class="text-sm font-medium">Stream ICAM-300 tidak tersedia</p>
-                        <p class="text-xs text-gray-500">Pastikan ml-service berjalan &amp; kamera dalam status "playing".</p>
+                        <p class="text-sm font-semibold text-gray-200">Camera Stream Unavailable</p>
+                        <p class="text-xs text-gray-500">Waiting for the Advantech iCAM-300 stream.</p>
                     </div>
                     <span class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
-                        <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500"></span> LIVE
+                        <span class="h-1.5 w-1.5 rounded-full bg-red-500" :class="streamOk && 'animate-pulse'"></span>
+                        <span x-text="streamOk ? 'LIVE' : 'OFF'"></span>
                     </span>
                     <span class="absolute right-3 top-3 rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white">{{ $camera }} · {{ $conveyor }}</span>
                 </div>
                 <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p class="font-bold text-gray-900 dark:text-white">ICAM-300 — Industrial AI Camera</p>
-                        <p class="text-xs text-gray-400">Inferensi otomatis oleh AI service (RTSP → YOLO)</p>
+                        <p class="font-bold text-gray-900 dark:text-white">Advantech iCAM-300 — Industrial Camera</p>
+                        <p class="text-xs text-gray-400">Automatic inference through the AI service.</p>
                     </div>
                     <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-600/15 dark:text-brand-400">
                         <span class="h-1.5 w-1.5 rounded-full bg-brand-500"></span> Auto-inspect
@@ -86,6 +88,16 @@
             <div class="card overflow-hidden"
                  x-data="webcam()"
                  x-init="init()">
+                @if ($visionMode)
+                    <div class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                        Vision Sorting mode uses the Advantech iCAM-300 server stream for production.
+                        The browser webcam below is for local development only and never starts automatically.
+                    </div>
+                @endif
+                <div x-show="embedded" style="display: none;" class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                    Browser webcam access may be restricted when SortVision is embedded in IoT Suite.
+                    Use the Advantech iCAM-300 server stream for production operation.
+                </div>
                 <div class="relative aspect-video bg-gray-900">
                     <!-- Live webcam feed -->
                     <video x-ref="video" autoplay playsinline muted
@@ -93,16 +105,16 @@
                     <canvas x-ref="canvas" class="hidden"></canvas>
 
                     <!-- Idle / error placeholder -->
-                    <div x-show="!active" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gray-500">
+                    <div x-show="!active" class="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-gray-500">
                         <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
-                        <p class="text-sm font-medium" x-text="error || 'Kamera nonaktif'"></p>
-                        <button @click="start()" x-show="!error" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-gray-900">Aktifkan Kamera</button>
+                        <p class="text-sm font-medium" x-text="error || 'Camera inactive'"></p>
+                        <button @click="start()" x-show="!error" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-gray-900">Start Camera</button>
                     </div>
 
                     <!-- Inspecting indicator (subtle corner badge for the live loop) -->
                     <div x-show="uploading" x-transition.opacity class="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-lg bg-black/60 px-3 py-1.5 text-xs font-semibold text-white">
                         <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                        Menganalisa frame…
+                        Analyzing frame...
                     </div>
 
                     <!-- Overlay badges -->
@@ -118,20 +130,20 @@
 
                 <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p class="font-bold text-gray-900 dark:text-white">{{ $camera }} — Webcam Utama</p>
+                        <p class="font-bold text-gray-900 dark:text-white">{{ $camera }} — Development Webcam</p>
                         <p class="text-xs text-gray-400">
-                            Perangkat: <span x-text="deviceLabel || '—'"></span>
-                            <span x-show="active" class="ml-1" x-text="auto ? '· Inspeksi otomatis tiap ' + (intervalMs/1000) + ' dtk' : '· Inspeksi dijeda'"></span>
+                            Device: <span x-text="deviceLabel || '—'"></span>
+                            <span x-show="active" class="ml-1" x-text="auto ? '· Automatic inspection every ' + (intervalMs/1000) + ' sec' : '· Inspection paused'"></span>
                         </p>
                     </div>
                     <div class="flex gap-2">
-                        <button @click="toggleAuto()" x-show="active" aria-label="Jeda atau lanjutkan inspeksi otomatis"
+                        <button @click="toggleAuto()" x-show="active" aria-label="Pause or resume automatic inspection"
                                 class="rounded-lg px-4 py-2 text-xs font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                 :class="auto ? 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-400' : 'bg-brand-600 hover:bg-brand-700 focus:ring-brand-500'">
-                            <span x-show="auto">Jeda Inspeksi</span>
-                            <span x-show="!auto">Lanjutkan Inspeksi</span>
+                            <span x-show="auto">Pause Inspection</span>
+                            <span x-show="!auto">Resume Inspection</span>
                         </button>
-                        <button @click="start()" x-show="!active" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">Start</button>
+                        <button @click="start()" x-show="!active" class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">Start Camera</button>
                         <button @click="stop()" x-show="active" class="rounded-lg bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">Stop</button>
                     </div>
                 </div>
@@ -148,7 +160,7 @@
                     <div class="flex items-center gap-3">
                         <x-status-badge :color="$lastResult['color'] ?? 'gray'" :label="$lastResult['label'] ?? ucfirst($lastResult['status'])" />
                         <div>
-                            <p class="text-sm font-bold text-gray-900 dark:text-white">Hasil Inspeksi Terakhir</p>
+                            <p class="text-sm font-bold text-gray-900 dark:text-white">Latest Inspection Result</p>
                             <p class="text-xs text-gray-400">Confidence {{ number_format((float) ($lastResult['confidence'] ?? 0), 1) }}%</p>
                         </div>
                     </div>
@@ -162,7 +174,7 @@
             <div class="mt-4 grid grid-cols-3 gap-4" wire:poll.5s>
                 <div class="card p-4 text-center">
                     <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($stats['total']) }}</p>
-                    <p class="text-xs text-gray-400">Scan hari ini</p>
+                    <p class="text-xs text-gray-400">Today's Detections</p>
                 </div>
                 <div class="card p-4 text-center">
                     <p class="text-2xl font-extrabold text-green-600 dark:text-green-400">{{ number_format($stats['passed']) }}</p>
@@ -170,7 +182,7 @@
                 </div>
                 <div class="card p-4 text-center">
                     <p class="text-2xl font-extrabold text-red-600 dark:text-red-400">{{ number_format($stats['failed']) }}</p>
-                    <p class="text-xs text-gray-400">Defect</p>
+                    <p class="text-xs text-gray-400">Defects</p>
                 </div>
             </div>
         </div>
@@ -181,9 +193,9 @@
                 <h3 class="font-bold text-gray-900 dark:text-white">Detection Feed</h3>
                 <p class="text-xs text-gray-400">
                     @if ($stats['last_seen'])
-                        Terakhir {{ \Illuminate\Support\Carbon::parse($stats['last_seen'])->diffForHumans() }}
+                        Last seen {{ \Illuminate\Support\Carbon::parse($stats['last_seen'])->diffForHumans() }}
                     @else
-                        Belum ada deteksi
+                        No detections yet
                     @endif
                 </p>
             </div>
@@ -198,7 +210,7 @@
                         <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ number_format((float) $item->confidence, 1) }}%</span>
                     </div>
                 @empty
-                    <x-empty-state title="Belum ada deteksi" message="Deteksi akan muncul di sini saat kamera memindai produk." />
+                    <x-empty-state title="No detections yet" message="Detections will appear here when the camera processes an object." />
                 @endforelse
             </div>
         </div>
@@ -216,16 +228,20 @@
         intervalMs: 3000,    // cadence of the auto-inspect loop
         timer: null,
         stream: null,
+        embedded: false,     // true when running inside an iframe (e.g. IoT Suite)
         init() {
-            // Auto-start on mount; browser will prompt for permission.
-            this.start();
+            // Never request camera permission automatically: it may only be
+            // requested after the user explicitly clicks "Start Camera". This
+            // keeps the page usable inside the Advantech IoT Suite iframe,
+            // where browser webcam access is typically restricted.
+            this.embedded = window.self !== window.top;
             // Release the camera when navigating away (Livewire SPA nav).
             document.addEventListener('livewire:navigating', () => this.stop(), { once: true });
         },
         async start() {
             this.error = '';
             if (!navigator.mediaDevices?.getUserMedia) {
-                this.error = 'Browser tidak mendukung kamera';
+                this.error = 'This browser does not support camera access.';
                 return;
             }
             try {
@@ -233,10 +249,16 @@
                 this.$refs.video.srcObject = this.stream;
                 this.deviceLabel = this.stream.getVideoTracks()[0]?.label || 'Webcam';
                 this.active = true;
-                // Begin live inference immediately, no button press needed.
+                // Begin live inference after an explicit start, no auto-start on mount.
                 this.startAuto();
             } catch (e) {
-                this.error = e.name === 'NotAllowedError' ? 'Akses kamera ditolak' : 'Kamera tidak tersedia';
+                if (e.name === 'NotAllowedError') {
+                    this.error = 'Camera access was denied. Allow camera access in your browser settings and try again.';
+                } else if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') {
+                    this.error = 'No camera was found on this device.';
+                } else {
+                    this.error = 'Camera is unavailable.';
+                }
                 this.active = false;
             }
         },
@@ -259,8 +281,8 @@
             // is still running when the interval fires, that frame is skipped.
             if (!this.active || this.uploading) return;
             const video = this.$refs.video;
-            // Stream belum siap (readyState < HAVE_CURRENT_DATA) → lewati agar
-            // tidak menangkap frame hitam/blank sebelum kamera warm-up.
+            // Skip while the stream is not ready (readyState < HAVE_CURRENT_DATA)
+            // so blank frames are not captured before the camera warms up.
             if (video.readyState < 2 || !video.videoWidth) return;
             const canvas = this.$refs.canvas;
             canvas.width = video.videoWidth;

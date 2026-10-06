@@ -42,7 +42,7 @@ export default function detection() {
                 this.model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
                 this.modelReady = true;
             } catch (e) {
-                this.error = 'Gagal memuat model deteksi. Periksa koneksi internet.';
+                this.error = 'Failed to load the detection model. Check your internet connection.';
             } finally {
                 this.loading = false;
             }
@@ -51,11 +51,11 @@ export default function detection() {
         async start() {
             this.error = '';
             if (!navigator.mediaDevices?.getUserMedia) {
-                this.error = 'Browser tidak mendukung akses kamera';
+                this.error = 'This browser does not support camera access';
                 return;
             }
             if (!this.modelReady) {
-                this.error = 'Model deteksi belum siap';
+                this.error = 'The detection model is not ready yet';
                 return;
             }
             try {
@@ -68,7 +68,7 @@ export default function detection() {
                     audio: false,
                 });
                 this.video.srcObject = this.stream;
-                this.deviceLabel = this.stream.getVideoTracks()[0]?.label || 'Kamera';
+                this.deviceLabel = this.stream.getVideoTracks()[0]?.label || 'Camera';
                 await this.video.play();
                 this.active = true;
                 this.lastFrameTime = performance.now();
@@ -80,11 +80,11 @@ export default function detection() {
                 window.addEventListener('resize', this.boundResize);
             } catch (e) {
                 if (e.name === 'NotAllowedError') {
-                    this.error = 'Akses kamera ditolak. Izinkan akses kamera di browser lalu coba lagi.';
+                    this.error = 'Camera access was denied. Allow camera access in your browser and try again.';
                 } else if (e.name === 'NotFoundError') {
-                    this.error = 'Kamera tidak ditemukan pada perangkat ini.';
+                    this.error = 'No camera was found on this device.';
                 } else {
-                    this.error = 'Gagal mengakses kamera: ' + e.message;
+                    this.error = 'Failed to access the camera: ' + e.message;
                 }
                 this.active = false;
             }

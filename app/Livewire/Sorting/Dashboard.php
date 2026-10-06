@@ -45,7 +45,9 @@ class Dashboard extends Component
         $this->armStatus = ArmStatus::current();
         $this->hardwareMode = config('services.sorting.hardware_mode', 'real');
         $this->mockHardware = (bool) config('services.sorting.mock_hardware', false);
-        $this->streamUrl = config('services.ml.stream_url');
+        // Same-origin proxy: the browser must never resolve the ML service's
+        // internal address itself (see routes/web.php ml.camera.*).
+        $this->streamUrl = route('ml.camera.stream');
         $this->refreshHealth();
         $this->refreshBoard();
         $this->demoControlsVisible = $this->mockHardware;
