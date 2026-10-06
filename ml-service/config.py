@@ -84,6 +84,13 @@ class Settings(BaseSettings):
     # YOLO inference → signed POST /api/camera/detection → MQTT arm/command publish.
     competition_mode: bool = False
 
+    # Arm-command publishing is DISABLED by default: the production
+    # architecture no longer uses MQTT (monitoring is pull-based via the
+    # runtime endpoints). The continuous inference worker never publishes
+    # regardless of this flag; it only gates the legacy per-request
+    # sort_pipeline path. Enabling requires paho-mqtt installed + a broker.
+    sorting_mqtt_enabled: bool = False
+
     # MQTT broker for arm/command (mock_hardware consumes this).
     mqtt_broker: str = "localhost"
     mqtt_port: int = 1883

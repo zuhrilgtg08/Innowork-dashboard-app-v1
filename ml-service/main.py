@@ -1,19 +1,30 @@
-"""FastAPI entrypoint for the SortVision ML service."""
-import base64
+"""FastAPI entrypoint for the SortVision ML service.
+
+Runtime architecture (no MQTT):
+
+    Camera Capture Worker (stream.CameraSource, ONE connection)
+            |
+    Inference Worker (runtime.InferenceWorker, ONE thread, ONE best.pt)
+            |
+    shared RuntimeState: latest frames + detections + statistics
+
+Every MJPEG/JSON endpoint serves the shared cached state — inference NEVER
+runs inside a request handler, and the camera stream is never reopened per
+browser. See runtime.py.
+"""
 import tempfile
 import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import cv2
 from fastapi import BackgroundTasks, FastAPI, Form, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 import callbacks
 import infer
-import preview
+import runtime
 import sort_pipeline
 import train
 from config import settings
@@ -63,66 +74,17 @@ def _flow_loop() -> None:
         })
 
 
-def _infer_loop() -> None:
-    """Periodically infer on the latest frame and push a Detection to Laravel.
-
-    In competition (Vision Sorting) mode each frame runs the full sort
-    pipeline (authoritative best.pt → ingest → pick-zone/dedupe/preflight
-    gates → arm/command); otherwise the legacy plain-inference path posts a
-    monitoring detection.
-    """
-    model = _resolve_stream_model()
-    while True:
-        time.sleep(max(0.5, settings.icam_infer_interval))
-        frame = camera_source.latest_frame()
-        if frame is None:
-            continue
-        ok, buf = cv2.imencode(".jpg", frame)
-        if not ok:
-            continue
-        jpeg = buf.tobytes()
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            tmp.write(jpeg)
-            tmp_path = tmp.name
-        try:
-            if settings.competition_mode:
-                result = sort_pipeline.run_sort_pipeline(tmp_path, settings.icam_conf)
-                if not result.get("sort_triggered"):
-                    print(f"[stream-sort] no command ({result.get('reason')})", flush=True)
-            else:
-                result = infer.infer_frame(tmp_path, model, settings.icam_conf)
-        except Exception as exc:  # noqa: BLE001
-            print(f"[stream-infer] failed: {exc}", flush=True)
-            continue
-        finally:
-            Path(tmp_path).unlink(missing_ok=True)
-
-        if settings.competition_mode:
-            # The sort pipeline already ingested the frame with competition
-            # fields; nothing left to post from the loop.
-            continue
-
-        callbacks.post_detection(settings.laravel_url, {
-            "status": result.get("status", "recheck"),
-            "confidence": result.get("confidence", 0.0),
-            "qr_value": result.get("qr_value"),
-            "boxes": result.get("boxes", []),
-            "detections": result.get("detections", []),
-            "camera": settings.icam_camera,
-            "conveyor": settings.icam_conveyor,
-            "frame_jpeg_b64": base64.b64encode(jpeg).decode(),
-        })
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start the camera buffer, and optionally the auto-inference loop.
+    # Start the single camera capture connection plus the single continuous
+    # YOLO inference worker. Monitoring is pull-based (shared RuntimeState);
+    # nothing POSTs per frame and nothing touches MQTT.
     camera_source.start()
-    if settings.icam_auto_infer:
-        threading.Thread(target=_infer_loop, daemon=True).start()
+    runtime.start()
     if settings.flow_analysis:
         threading.Thread(target=_flow_loop, daemon=True).start()
     yield
+    runtime.stop()
     camera_source.stop()
 
 
@@ -149,24 +111,33 @@ class TrainRequest(BaseModel):
 def health():
     """Liveness + real Vision Sorting model health.
 
-    In competition (Vision Sorting) mode the configured best.pt is actually
-    resolved and loaded: model_loaded reflects reality, never a hardcoded
-    true. A load failure returns model_loaded=false with a safe diagnostic
-    (no secrets — the message is a YOLO/filesystem error string only).
+    model_loaded reflects reality, never a hardcoded true: in competition
+    (Vision Sorting) mode the configured best.pt is actually resolved and
+    class-validated. A load failure returns model_loaded=false with a safe
+    diagnostic (no secrets — the message is a YOLO/filesystem error string
+    only), i.e. MODEL_ERROR. Nothing here requires MQTT.
     """
+    snap = runtime.state.snapshot_health()
     base = {
         "status": "ok",
         "vision_sorting": settings.competition_mode,
-        "camera_connected": bool(camera_source.status().get("connected", False)),
+        "model_loaded": snap["model_loaded"],
+        "camera_connected": snap["camera_connected"],
+        "camera_mode": snap["camera_mode"],
+        "camera_fps": snap["camera_fps"],
+        "inference_fps": snap["inference_fps"],
+        "last_inference_ms": snap["last_inference_ms"],
     }
     if not settings.competition_mode:
-        return {**base, "model_loaded": True, "base_model": settings.base_model}
+        return {**base, "base_model": settings.base_model}
+    if not snap["model_loaded"]:
+        return {**base, "model_path": settings.icam_model_path or None,
+                "classes": {}, "diagnostic": (snap["model_error"] or "")[:200]}
     try:
         resolved = sort_pipeline.resolve_sorting_model()
         classes = sort_pipeline.assert_sorting_classes(resolved)
         return {
             **base,
-            "model_loaded": True,
             "model_path": settings.icam_model_path or None,
             "classes": {str(k): v for k, v in classes.items()},
         }
@@ -195,19 +166,34 @@ def reload_model(req: ReloadRequest | None = None):
 
 @app.get("/camera/status")
 def camera_status():
-    """Liveness/mode of the ICAM-300 (or simulator) source, for the UI."""
-    return camera_source.status()
+    """Liveness/mode of the ICAM-300 (or simulator) source, for the UI.
+
+    mode is one of LIVE | SIMULATOR | OFFLINE (uppercase; the dashboard must
+    never describe simulator mode as a live iCAM connection).
+    """
+    snap = runtime.state.snapshot_camera()
+    frame = camera_source.latest_frame()
+    h, w = (frame.shape[:2] if frame is not None
+            else (snap["frame_height"], snap["frame_width"]))
+    return {
+        "connected": snap["connected"],
+        "mode": snap["mode"].upper(),
+        "source": snap["source"] or settings.icam_rtsp_url or settings.icam_sim_source,
+        "fps": snap["fps"],
+        "frame_width": w,
+        "frame_height": h,
+    }
 
 
 @app.get("/camera/frame")
 def camera_frame():
-    """Single latest JPEG frame.
+    """Single latest raw JPEG frame.
 
     Native mobile image loaders cannot render a `multipart/x-mixed-replace`
     MJPEG stream, so clients that need a live view poll this instead. Laravel
     proxies it so the phone never talks to this service directly.
     """
-    jpeg = camera_source.latest_jpeg()
+    jpeg = runtime.state.get_raw_jpeg(max_age_s=3600) or camera_source.latest_jpeg()
     if jpeg is None:
         return Response(status_code=503)
 
@@ -218,19 +204,38 @@ def camera_frame():
     )
 
 
+def _mjpeg(get_jpeg, interval: float):
+    """Shared MJPEG generator: yield the cached JPEG, never run inference."""
+    boundary = b"--frame\r\n"
+    while True:
+        jpeg = get_jpeg()
+        if jpeg is not None:
+            yield boundary + b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
+        time.sleep(interval)
+
+
 @app.get("/camera/stream")
 def camera_stream():
-    """MJPEG stream of the live source — displayable directly in an <img>."""
-    def frames():
-        boundary = b"--frame\r\n"
-        while True:
-            jpeg = camera_source.latest_jpeg()
-            if jpeg is not None:
-                yield boundary + b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
-            time.sleep(0.066)  # ~15 fps
+    """MJPEG stream of the live raw source — displayable in an <img>.
 
+    Serves the shared cached frame (~15 fps); the capture connection is
+    opened once, never per browser.
+    """
     return StreamingResponse(
-        frames(),
+        _mjpeg(runtime.state.get_raw_jpeg, 0.066),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/camera/raw")
+def camera_raw():
+    """Continuous raw MJPEG preview. NO YOLO overlay.
+
+    Same shared cache as /camera/stream (raw frames only).
+    """
+    return StreamingResponse(
+        _mjpeg(runtime.state.get_raw_jpeg, 0.066),
         media_type="multipart/x-mixed-replace; boundary=frame",
         headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )
@@ -274,21 +279,76 @@ def model_info():
 
 @app.get("/camera/preview")
 def camera_preview():
-    """Annotated MJPEG stream for Model Evaluation (bounding box + class +
-    confidence overlays). READ-ONLY: preview never publishes arm/command and
-    never writes detections — see preview.py safety contract."""
+    """Continuous annotated MJPEG preview (bounding box + English class +
+    confidence overlays).
+
+    Serves the latest annotated frame produced by the single inference
+    worker — NEVER runs YOLO inside the request. READ-ONLY: preview never
+    publishes arm/command and never writes detections.
+    """
     return StreamingResponse(
-        preview.preview_frames(),
+        _mjpeg(runtime.state.get_annotated_jpeg, 0.2),
         media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/camera/preview/frame")
+def camera_preview_frame():
+    """Latest annotated frame as a single JPEG (pollable)."""
+    jpeg = runtime.state.get_annotated_jpeg()
+    if jpeg is None:
+        return Response(status_code=503)
+    return Response(
+        content=jpeg,
+        media_type="image/jpeg",
         headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )
 
 
 @app.get("/preview/latest")
 def preview_latest():
-    """Latest preview inference snapshot for the info panel and logs."""
-    snap = preview.latest_snapshot()
+    """Latest preview inference snapshot (legacy shape, existing clients)."""
+    snap = runtime.state.snapshot_legacy_preview()
     return {"ok": snap["at"] is not None, **snap}
+
+
+@app.get("/detections/latest")
+def detections_latest():
+    """Latest continuous-inference result: timestamp, frame size, detections.
+
+    Each detection carries class_id, raw + English class names, 0-100
+    confidence, pixel bbox/center, and clamped 0-1 normalized geometry.
+    MODEL_ERROR is reported honestly when best.pt cannot be used.
+    """
+    model = runtime.state.snapshot_model()
+    if not model["loaded"]:
+        return JSONResponse(status_code=503, content={
+            "ok": False,
+            "error": "MODEL_ERROR",
+            "message": (model["error"] or "sorting model unavailable")[:200],
+            "detections": [],
+        })
+    snap = runtime.state.snapshot_latest()
+    return {"ok": True, **snap}
+
+
+@app.get("/stats/summary")
+def stats_summary():
+    """Runtime counters: per-class counts, totals, fps, latency, uptime."""
+    return runtime.state.snapshot_summary()
+
+
+@app.get("/stats/confidence")
+def stats_confidence(limit: int = 200):
+    """Recent per-detection confidence samples for dashboard graphing."""
+    return runtime.state.snapshot_confidence(limit=limit)
+
+
+@app.get("/stats/timeline")
+def stats_timeline(minutes: int = 60, bucket_seconds: int = 60):
+    """Detections per time bucket over the trailing window."""
+    return runtime.state.snapshot_timeline(minutes=minutes, bucket_seconds=bucket_seconds)
 
 
 @app.post("/train", status_code=202)
@@ -317,8 +377,10 @@ async def run_infer(
 ):
     """Run inference on one uploaded frame and return the QC verdict inline.
 
-    When competition_mode is enabled and a color class is detected, this also
-    runs the sort pipeline: signed POST to /api/camera/detection + MQTT arm/command.
+    When competition_mode is enabled this also runs the sort pipeline gates
+    (signed POST to /api/camera/detection). arm/command publishing is legacy
+    and disabled unless SORTING_MQTT_ENABLED=true — without it the pipeline
+    reports mqtt_disabled instead of commanding.
     """
     # Resolve a relative model path (models/run-x/best.pt) against Laravel storage.
     resolved_model = None

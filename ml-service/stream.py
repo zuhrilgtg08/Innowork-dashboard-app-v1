@@ -26,6 +26,8 @@ class CameraSource:
     def __init__(self):
         self._lock = threading.Lock()
         self._frame = None          # latest BGR frame (numpy array)
+        self._seq = 0               # increments on every pushed frame; lets
+                                    # the inference worker skip reprocessing
         self._running = False
         self._thread = None
         self._connected = False     # True when a real capture is delivering
@@ -50,10 +52,15 @@ class CameraSource:
         with self._lock:
             return None if self._frame is None else self._frame.copy()
 
+    def frame_seq(self) -> int:
+        """Monotonic id of the latest pushed frame (0 = none yet)."""
+        with self._lock:
+            return self._seq
+
     def latest_jpeg(self, quality: int = 80):
         frame = self.latest_frame()
         if frame is None:
-            frame = self._placeholder("Menunggu sumber kamera…")
+            frame = self._placeholder("Waiting for camera source...")
         ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
         return buf.tobytes() if ok else None
 
@@ -135,6 +142,7 @@ class CameraSource:
     def _push(self, frame):
         with self._lock:
             self._frame = frame
+            self._seq += 1
 
     @staticmethod
     def _synthetic():
