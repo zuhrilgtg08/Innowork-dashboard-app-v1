@@ -1,5 +1,9 @@
 # SortVision
 
+**Setup laptop Windows + terminal X/Y YOLOv11:** lihat
+[`LOCAL-WINDOWS.md`](LOCAL-WINDOWS.md). Script instalasi menerima ZIP model,
+menyiapkan web dan layanan YOLO, serta menyediakan monitor deteksi di terminal.
+
 Laravel 11 + Livewire 3 dashboard untuk sistem QC vision di lini conveyor: kamera memindai
 QR dan mengklasifikasikan tiap produk (`passed` / `damaged` / `recheck`, dst). Computer-vision
 berjalan di service Python terpisah (`ml-service/`, FastAPI + YOLOv8). Detail arsitektur ada di

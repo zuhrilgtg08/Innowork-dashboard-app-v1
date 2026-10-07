@@ -32,6 +32,8 @@ ultra-milk-kecil.yolov8/
 
 # Runtime logs (never commit service output)
 logs/*.log
+.local/
+ml-service/Ultralytics/
 
 # Testing
 .phpunit.result.cache
@@ -39,4 +41,3 @@ logs/*.log
 # IDE
 .idea/
 .vscode/
-

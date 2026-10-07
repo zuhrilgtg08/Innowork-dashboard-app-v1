@@ -266,3 +266,39 @@ def test_detection_endpoint_exposes_xy_and_status_does_not_connect(monkeypatch):
     assert result["detections"][0]["x"] == 320
     assert result["detections"][0]["y"] == 240
     assert main.robot_status()["state"] == "not_started"
+
+
+def test_robot_frame_age_includes_inference_time(monkeypatch, rig):
+    bridge, _, _, _, _ = rig
+    monkeypatch.setattr(runtime.time, "monotonic", lambda: 10.0)
+    state = runtime.RuntimeState()
+    state.update_model(True, {0: "GREEN"}, "fake.pt")
+    state.update_camera(True, "live", 20, 640, 480, "fake")
+    state.publish(640, 480, b"raw", b"annotated", [detection()], 1500,
+                  captured_at=8.5, camera_mode="live")
+    snap = state.snapshot_robot_input()
+    assert snap["age_s"] == 1.5
+    assert bridge._packet(snap) == ({"found": False}, "stale_frame")
+
+
+def test_simulator_frame_cannot_become_live_during_inference(rig):
+    bridge, _, _, _, _ = rig
+    state = runtime.RuntimeState()
+    state.update_model(True, {0: "GREEN"}, "fake.pt")
+    state.update_camera(True, "live", 20, 640, 480, "fake")
+    state.publish(640, 480, b"raw", b"annotated", [detection()], 20,
+                  camera_mode="simulator")
+    assert bridge._packet(state.snapshot_robot_input()) == ({"found": False}, "camera_not_live")
+
+
+def test_capture_snapshot_keeps_frame_sequence_time_and_mode_together(monkeypatch):
+    import stream
+    import numpy as np
+    source = stream.CameraSource()
+    monkeypatch.setattr(stream.time, "monotonic", lambda: 12.0)
+    source._mode = "live"
+    source._push(np.zeros((10, 10, 3), dtype=np.uint8))
+    seq, frame, captured_at, mode = source.latest_sample()
+    assert (seq, captured_at, mode) == (1, 12.0, "live")
+    frame[0, 0, 0] = 255
+    assert source.latest_frame()[0, 0, 0] == 0

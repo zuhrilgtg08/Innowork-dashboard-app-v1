@@ -70,6 +70,7 @@ class RuntimeState:
             "detections": [], "primary": None, "inference_ms": None,
         }
         self._result_camera_live = False
+        self._result_captured_at: float | None = None
         # Cached JPEGs shared by every MJPEG viewer.
         self._raw_jpeg: bytes | None = None
         self._raw_jpeg_at: float = 0.0
@@ -111,13 +112,16 @@ class RuntimeState:
 
     def publish(self, frame_w: int, frame_h: int, raw_jpeg: bytes,
                 annotated_jpeg: bytes, detections: list,
-                latency_ms: float) -> None:
+                latency_ms: float, *, captured_at: float | None = None,
+                camera_mode: str | None = None) -> None:
         """Publish one processed frame: result + JPEG caches + statistics."""
         now_iso = _utcnow_iso()
         now_mono = time.monotonic()
         with self._lock:
+            self._result_captured_at = captured_at if captured_at is not None else now_mono
             self._result_camera_live = (
                 self._camera["connected"] and self._camera["mode"].lower() == "live"
+                and (camera_mode is None or camera_mode == "live")
             )
             self._result = {
                 "timestamp": now_iso,
@@ -255,8 +259,8 @@ class RuntimeState:
                 "camera_live": self._result_camera_live and self._camera["connected"]
                 and self._camera["mode"].lower() == "live",
                 "model_loaded": self._model["loaded"],
-                "age_s": time.monotonic() - self._last_inference_at
-                if self._last_inference_at is not None else None,
+                "age_s": time.monotonic() - self._result_captured_at
+                if self._result_captured_at is not None else None,
             }
 
     def snapshot_legacy_preview(self) -> dict:
@@ -366,7 +370,7 @@ state = RuntimeState()
 
 
 def draw_annotated(frame_bgr: np.ndarray, detections: list) -> np.ndarray:
-    """Draw English overlay: box + GREEN/YELLOW/RED + confidence %."""
+    """Draw class/confidence, bounding box, center crosshair and pixel X/Y."""
     annotated = frame_bgr.copy()
     for det in detections:
         english = det.get("class_name", "?")
@@ -381,6 +385,18 @@ def draw_annotated(frame_bgr: np.ndarray, detections: list) -> np.ndarray:
         cv2.rectangle(annotated, (x1, y0 - th - 8), (x1 + tw + 6, y0), bgr, -1)
         cv2.putText(annotated, text, (x1 + 3, y0 - 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        center = det.get("center", {})
+        cx, cy = int(center.get("x", (x1 + x2) / 2)), int(center.get("y", (y1 + y2) / 2))
+        cv2.drawMarker(annotated, (cx, cy), bgr, cv2.MARKER_CROSS, 18, 2)
+        cv2.circle(annotated, (cx, cy), 3, (255, 255, 255), -1)
+        xy = f"X={cx} Y={cy} px"
+        (tw, th), _ = cv2.getTextSize(xy, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        height, width = annotated.shape[:2]
+        tx = max(3, min(cx + 12, width - tw - 6))
+        ty = max(th + 4, min(cy + 22, height - 5))
+        cv2.rectangle(annotated, (tx - 3, ty - th - 4), (tx + tw + 3, ty + 4), (20, 20, 20), -1)
+        cv2.putText(annotated, xy, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (255, 255, 255), 1, cv2.LINE_AA)
     return annotated
 
 
@@ -471,7 +487,7 @@ class InferenceWorker(threading.Thread):
             if seq == last_seq or seq <= 0:
                 time.sleep(0.05)
                 continue
-            frame = camera_source.latest_frame()
+            seq, frame, captured_at, frame_mode = camera_source.latest_sample()
             if frame is None:
                 time.sleep(0.05)
                 continue
@@ -493,7 +509,8 @@ class InferenceWorker(threading.Thread):
                 # Camera telemetry was already mirrored at the top of this
                 # loop pass; publish result, JPEGs, and statistics together.
                 self._state.publish(w, h, buf_r.tobytes(), buf_a.tobytes(),
-                                    detections, latency_ms)
+                                    detections, latency_ms, captured_at=captured_at,
+                                    camera_mode=frame_mode)
             except Exception as exc:  # noqa: BLE001
                 print(f"[runtime] publish failed: {exc}", flush=True)
 

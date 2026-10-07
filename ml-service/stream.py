@@ -31,6 +31,8 @@ class CameraSource:
         self._frame = None          # latest BGR frame (numpy array)
         self._seq = 0               # increments on every pushed frame; lets
                                     # the inference worker skip reprocessing
+        self._captured_at = None
+        self._frame_mode = "offline"
         self._running = False
         self._thread = None
         self._connected = False     # True when a real capture is delivering
@@ -59,6 +61,12 @@ class CameraSource:
         """Monotonic id of the latest pushed frame (0 = none yet)."""
         with self._lock:
             return self._seq
+
+    def latest_sample(self) -> tuple:
+        """Atomic frame, sequence, capture time and source mode for inference."""
+        with self._lock:
+            return (self._seq, None if self._frame is None else self._frame.copy(),
+                    self._captured_at, self._frame_mode)
 
     def frame_dims(self) -> tuple:
         """Latest frame dimensions as (width, height) — no frame copy."""
@@ -183,6 +191,8 @@ class CameraSource:
         with self._lock:
             self._frame = frame
             self._seq += 1
+            self._captured_at = time.monotonic()
+            self._frame_mode = self._mode
 
     @staticmethod
     def _synthetic():

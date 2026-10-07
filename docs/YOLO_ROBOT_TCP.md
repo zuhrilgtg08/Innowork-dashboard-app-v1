@@ -2,6 +2,28 @@
 
 Alur ini mengikuti kode `ICAMXYClient` yang digunakan robot:
 
+Untuk laptop Windows, ikuti [instalasi lokal](../LOCAL-WINDOWS.md) terlebih
+dahulu. Setelah instalasi, jalankan dari folder proyek:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/start-services.ps1
+powershell -ExecutionPolicy Bypass -File tools/show-xy.ps1
+```
+
+Terminal menampilkan hasil nyata YOLO berupa kelas, confidence, X, dan Y
+dalam piksel, ditambah payload `x,y,G,R,Y` dalam mm dan respons terakhir ESP32
+saat bridge aktif. Monitor hanya membaca status; menutup terminal tidak
+menghentikan layanan bridge. Web tersedia di `http://127.0.0.1:8080/live-camera`; login lokal
+`admin@sortvision.test` / `password`. Layanan ML yang dijalankan script memakai
+port **8002**. Contoh perintah manual pada dokumen ini memakai port **8001**;
+ganti menjadi 8002 saat memakai script Windows.
+
+X/Y baru tersedia ketika model siap, kamera tersambung, dan objek terdeteksi.
+Pastikan `ICAM_RTSP_URL=rtsp://192.168.0.100:8550/video` sesuai kamera.
+Monitor terminal dapat berjalan tanpa mengaktifkan bridge robot.
+Preview visual menampilkan bounding box, titik pusat, serta label X/Y piksel
+langsung di gambar; panel Current Detection menampilkan nilai yang sama.
+
 ```text
 Kamera -> YOLO -> titik tengah X/Y piksel -> konversi mm
        -> TCP JSON per baris -> ESP32 port 5000 -> balasan OK
@@ -97,6 +119,7 @@ Tidak ada objek, confidence rendah, kamera offline/simulator, model belum
 siap, data tidak valid, atau hasil lebih tua dari `ROBOT_MAX_FRAME_AGE_S`
 (default 1 detik) menghasilkan `{"found":false}`. Worker TCP memakai snapshot
 runtime yang sama dengan dashboard; tidak menjalankan inferensi tambahan.
+Umur frame dihitung sejak frame diterima dari kamera, termasuk waktu inferensi.
 Setelah koneksi putus, worker mencoba kembali setiap dua detik dan membaca
 deteksi terbaru. Frame lama tidak diantrikan untuk dikirim ulang.
 
