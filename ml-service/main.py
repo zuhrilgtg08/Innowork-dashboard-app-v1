@@ -27,6 +27,7 @@ import infer
 import runtime
 import sort_pipeline
 import train
+import vision_model
 from config import settings
 from flow import FlowAnalyzer
 from stream import camera_source
@@ -246,33 +247,24 @@ def model_info():
     """Real metadata about the active YOLO weights: path, size, classes,
     inference device. No inference is run; no side effects.
 
-    In competition (Vision Sorting) mode the configured best.pt is
-    authoritative: if it is missing, a MODEL_ERROR is returned instead of
-    silently displaying yolov8n.pt as if it were the sorting model.
+    The configured best.pt is always authoritative: if it is missing or
+    its classes are invalid, a MODEL_ERROR is returned instead of silently
+    displaying yolov8n.pt or COCO as if it were the sorting model. This
+    check never depends on COMPETITION_MODE.
     """
-    if settings.competition_mode:
-        try:
-            resolved = sort_pipeline.resolve_sorting_model()
-            sort_pipeline.assert_sorting_classes(resolved)
-        except sort_pipeline.SortingModelError as exc:
-            return JSONResponse(status_code=503, content={
-                "error": "MODEL_ERROR",
-                "message": str(exc)[:200],
-                "configured_path": settings.icam_model_path or None,
-            })
-        info = infer.model_info(resolved)
-        return {
-            **info,
+    try:
+        resolved = vision_model.resolve_sorting_model()
+        vision_model.assert_sorting_classes(resolved)
+    except vision_model.SortingModelError as exc:
+        return JSONResponse(status_code=503, content={
+            "error": "MODEL_ERROR",
+            "message": str(exc)[:200],
             "configured_path": settings.icam_model_path or None,
-            "base_model": settings.base_model,
-            "conf_threshold": settings.icam_conf,
-        }
-    resolved = _resolve_stream_model()
+        })
     info = infer.model_info(resolved)
     return {
         **info,
         "configured_path": settings.icam_model_path or None,
-        "base_model": settings.base_model,
         "conf_threshold": settings.icam_conf,
     }
 

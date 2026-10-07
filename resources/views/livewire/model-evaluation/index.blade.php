@@ -95,8 +95,15 @@
         <!-- Model Training Panel -->
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">Model Training</h3>
-            <p class="text-xs text-gray-400">Train and evaluate the Vision Sorting YOLO model (demo session)</p>
+            <p class="text-xs text-gray-400">Train and evaluate the Vision Sorting YOLO model. Demo metrics for presentation visualization.</p>
             <div class="mt-4 space-y-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Training Progress</p>
+                    <div class="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                        <div class="h-full rounded-full bg-brand-500" style="width: {{ max(0, min(100, (int) $trainingProgress)) }}%"></div>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-400">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
+                </div>
                 @if ($trainingState === 'completed')
                     <div class="rounded-xl bg-green-50 p-3 dark:bg-green-500/10">
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Training Complete</p>
@@ -110,10 +117,10 @@
                     <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Evaluating</p>
                         <p class="mt-1 font-bold text-gray-900 dark:text-white">Epoch {{ $trainingEpoch }}/50</p>
-                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ $trainingProgress }}%</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
                         <p class="mt-2 grid grid-cols-2 gap-2 text-xs">
                             <div>Training Loss: {{ $trainingLoss }}</div>
-                            <div>Val Loss: {{ $valLoss }}</div>
+                            <div>Validation Loss: {{ $valLoss }}</div>
                             <div>Precision: {{ $precision }}</div>
                             <div>Recall: {{ $recall }}</div>
                         </p>
@@ -123,18 +130,41 @@
                     <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Training</p>
                         <p class="mt-1 font-bold text-gray-900 dark:text-white">Epoch {{ $trainingEpoch }}/50</p>
-                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ $trainingProgress }}%</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
                         <p class="mt-2 grid grid-cols-2 gap-2 text-xs">
                             <div>Training Loss: {{ $trainingLoss }}</div>
-                            <div>Val Loss: {{ $valLoss }}</div>
+                            <div>Validation Loss: {{ $valLoss }}</div>
+                            <div>Precision: {{ $precision }}</div>
+                            <div>Recall: {{ $recall }}</div>
                         </p>
+                        <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-300">mAP@50: {{ $mAP50 }}</p>
                     </div>
                 @else
                     <div class="rounded-xl bg-yellow-50 p-3 dark:bg-yellow-500/10">
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Ready</p>
-                        <button wire:click="startTrainingDemo" class="btn-primary !py-2.5 text-sm ml-auto">Start Training</button>
+                        <p class="mt-1 text-xs text-gray-400">Active Model: best.pt · Classes: GREEN, YELLOW, RED</p>
                     </div>
                 @endif
+                <div class="flex flex-wrap gap-2">
+                    @if ($trainingState === 'ready')
+                        <button wire:click="startTrainingDemo" class="btn-primary !py-2.5 text-sm">Start Training</button>
+                    @else
+                        <button wire:click="resetTraining" class="btn-secondary !py-2.5 text-sm">Reset Training</button>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Log Panel -->
+        <div class="card p-5">
+            <h3 class="font-bold text-gray-900 dark:text-white">Training Log</h3>
+            <p class="text-xs text-gray-400">Deterministic demo session log</p>
+            <div class="mt-4 h-64 overflow-y-auto rounded-xl bg-gray-900 p-4 font-mono text-xs leading-relaxed text-gray-300">
+                @forelse ($trainingLog as $entry)
+                    <p class="whitespace-pre-wrap">[{{ $entry['at'] ?? '--:--:--' }}] {{ $entry['msg'] ?? '' }}</p>
+                @empty
+                    <p class="text-gray-500">Training log is empty. Start training to generate demo log entries.</p>
+                @endforelse
             </div>
         </div>
 

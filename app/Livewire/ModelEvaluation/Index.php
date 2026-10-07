@@ -96,26 +96,51 @@ class Index extends Component
         $this->refreshRuntimeOnly();
     }
 
+    /**
+     * Deterministic demo training session (visualization only).
+     *
+     * No backend process is spawned, no weights are written, and no model
+     * is activated. Progress always stays within 0..100:
+     * preparing 0..10, training 20..85, evaluating 85..95, completed 100.
+     */
     public function startTrainingDemo(): void
     {
         $this->trainingState = 'preparing';
         $this->trainingProgress = 0;
         $this->trainingEpoch = 0;
+        $this->trainingLoss = 0.85;
+        $this->valLoss = 0.95;
+        $this->precision = 0.62;
+        $this->recall = 0.60;
+        $this->mAP50 = 0.58;
         $this->trainingLog = [];
 
-        $this->trainingLog[] = ['at' => now->format('H:i:s'), 'msg' => 'Preparing Vision Sorting dataset...'];
-        $this->trainingLog[] = ['at' => now->addSecond(1)->format('H:i:s'), 'msg' => 'Classes: GREEN, YELLOW, RED'];
-        $this->trainingLog[] = ['at' => now->addSecond(2)->format('H:i:s'), 'msg' => 'Loading YOLO architecture...'];
-        $this->trainingLog[] = ['at' => now->addSecond(3)->format('H:i:s'), 'msg' => 'Starting training session...'];
+        $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => 'Preparing Vision Sorting dataset...'];
+        $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => 'Classes: GREEN, YELLOW, RED'];
+        $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => 'Loading YOLO architecture...'];
+        $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => 'Starting training session...'];
 
         $this->advanceTraining();
+    }
+
+    public function resetTraining(): void
+    {
+        $this->trainingState = 'ready';
+        $this->trainingProgress = 0;
+        $this->trainingEpoch = 0;
+        $this->trainingLoss = 0.0;
+        $this->valLoss = 0.0;
+        $this->precision = 0.0;
+        $this->recall = 0.0;
+        $this->mAP50 = 0.0;
+        $this->trainingLog = [];
     }
 
     protected function advanceTraining(): void
     {
         switch ($this->trainingState) {
             case 'preparing':
-                $this->trainingProgress = 10;
+                $this->trainingProgress = max(0, min(100, 10));
                 $this->trainingState = 'training';
                 $this->advanceTraining();
                 break;
@@ -123,37 +148,45 @@ class Index extends Component
             case 'training':
                 if ($this->trainingEpoch < 50) {
                     $this->trainingEpoch++;
-                    $this->trainingProgress = 20 + intval(($this->trainingEpoch - 20) * 70 / 50);
-                    $this->trainingLoss = round(1.0 - ($this->trainingEpoch * 0.019), 3);
-                    $this->valLoss = round(1.1 - ($this->trainingEpoch * 0.019), 3);
-                    $this->precision = round(0.95 - ($this->trainingEpoch * 0.003), 2);
-                    $this->recall = round(0.92 - ($this->trainingEpoch * 0.003), 2);
-                    $this->mAP50 = round(0.90 + ($this->trainingEpoch * 0.002), 2);
-                    $this->trainingLog[] = ['at' => now->format('H:i:s'), "msg" => "Epoch {$this->trainingEpoch}/50"];
-                    $this->trainingLog[] = ['at' => now->addSecond(1)->format('H:i:s'), "msg" => "loss={$this->trainingLoss}"];
+                    $ratio = $this->trainingEpoch / 50;
+                    $this->trainingProgress = max(20, min(85, 20 + (int) round($ratio * 65)));
+                    $this->trainingLoss = max(0.0, round(0.85 - ($ratio * 0.60), 3));
+                    $this->valLoss = max(0.0, round(0.95 - ($ratio * 0.58), 3));
+                    $this->precision = max(0.0, min(1.0, round(0.62 + ($ratio * 0.28), 3)));
+                    $this->recall = max(0.0, min(1.0, round(0.60 + ($ratio * 0.28), 3)));
+                    $this->mAP50 = max(0.0, min(1.0, round(0.58 + ($ratio * 0.33), 3)));
+                    $this->trainingProgress = max(0, min(100, $this->trainingProgress));
+                    $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => "Epoch {$this->trainingEpoch}/50 - loss={$this->trainingLoss} precision={$this->precision}"];
                     $this->trainingLog = array_slice($this->trainingLog, -50);
                     $this->advanceTraining();
                 } else {
                     $this->trainingState = 'evaluating';
                     $this->trainingProgress = 85;
-                    $this->trainingLog[] = ['at' => now->format('H:i:s'), 'msg' => 'Evaluating model...'];
+                    $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => 'Evaluating model...'];
                     $this->advanceTraining();
                 }
                 break;
 
             case 'evaluating':
                 if ($this->trainingProgress < 95) {
-                    $this->trainingProgress += 5;
-                    $this->precision = round(0.91 + $this->trainingProgress / 20 * 0.05, 2);
-                    $this->recall = round(0.89 + $this->trainingProgress / 20 * 0.05, 2);
-                    $this->mAP50 = round(0.93 + $this->trainingProgress / 20 * 0.05, 2);
-                    $this->trainingLog[] = ['at' => now->format('H:i:s'), "msg" => "precision={$this->precision}"];
+                    if ($this->trainingProgress < 90) {
+                        $this->trainingProgress = 90;
+                        $this->precision = 0.905;
+                        $this->recall = 0.885;
+                        $this->mAP50 = 0.92;
+                    } else {
+                        $this->trainingProgress = 95;
+                        $this->precision = 0.91;
+                        $this->recall = 0.89;
+                        $this->mAP50 = 0.93;
+                    }
+                    $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => "Validation - precision={$this->precision} recall={$this->recall} mAP@50={$this->mAP50}"];
                     $this->trainingLog = array_slice($this->trainingLog, -50);
                     $this->advanceTraining();
                 } else {
                     $this->trainingState = 'completed';
                     $this->trainingProgress = 100;
-                    $this->trainingLog[] = ['at' => now->format('H:i:s'), 'msg' => '[Complete] Demo training session finished.'];
+                    $this->trainingLog[] = ['at' => now()->format('H:i:s'), 'msg' => '[Complete] Demo training session finished.'];
                 }
                 break;
 

@@ -148,6 +148,7 @@ class DemoHardeningTest extends TestCase
         $response->assertSee('YOLO Live Preview', escape: false);
         // Panel is always present; content varies by online state.
         $response->assertSee('ML Service', escape: false);
+        $response->assertSee(route('ml.camera.preview'), escape: false);
     }
 
     public function test_dashboard_model_error_state_honest(): void
@@ -179,6 +180,7 @@ class DemoHardeningTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Ready', escape: false);
-        $response->assertSee('Start Training Demo', escape: false);
+        $response->assertSee('Start Training', escape: false);
+        $response->assertSee('Training Log', escape: false);
     }
 }

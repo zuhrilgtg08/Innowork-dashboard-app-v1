@@ -52,15 +52,27 @@
     @endunless
 
     <!-- YOLO Live Preview -->
-    <div class="card p-5 mb-6">
-        <h3 class="font-bold text-gray-900 dark:text-white mb-4">YOLO Live Preview</h3>
-        <div class="relative">
-            <img src="{{ route('ml.camera.preview') }}" alt="YOLO annotated preview"
-                 class="absolute inset-0 w-full h-full object-cover"
-                 id="ml-preview-img"
-                 style="display: none;">
-            <div id="ml-preview-status" class="text-sm text-gray-500 dark:text-gray-400">
+    <div class="card overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 p-5 dark:border-gray-700">
+            <div>
+                <h3 class="font-bold text-gray-900 dark:text-white">YOLO Live Preview</h3>
+                <p class="text-xs text-gray-400">ICAM-300 live annotated stream</p>
+            </div>
             @if ($mlOnline && $modelLoaded)
+                <x-status-badge color="green" label="Model Loaded" />
+            @else
+                <x-status-badge color="red" label="YOLO Preview Unavailable" />
+            @endif
+        </div>
+        @if ($mlOnline && $modelLoaded)
+            <div class="relative bg-gray-900">
+                <img src="{{ route('ml.camera.preview') }}" alt="YOLO annotated preview" class="aspect-video w-full object-cover">
+                <span class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
+                    <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500"></span>
+                    <span>LIVE</span>
+                </span>
+            </div>
+            <div id="ml-preview-status" class="flex flex-wrap items-center gap-x-3 gap-y-1 p-5 text-sm text-gray-500 dark:text-gray-400">
                 <span class="font-medium text-green-600 dark:text-green-400">Model Loaded</span>
                 <span class="separator">|</span>
                 <span class="font-medium text-blue-600 dark:text-blue-400" id="ml-camera-status">{{ $cameraConnected ? 'Camera Connected' : 'Camera Disconnected' }}</span>
@@ -68,12 +80,13 @@
                 <span class="font-medium text-purple-600 dark:text-purple-400" id="ml-fps">Camera FPS: {{ $cameraFps !== null ? number_format((float) $cameraFps, 1) : '—' }} / Inference FPS: {{ $inferenceFps !== null ? number_format((float) $inferenceFps, 1) : '—' }}</span>
                 <span class="separator">|</span>
                 <span class="font-medium text-orange-600 dark:text-orange-400" id="ml-latency">Latency: {{ $latencyMs !== null ? number_format((float) $latencyMs, 1).' ms' : '—' }}</span>
-            @else
-                <span class="font-medium text-red-600 dark:text-red-400">YOLO Preview Unavailable</span>
-                <span class="separator">|</span>
-                <span class="font-medium text-red-500 dark:text-red-300">Waiting for the ML service.</span>
-            @endif
-        </div>
+            </div>
+        @else
+            <div class="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-gray-900 p-6 text-center">
+                <p class="text-sm font-semibold text-gray-200">YOLO Preview Unavailable</p>
+                <p class="max-w-xs text-xs text-gray-500">Waiting for the ML service.</p>
+            </div>
+        @endif
     </div>
 
     <!-- Stat cards (live runtime data; honest offline states, never fake) -->
