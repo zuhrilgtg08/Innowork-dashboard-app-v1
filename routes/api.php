@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\MlCallbackController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReturnBatchController;
+use App\Http\Controllers\Api\RobotCommandController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\SortingPreflightController;
@@ -181,4 +182,18 @@ Route::middleware('verify.ml')->prefix('sorting')->group(function () {
 */
 Route::middleware('verify.ml')->prefix('conveyor')->group(function () {
     Route::post('event', [ConveyorController::class, 'event']);
+});
+
+/*
+| Manual/debug robot command bridge (H-1): VPS <-> ESP32 over HTTPS.
+| The ESP32 polls outbound with the robot device Bearer token (see
+| robot.device middleware) — Laravel never dials a private ESP32 IP.
+| No MQTT, no YOLO coupling, no workspace scaling in this PR.
+*/
+Route::middleware('robot.device')->prefix('robot')->group(function () {
+    Route::post('commands', [RobotCommandController::class, 'store']);
+    Route::get('next-command', [RobotCommandController::class, 'next']);
+    Route::post('commands/{command}/ack', [RobotCommandController::class, 'ack']);
+    Route::post('commands/{command}/status', [RobotCommandController::class, 'status']);
+    Route::get('status', [RobotCommandController::class, 'queueStatus']);
 });

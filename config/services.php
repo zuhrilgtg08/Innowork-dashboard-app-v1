@@ -65,6 +65,13 @@ return [
         'legacy_only' => true,
     ],
 
+    // Dedicated Bearer token for the manual/debug robot bridge (H-1).
+    // The ESP32 polls outbound over HTTPS; the token is never exposed
+    // in responses. Empty by default — set ROBOT_DEVICE_TOKEN on the VPS.
+    'robot' => [
+        'device_token' => env('ROBOT_DEVICE_TOKEN'),
+    ],
+
     // Competition sorting integration (Opsi A). The ml-service publishes
     // arm/command; mock_hardware consumes it; mqtt:listen completes events.
     'sorting' => [
