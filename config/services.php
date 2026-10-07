@@ -44,10 +44,11 @@ return [
         'raw_url' => env('ML_RAW_URL', 'http://127.0.0.1:8001/camera/raw'),
         'status_url' => env('ML_STATUS_URL', 'http://127.0.0.1:8001/camera/status'),
         // Annotated YOLO preview stream (bounding boxes; read-only, no actuation).
+        'preview_url' => env('ML_PREVIEW_URL', 'http://127.0.0.1:8001/camera/preview'),
     ],
 
     // Legacy compatibility only: MQTT broker was the production real-time
-    # command bus. The active architecture no longer uses MQTT for monitoring
+    // command bus. The active architecture no longer uses MQTT for monitoring
     # (pull-based via /detections/latest + /stats/* endpoints). arm/command
     # publishing is opt-in via SORTING_MQTT_ENABLED when absolutely needed.
 'mqtt' => [

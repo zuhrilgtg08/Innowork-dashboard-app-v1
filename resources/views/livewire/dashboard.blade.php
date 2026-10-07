@@ -54,7 +54,12 @@
     <!-- YOLO Live Preview -->
     <div class="card p-5 mb-6">
         <h3 class="font-bold text-gray-900 dark:text-white mb-4">YOLO Live Preview</h3>
-        <div id="ml-preview-status" class="text-sm text-gray-500 dark:text-gray-400">
+        <div class="relative">
+            <img src="{{ route('ml.camera.preview') }}" alt="YOLO annotated preview"
+                 class="absolute inset-0 w-full h-full object-cover"
+                 id="ml-preview-img"
+                 style="display: none;">
+            <div id="ml-preview-status" class="text-sm text-gray-500 dark:text-gray-400">
             @if ($mlOnline && $modelLoaded)
                 <span class="font-medium text-green-600 dark:text-green-400">Model Loaded</span>
                 <span class="separator">|</span>
@@ -67,7 +72,7 @@
                 <span class="font-medium text-red-600 dark:text-red-400">YOLO Preview Unavailable</span>
                 <span class="separator">|</span>
                 <span class="font-medium text-red-500 dark:text-red-300">Waiting for the ML service.</span>
-            @endif>
+            @endif
         </div>
     </div>
 

@@ -132,7 +132,7 @@
                 @else
                     <div class="rounded-xl bg-yellow-50 p-3 dark:bg-yellow-500/10">
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Ready</p>
-                        <button wire:click="startTrainingDemo" class="btn-primary !py-2.5 text-sm ml-auto">Start Training Demo</button>
+                        <button wire:click="startTrainingDemo" class="btn-primary !py-2.5 text-sm ml-auto">Start Training</button>
                     </div>
                 @endif
             </div>
