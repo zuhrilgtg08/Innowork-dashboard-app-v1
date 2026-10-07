@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 import callbacks
 import infer
+import robot_bridge
 import runtime
 import sort_pipeline
 import train
@@ -80,17 +81,35 @@ def _flow_loop() -> None:
 async def lifespan(app: FastAPI):
     # Start the single camera capture connection plus the single continuous
     # YOLO inference worker. Monitoring is pull-based (shared RuntimeState);
-    # nothing POSTs per frame and nothing touches MQTT.
+    # the optional robot bridge consumes snapshots in its own TCP worker.
     camera_source.start()
     runtime.start()
+    bridge = robot_bridge.RobotBridge(settings, runtime.state)
+    app.state.robot_bridge = bridge
+    bridge.start()
     if settings.flow_analysis:
         threading.Thread(target=_flow_loop, daemon=True).start()
-    yield
-    runtime.stop()
-    camera_source.stop()
+    try:
+        yield
+    finally:
+        bridge.stop()
+        runtime.stop()
+        camera_source.stop()
 
 
 app = FastAPI(title="SortVision ML Service", lifespan=lifespan)
+
+
+@app.get("/robot/status")
+def robot_status():
+    """Read-only TCP status; ACK means received, not motion complete."""
+    bridge = getattr(app.state, "robot_bridge", None)
+    if bridge is None:
+        return {"enabled": settings.robot_bridge_enabled, "state": "not_started",
+                "transport": "tcp", "coordinate_unit": "mm", "connected": False,
+                "last_payload": None, "last_response": None,
+                "acknowledged_frames": 0, "error": None}
+    return bridge.snapshot()
 
 
 class AnnotationItem(BaseModel):
