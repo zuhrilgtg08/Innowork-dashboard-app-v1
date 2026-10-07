@@ -36,12 +36,12 @@
                     <p class="mt-0.5 text-xs text-gray-400">{{ $cam['conveyor'] ?? '—' }}</p>
                     <div class="mt-3 flex items-end justify-between">
                         <div>
-                            <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($cam['total']) }}</p>
+                            <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($cam['detections']) }}</p>
                             <p class="text-[11px] uppercase tracking-wider text-gray-400">Today's Detections</p>
                         </div>
                         <div class="text-right">
                             <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ number_format($cam['failed']) }}</p>
-                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Defects</p>
+                            <p class="text-[11px] uppercase tracking-wider text-gray-400">Errors</p>
                         </div>
                     </div>
                     <p class="mt-2 text-[11px] text-gray-400">
@@ -56,33 +56,202 @@
         <!-- Single live camera card -->
         <div class="lg:col-span-2">
             @if ($cameraSource === 'icam')
-            <!-- ICAM-300 live stream (same-origin relay of the ml-service MJPEG feed) -->
-            <div class="card overflow-hidden" x-data="{ streamOk: {{ $mlOnline ? 'true' : 'false' }} }">
-                <div class="relative aspect-video bg-gray-900">
-                    <img src="{{ $streamUrl }}" alt="Advantech iCAM-300 live stream"
-                         class="h-full w-full object-cover"
-                         x-show="streamOk"
-                         x-on:error="streamOk = false" x-on:load="streamOk = true" />
-                    <div x-show="!streamOk" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-gray-400">
-                        <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
-                        <p class="text-sm font-semibold text-gray-200">Camera Stream Unavailable</p>
-                        <p class="text-xs text-gray-500">Waiting for the Advantech iCAM-300 stream.</p>
+            <div wire:poll.5s="refreshRuntime" class="space-y-4">
+                @php
+                    $modelLoaded = (bool) ($runtime['model_loaded'] ?? false);
+                    $camConnected = (bool) ($runtime['camera_connected'] ?? $runtimeCamera['connected'] ?? false);
+                    $camMode = strtoupper($runtime['camera_mode'] ?? $runtimeCamera['mode'] ?? 'OFFLINE');
+                    $camFps = $runtime['camera_fps'] ?? $runtimeCamera['fps'] ?? null;
+                    $infFps = $runtime['inference_fps'] ?? null;
+                    $latMs = $runtime['last_inference_ms'] ?? null;
+                    $primary = $runtimeDetections[0] ?? null;
+                    $primaryTone = ['GREEN' => 'green', 'YELLOW' => 'amber', 'RED' => 'red'][$primary['class_name'] ?? ''] ?? 'gray';
+                @endphp
+                <!-- YOLO Preview (primary): annotated stream from the shared runtime -->
+                <div class="card overflow-hidden" x-data="{ streamOk: {{ $mlOnline ? 'true' : 'false' }} }">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 p-4 dark:border-gray-700">
+                        <div>
+                            <h3 class="font-bold text-gray-900 dark:text-white">YOLO Preview</h3>
+                            <p class="text-xs text-gray-400">Advantech iCAM-300 → best.pt → GREEN / YELLOW / RED</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <x-status-badge :color="$modelLoaded ? 'green' : 'red'" :label="$modelLoaded ? 'Model Loaded' : 'Model Error'" />
+                            <x-status-badge :color="$camConnected ? 'green' : 'gray'" :label="$camConnected ? 'Camera Connected' : 'Camera Offline'" />
+                        </div>
                     </div>
-                    <span class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
-                        <span class="h-1.5 w-1.5 rounded-full bg-red-500" :class="streamOk && 'animate-pulse'"></span>
-                        <span x-text="streamOk ? 'LIVE' : 'OFF'"></span>
-                    </span>
-                    <span class="absolute right-3 top-3 rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white">{{ $camera }} · {{ $conveyor }}</span>
-                </div>
-                <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <p class="font-bold text-gray-900 dark:text-white">Advantech iCAM-300 — Industrial Camera</p>
-                        <p class="text-xs text-gray-400">Automatic inference through the AI service.</p>
+                    <div class="relative aspect-video bg-gray-900">
+                        <img src="{{ $previewUrl }}" alt="YOLO annotated preview"
+                             class="h-full w-full object-cover"
+                             x-show="streamOk"
+                             x-on:error="streamOk = false" x-on:load="streamOk = true" />
+                        <div x-show="!streamOk" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-gray-400">
+                            <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                            <p class="text-sm font-semibold text-gray-200">Camera Stream Unavailable</p>
+                            <p class="text-xs text-gray-500">Waiting for the Advantech iCAM-300 stream.</p>
+                        </div>
+                        <span class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
+                            <span class="h-1.5 w-1.5 rounded-full bg-red-500" :class="streamOk && 'animate-pulse'"></span>
+                            <span x-text="streamOk ? 'LIVE' : 'OFF'"></span>
+                        </span>
+<span class="absolute right-3 top-3 rounded bg-black/60 px-2 py-1 font-mono text-[11px] text-white">{{ $camera }} · Vision Stream</span>
                     </div>
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-600/15 dark:text-brand-400">
-                        <span class="h-1.5 w-1.5 rounded-full bg-brand-500"></span> Auto-inspect
-                    </span>
+                    <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+                        <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400">Camera FPS</p>
+                            <p class="text-lg font-extrabold text-gray-900 dark:text-white">{{ $camFps !== null ? number_format((float) $camFps, 1) : '—' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400">Inference FPS</p>
+                            <p class="text-lg font-extrabold text-gray-900 dark:text-white">{{ $infFps !== null ? number_format((float) $infFps, 1) : '—' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400">Latency</p>
+                            <p class="text-lg font-extrabold text-gray-900 dark:text-white">{{ $latMs !== null ? number_format((float) $latMs, 1).' ms' : '—' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400">Camera Mode</p>
+                            <p class="text-lg font-extrabold uppercase text-gray-900 dark:text-white">{{ $camMode }}</p>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Current Detection + remaining detections -->
+                <div class="card p-5">
+                    <h3 class="font-bold text-gray-900 dark:text-white">Current Detection</h3>
+                    <p class="text-xs text-gray-400">
+                        @if ($runtimeFrameAt){{ \Carbon\Carbon::parse($runtimeFrameAt)->diffForHumans() }}@else Primary detection (highest confidence) @endif
+                        @if ($runtimeFrameCamera)· {{ $runtimeFrameCamera }}@endif
+                    </p>
+                    @if ($primary)
+                        @php
+                            $box = $primary['bbox'] ?? []; $ctr = $primary['center'] ?? []; $nrm = $primary['normalized'] ?? [];
+                        @endphp
+                        <div class="mt-4 flex items-center gap-3">
+                            <x-status-badge :color="$primaryTone" :label="$primary['class_name'] ?? '—'" />
+                            <p class="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">{{ isset($primary['confidence']) ? number_format((float) $primary['confidence'], 1).'%' : '—' }}</p>
+                        </div>
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                            <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                                <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Class</dt>
+                                <dd class="mt-1 font-bold text-gray-900 dark:text-white">{{ $primary['class_name'] ?? '—' }}</dd>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                                <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Confidence</dt>
+                                <dd class="mt-1 font-bold text-gray-900 dark:text-white">{{ isset($primary['confidence']) ? number_format((float) $primary['confidence'], 1).'%' : '—' }}</dd>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                                <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Center X / Y</dt>
+                                <dd class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $ctr['x'] ?? '—' }} / {{ $ctr['y'] ?? '—' }}</dd>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                                <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Normalized X / Y</dt>
+                                <dd class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ isset($nrm['center_x']) ? number_format((float) $nrm['center_x'], 4) : '—' }} / {{ isset($nrm['center_y']) ? number_format((float) $nrm['center_y'], 4) : '—' }}</dd>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                                <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">BBox</dt>
+                                <dd class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ isset($box['x1']) ? "{$box['x1']},{$box['y1']} → {$box['x2']},{$box['y2']}" : '—' }}</dd>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                                <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Frame Resolution</dt>
+                                <dd class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ isset($runtimeFrame['width']) ? $runtimeFrame['width'].' × '.$runtimeFrame['height'] : '—' }}</dd>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                                <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Timestamp</dt>
+                                <dd class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $runtimeFrameAt ? \Carbon\Carbon::parse($runtimeFrameAt)->format('H:i:s') : '—' }}</dd>
+                            </div>
+                        </dl>
+                        @if (count($runtimeDetections) > 1)
+                            <p class="mt-4 text-xs font-semibold uppercase tracking-wider text-gray-400">Also in frame</p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach (array_slice($runtimeDetections, 1) as $other)
+                                    @php $tone = ['GREEN' => 'green', 'YELLOW' => 'amber', 'RED' => 'red'][$other['class_name'] ?? ''] ?? 'gray'; @endphp
+                                    <x-status-badge :color="$tone" :label="($other['class_name'] ?? '?').' '.(isset($other['confidence']) ? number_format((float) $other['confidence'], 1).'%' : '')" />
+                                @endforeach
+                            </div>
+                        @endif
+                    @else
+                        <div class="mt-4">
+                            @if ($mlOnline)
+                                <x-empty-state title="No detections yet" message="Objects will appear here when the AI model detects GREEN, YELLOW, or RED objects." />
+                            @else
+                                <x-empty-state title="ML Service Offline" message="Waiting for the ML service. Live detections resume automatically once it is reachable." />
+                            @endif
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Runtime graphs -->
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <div class="card p-5">
+                        <h3 class="font-bold text-gray-900 dark:text-white">Confidence Trend</h3>
+                        <p class="text-xs text-gray-400">Recent per-detection confidence samples</p>
+                        @php $trend = array_slice($runtimeConfidence, -60); @endphp
+                        @if (count($trend) >= 2)
+                            @php
+                                $w = 560; $h = 140; $pad = 10; $n = count($trend);
+                                $pts = [];
+                                foreach ($trend as $i => $s) {
+                                    $x = $pad + ($n > 1 ? $i / ($n - 1) : 0.5) * ($w - 2 * $pad);
+                                    $y = $h - $pad - (max(0, min(100, (float) ($s['confidence'] ?? 0))) / 100) * ($h - 2 * $pad);
+                                    $pts[] = ['x' => round($x, 1), 'y' => round($y, 1), 'c' => $s['class'] ?? ''];
+                                }
+                                $dotColor = fn ($c) => ['GREEN' => '#22c55e', 'YELLOW' => '#eab308', 'RED' => '#ef4444'][$c] ?? '#94a3b8';
+                            @endphp
+                            <svg viewBox="0 0 {{ $w }} {{ $h }}" class="mt-4 h-36 w-full" role="img" aria-label="Confidence trend">
+                                <polyline points="{{ implode(' ', array_map(fn ($p) => $p['x'].','.$p['y'], $pts)) }}" fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+                                @foreach ($pts as $p)
+                                    <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="3" fill="{{ $dotColor($p['c']) }}" />
+                                @endforeach
+                            </svg>
+                        @else
+                            <div class="mt-4"><x-empty-state title="No samples yet" message="Confidence samples appear here once the AI model detects objects." /></div>
+                        @endif
+                    </div>
+                    <div class="card p-5">
+                        <h3 class="font-bold text-gray-900 dark:text-white">Detection Timeline</h3>
+                        <p class="text-xs text-gray-400">Detections per {{ $runtimeTimeline['bucket_seconds'] ?? 60 }}s interval</p>
+                        @php
+                            $labels = $runtimeTimeline['labels'] ?? [];
+                            $series = $runtimeTimeline['series'] ?? [];
+                            $bucketMax = 1; $bucketedTotal = 0;
+                            foreach ($labels as $i => $lab) {
+                                $bt = ($series['GREEN'][$i] ?? 0) + ($series['YELLOW'][$i] ?? 0) + ($series['RED'][$i] ?? 0);
+                                $bucketMax = max($bucketMax, $bt);
+                                $bucketedTotal += $bt;
+                            }
+                        @endphp
+                        @if (count($labels) > 0 && $bucketedTotal > 0)
+                            <div class="mt-4 flex h-36 items-end gap-[3px]">
+                                @foreach ($labels as $i => $lab)
+                                    @php
+                                        $g = $series['GREEN'][$i] ?? 0; $y = $series['YELLOW'][$i] ?? 0; $r = $series['RED'][$i] ?? 0;
+                                        $tot = $g + $y + $r;
+                                    @endphp
+                                    <div class="flex flex-1 flex-col justify-end rounded-t" style="height: {{ max(4, $tot / $bucketMax * 100) }}%" title="{{ $lab }} — GREEN {{ $g }}, YELLOW {{ $y }}, RED {{ $r }}">
+                                        @if ($r > 0)<div class="w-full bg-red-500" style="height: {{ $r / $tot * 100 }}%"></div>@endif
+                                        @if ($y > 0)<div class="w-full bg-amber-400" style="height: {{ $y / $tot * 100 }}%"></div>@endif
+                                        @if ($g > 0)<div class="w-full bg-green-500" style="height: {{ $g / $tot * 100 }}%"></div>@endif
+                                    </div>
+                                @endforeach
+                            </div>
+                            <div class="mt-1 flex justify-between text-[11px] text-gray-400">
+                                <span>{{ $labels[0] ?? '' }}</span><span>{{ $labels[count($labels) - 1] ?? '' }}</span>
+                            </div>
+                        @else
+                            <div class="mt-4"><x-empty-state title="No timeline data yet" message="Bucketed detection counts appear here once the AI model detects objects." /></div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Raw Camera (secondary, no overlay) -->
+                <details class="card overflow-hidden">
+                    <summary class="cursor-pointer p-4 font-bold text-gray-900 dark:text-white">Raw Camera <span class="ml-1 text-xs font-normal text-gray-400">— camera feed without YOLO overlay</span></summary>
+                    <div class="relative aspect-video bg-gray-900">
+                        <img src="{{ route('ml.camera.raw') }}" alt="Raw camera feed" class="h-full w-full object-cover" loading="lazy" />
+                        <span class="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">RAW</span>
+                    </div>
+                    <p class="p-4 text-xs text-gray-400">Advantech iCAM-300 — Industrial Camera · Automatic inference through the AI service.</p>
+                </details>
             </div>
             @else
             <div class="card overflow-hidden"
@@ -182,7 +351,7 @@
                 </div>
                 <div class="card p-4 text-center">
                     <p class="text-2xl font-extrabold text-red-600 dark:text-red-400">{{ number_format($stats['failed']) }}</p>
-                    <p class="text-xs text-gray-400">Defects</p>
+                    <p class="text-xs text-gray-400">Errors</p>
                 </div>
             </div>
         </div>

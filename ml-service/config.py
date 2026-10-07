@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     # Camera registry in Laravel). Empty falls back to the single icam_rtsp_url.
     icam_rtsp_urls: str = ""
 
+    # Optional HTTP(S) stream URL (e.g. an MJPEG preview endpoint served by
+    # the camera network, such as the known 192.168.0.100:5001 context).
+    # This is NOT assumed to be the YOLO frame source — it is simply tried as
+    # a capture input when ICAM_RTSP_URL is empty/unreachable. OpenCV can open
+    # MJPEG-over-HTTP directly. No credentials are ever hardcoded: embed them
+    # in the URL only if the deployment requires it.
+    icam_stream_url: str = ""
+
     @property
     def rtsp_url_list(self) -> list[str]:
         """Parsed, de-duplicated list of camera RTSP URLs (multi-camera)."""
@@ -83,6 +91,13 @@ class Settings(BaseSettings):
     # When true, the /infer endpoint runs the competition pipeline:
     # YOLO inference → signed POST /api/camera/detection → MQTT arm/command publish.
     competition_mode: bool = False
+
+    # Arm-command publishing is DISABLED by default: the production
+    # architecture no longer uses MQTT (monitoring is pull-based via the
+    # runtime endpoints). The continuous inference worker never publishes
+    # regardless of this flag; it only gates the legacy per-request
+    # sort_pipeline path. Enabling requires paho-mqtt installed + a broker.
+    sorting_mqtt_enabled: bool = False
 
     # MQTT broker for arm/command (mock_hardware consumes this).
     mqtt_broker: str = "localhost"

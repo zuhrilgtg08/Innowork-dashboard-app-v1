@@ -3,7 +3,9 @@
 namespace App\Livewire;
 
 use App\Models\Detection;
+use App\Services\MlClient;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -141,55 +143,65 @@ class Dashboard extends Component
 
     public function render()
     {
-        $base = $this->rangeQuery();
+        $ml = app(MlClient::class);
 
-        $total = (clone $base)->count();
-        $passed = (clone $base)->where('status', 'passed')->count();
-        $unreadable = (clone $base)->where('status', 'unreadable')->count();
-        $defective = (clone $base)->whereIn('status', ['damaged', 'scratched'])->count();
-        $returned = (clone $base)->whereIn('status', ['returned', 'recheck'])->count();
-        $passRate = $total > 0 ? round($passed / $total * 100, 1) : 0;
+        // Live runtime telemetry (cached so wire:poll never hammers the ML
+        // service). Null summary = ML service offline: the view renders
+        // honest offline states instead of fake statistics.
+        $summary = Cache::remember('ml.stats.summary', now()->addSeconds(5),
+            fn () => $ml->statsSummary());
+        $latest = Cache::remember('ml.detections.latest', now()->addSeconds(3),
+            fn () => $ml->detectionsLatest());
+        $confidence = Cache::remember('ml.stats.confidence', now()->addSeconds(5),
+            fn () => $ml->confidenceStats(120));
+        $timeline = Cache::remember('ml.stats.timeline', now()->addSeconds(10),
+            fn () => $ml->timelineStats(60, 60));
 
-        // Throughput: items detected in the last 60 minutes.
-        $lastHour = Detection::where('detected_at', '>=', now()->subHour())->count();
-        $throughput = round($lastHour / 60, 1);
+        $online = is_array($summary) && ($summary['model_loaded'] ?? false);
+        $modelLoaded = $online ? ($summary['model_loaded'] ?? false) : false;
+        $cameraConnected = $online ? ($summary['camera_connected'] ?? false) : false;
+        $cameraFps = $online ? ($summary['camera_fps'] ?? null) : null;
+        $inferenceFps = $online ? ($summary['inference_fps'] ?? null) : null;
+        $latencyMs = $online ? ($summary['last_latency_ms'] ?? null) : null;
 
-        $activeCameras = Detection::where('detected_at', '>=', now()->subDay())
-            ->distinct()
-            ->count('camera');
+        $green = $online ? (int) ($summary['green'] ?? 0) : 0;
+        $yellow = $online ? (int) ($summary['yellow'] ?? 0) : 0;
+        $red = $online ? (int) ($summary['red'] ?? 0) : 0;
+        $total = $online ? (int) ($summary['total'] ?? 0) : 0;
 
-        // Recent detections feed (respects the type filter).
-        $recent = $this->rangeQuery()
-            ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
-            ->with('product')
-            ->latest('detected_at')
-            ->limit(8)
-            ->get();
+        $distribution = collect([
+            ['label' => 'GREEN', 'color' => 'green', 'count' => $green],
+            ['label' => 'YELLOW', 'color' => 'amber', 'count' => $yellow],
+            ['label' => 'RED', 'color' => 'red', 'count' => $red],
+        ])->map(fn ($d) => $d + [
+            'pct' => $total > 0 ? round($d['count'] / $total * 100, 1) : 0,
+        ])->values();
 
-        // Status distribution for the mini breakdown bar.
-        $distribution = collect(Detection::STATUSES)->map(function ($meta, $key) use ($base, $total) {
-            $count = (clone $base)->where('status', $key)->count();
-
-            return [
-                'label' => $meta['label'],
-                'color' => $meta['color'],
-                'count' => $count,
-                'pct' => $total > 0 ? round($count / $total * 100, 1) : 0,
-            ];
-        })->values();
+        $detections = ($latest['detections'] ?? null) && is_array($latest['detections'])
+            ? array_slice($latest['detections'], 0, 8)
+            : [];
 
         return view('livewire.dashboard', [
+            'mlOnline' => $online,
+            'modelLoaded' => $modelLoaded,
+            'cameraConnected' => $cameraConnected,
             'stats' => [
-                'total' => $total,
-                'passRate' => $passRate,
-                'unreadable' => $unreadable,
-                'defective' => $defective,
-                'returned' => $returned,
-                'throughput' => $throughput,
-                'activeCameras' => $activeCameras,
+                'total' => $online ? $total : null,
+                'green' => $online ? $green : null,
+                'yellow' => $online ? $yellow : null,
+                'red' => $online ? $red : null,
+                'inferenceFps' => $inferenceFps,
+                'latencyMs' => $latencyMs,
+                'cameraFps' => $cameraFps,
+                'avgLatencyMs' => $online ? ($summary['average_latency_ms'] ?? null) : null,
+                'cameraMode' => $online ? ($summary['camera_mode'] ?? null) : null,
             ],
-            'recent' => $recent,
             'distribution' => $distribution,
+            'detections' => $detections,
+            'frameAt' => $latest['timestamp'] ?? null,
+            'frameCamera' => $latest['camera'] ?? null,
+            'confidenceSamples' => $confidence['samples'] ?? [],
+            'timeline' => $timeline,
             'generatedAt' => Carbon::now(),
         ]);
     }

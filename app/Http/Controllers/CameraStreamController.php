@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MlClient;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -18,8 +19,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *
  * Browser-facing URLs:
  *   GET /ml/camera/stream   MJPEG relay of the live camera feed
+ *   GET /ml/camera/raw      MJPEG relay of the raw camera feed (no overlay)
  *   GET /ml/camera/preview  MJPEG relay of the annotated YOLO preview
- *   GET /ml/camera/frame    Latest frame as a single JPEG (pollable)
+ *   GET /ml/camera/frame    Latest raw frame as a single JPEG (pollable)
+ *   GET /ml/camera/preview/frame  Latest annotated frame as a single JPEG
+ *   GET /ml/detections/latest     Latest YOLO result (JSON)
+ *   GET /ml/stats/summary         Runtime counters (JSON)
+ *   GET /ml/stats/confidence      Recent confidence samples (JSON)
+ *   GET /ml/stats/timeline        Detections per time bucket (JSON)
  */
 class CameraStreamController extends Controller
 {
@@ -29,6 +36,14 @@ class CameraStreamController extends Controller
     public function stream(): StreamedResponse|Response
     {
         return $this->relay((string) config('services.ml.stream_url'));
+    }
+
+    /**
+     * MJPEG relay of the raw iCAM-300 feed (no YOLO overlay).
+     */
+    public function raw(): StreamedResponse|Response
+    {
+        return $this->relay((string) config('services.ml.raw_url'));
     }
 
     /**
@@ -59,6 +74,70 @@ class CameraStreamController extends Controller
             'Content-Type' => 'image/jpeg',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
         ]);
+    }
+
+    /**
+     * The latest annotated (YOLO overlay) frame as a single JPEG.
+     */
+    public function previewFrame(MlClient $ml): Response
+    {
+        $jpeg = $ml->previewFrame();
+
+        if ($jpeg === null) {
+            return response('Preview unavailable', 503, [
+                'Cache-Control' => 'no-store',
+            ]);
+        }
+
+        return response($jpeg, 200, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    }
+
+    /**
+     * Latest YOLO result as JSON (proxied, graceful 503 when offline).
+     */
+    public function detectionsLatest(MlClient $ml): JsonResponse
+    {
+        $data = $ml->detectionsLatest();
+
+        if ($data === null) {
+            return response()->json(['ok' => false, 'error' => 'ML service offline'], 503);
+        }
+
+        return response()->json($data);
+    }
+
+    /**
+     * Runtime counters as JSON (proxied, graceful 503 when offline).
+     */
+    public function statsSummary(MlClient $ml): JsonResponse
+    {
+        $data = $ml->statsSummary();
+
+        if ($data === null) {
+            return response()->json(['error' => 'ML service offline'], 503);
+        }
+
+        return response()->json($data);
+    }
+
+    /**
+     * Recent confidence samples as JSON (empty samples when offline —
+     * graphs render an honest empty state instead of failing).
+     */
+    public function confidenceStats(MlClient $ml): JsonResponse
+    {
+        return response()->json($ml->confidenceStats());
+    }
+
+    /**
+     * Detections per time bucket as JSON (empty series when offline).
+     */
+    public function timelineStats(MlClient $ml): JsonResponse
+    {
+        return response()->json($ml->timelineStats());
     }
 
     /**

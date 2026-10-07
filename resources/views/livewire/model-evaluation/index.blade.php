@@ -92,6 +92,90 @@
             @endif
         </div>
 
+        <!-- Model Training Panel (demo visualization; polled stepwise while active) -->
+        <div @if (in_array($trainingState, ['preparing', 'training', 'evaluating'])) wire:poll.750ms="advanceTrainingStep" @endif>
+        <div class="card p-5">
+            <h3 class="font-bold text-gray-900 dark:text-white">Model Training</h3>
+            <p class="text-xs text-gray-400">Train and evaluate the Vision Sorting YOLO model. Demo metrics for presentation visualization.</p>
+            <div class="mt-4 space-y-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Training Progress</p>
+                    <div class="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+                        <div class="h-full rounded-full bg-brand-500" style="width: {{ max(0, min(100, (int) $trainingProgress)) }}%"></div>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-400">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
+                </div>
+                @if ($trainingState === 'completed')
+                    <div class="rounded-xl bg-green-50 p-3 dark:bg-green-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Training Complete</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Model Candidate: best.pt</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Classes: 3</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">GREEN YELLOW RED</p>
+                        <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-300">Status: Ready for Evaluation</p>
+                        <a href="#evaluation" class="text-primary underline">View Model Evaluation</a>
+                    </div>
+                @elseif ($trainingState === 'evaluating')
+                    <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Evaluating</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Epoch {{ $trainingEpoch }}/50</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
+                        <p class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div>Training Loss: {{ $trainingLoss }}</div>
+                            <div>Validation Loss: {{ $valLoss }}</div>
+                            <div>Precision: {{ $precision }}</div>
+                            <div>Recall: {{ $recall }}</div>
+                        </p>
+                        <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-300">mAP@50: {{ $mAP50 }}</p>
+                    </div>
+                @elseif ($trainingState === 'training')
+                    <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Training</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Epoch {{ $trainingEpoch }}/50</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
+                        <p class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div>Training Loss: {{ $trainingLoss }}</div>
+                            <div>Validation Loss: {{ $valLoss }}</div>
+                            <div>Precision: {{ $precision }}</div>
+                            <div>Recall: {{ $recall }}</div>
+                        </p>
+                        <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-300">mAP@50: {{ $mAP50 }}</p>
+                    </div>
+                @elseif ($trainingState === 'preparing')
+                    <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Preparing Dataset</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Preparing Dataset</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
+                    </div>
+                @else
+                    <div class="rounded-xl bg-yellow-50 p-3 dark:bg-yellow-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Ready</p>
+                        <p class="mt-1 text-xs text-gray-400">Active Model: best.pt · Classes: GREEN, YELLOW, RED</p>
+                    </div>
+                @endif
+                <div class="flex flex-wrap gap-2">
+                    @if ($trainingState === 'ready')
+                        <button wire:click="startTrainingDemo" class="btn-primary !py-2.5 text-sm">Start Training</button>
+                    @else
+                        <button wire:click="resetTraining" class="btn-secondary !py-2.5 text-sm">Reset Training</button>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Log Panel -->
+        <div class="card p-5">
+            <h3 class="font-bold text-gray-900 dark:text-white">Training Log</h3>
+            <p class="text-xs text-gray-400">Deterministic demo session log</p>
+            <div class="mt-4 h-64 overflow-y-auto rounded-xl bg-gray-900 p-4 font-mono text-xs leading-relaxed text-gray-300">
+                @forelse ($trainingLog as $entry)
+                    <p class="whitespace-pre-wrap">[{{ $entry['at'] ?? '--:--:--' }}] {{ $entry['msg'] ?? '' }}</p>
+                @empty
+                    <p class="text-gray-500">Training log is empty. Start training to generate demo log entries.</p>
+                @endforelse
+            </div>
+        </div>
+        </div>
+
         <!-- Annotated preview stream -->
         <div class="card overflow-hidden">
             <div class="flex items-center justify-between border-b border-gray-100 p-5 dark:border-gray-700">
@@ -165,6 +249,71 @@
                 </div>
             @endif
         </div>
+    </div>
+
+    <!-- Live runtime detection (read-only, shared ML runtime state) -->
+    <div class="card p-5">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div>
+                <h3 class="font-bold text-gray-900 dark:text-white">Live Runtime Detection</h3>
+                <p class="text-xs text-gray-400">Latest best.pt result · coordinates · latency (read-only)</p>
+            </div>
+            @if ($runtimeSummary)
+                <x-status-badge color="green" label="Runtime Online" />
+            @else
+                <x-status-badge color="red" label="Runtime Offline" />
+            @endif
+        </div>
+        @php
+            $rtDets = $runtimeLatest['detections'] ?? [];
+            $rtTop = $rtDets[0] ?? null;
+            $rtTone = ['GREEN' => 'green', 'YELLOW' => 'amber', 'RED' => 'red'][$rtTop['class_name'] ?? ''] ?? 'gray';
+            $rtBox = $rtTop['bbox'] ?? []; $rtCtr = $rtTop['center'] ?? []; $rtNrm = $rtTop['normalized'] ?? [];
+        @endphp
+        @if ($rtTop)
+            <div class="flex flex-wrap items-center gap-3">
+                <x-status-badge :color="$rtTone" :label="$rtTop['class_name'] ?? '—'" />
+                <p class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">{{ isset($rtTop['confidence']) ? number_format((float) $rtTop['confidence'], 1).'%' : '—' }}</p>
+                <p class="text-xs text-gray-400">
+                    @if (! empty($runtimeLatest['timestamp'])){{ \Carbon\Carbon::parse($runtimeLatest['timestamp'])->format('H:i:s') }}@endif
+                    @if (! empty($runtimeLatest['camera']))· {{ $runtimeLatest['camera'] }}@endif
+                </p>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Class</p>
+                    <p class="mt-1 font-bold text-gray-900 dark:text-white">{{ $rtTop['class_name'] ?? '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">BBox</p>
+                    <p class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ isset($rtBox['x1']) ? "{$rtBox['x1']},{$rtBox['y1']} → {$rtBox['x2']},{$rtBox['y2']}" : '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Center X / Y</p>
+                    <p class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $rtCtr['x'] ?? '—' }} / {{ $rtCtr['y'] ?? '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Normalized X / Y</p>
+                    <p class="mt-1 font-mono text-xs font-bold text-gray-900 dark:text-white">{{ isset($rtNrm['center_x']) ? number_format((float) $rtNrm['center_x'], 4) : '—' }} / {{ isset($rtNrm['center_y']) ? number_format((float) $rtNrm['center_y'], 4) : '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Inference FPS</p>
+                    <p class="mt-1 font-bold text-gray-900 dark:text-white">{{ isset($runtimeSummary['inference_fps']) ? number_format((float) $runtimeSummary['inference_fps'], 1) : '—' }}</p>
+                </div>
+                <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Latency</p>
+                    <p class="mt-1 font-bold text-gray-900 dark:text-white">{{ isset($runtimeSummary['last_latency_ms']) ? number_format((float) $runtimeSummary['last_latency_ms'], 1).' ms' : '—' }}</p>
+                </div>
+            </div>
+        @else
+            <div>
+                @if ($runtimeSummary)
+                    <x-empty-state title="No detections yet" message="Objects will appear here when best.pt detects GREEN, YELLOW, or RED objects." />
+                @else
+                    <x-empty-state title="Runtime Offline" message="Waiting for the ML service. Live runtime data resumes automatically once it is reachable." />
+                @endif
+            </div>
+        @endif
     </div>
 
     <!-- Runtime graphs (real inference data) -->

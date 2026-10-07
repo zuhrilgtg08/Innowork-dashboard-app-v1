@@ -26,6 +26,8 @@ class CameraSource:
     def __init__(self):
         self._lock = threading.Lock()
         self._frame = None          # latest BGR frame (numpy array)
+        self._seq = 0               # increments on every pushed frame; lets
+                                    # the inference worker skip reprocessing
         self._running = False
         self._thread = None
         self._connected = False     # True when a real capture is delivering
@@ -50,10 +52,23 @@ class CameraSource:
         with self._lock:
             return None if self._frame is None else self._frame.copy()
 
+    def frame_seq(self) -> int:
+        """Monotonic id of the latest pushed frame (0 = none yet)."""
+        with self._lock:
+            return self._seq
+
+    def frame_dims(self) -> tuple:
+        """Latest frame dimensions as (width, height) — no frame copy."""
+        with self._lock:
+            if self._frame is None:
+                return (0, 0)
+            h, w = self._frame.shape[:2]
+            return (w, h)
+
     def latest_jpeg(self, quality: int = 80):
         frame = self.latest_frame()
         if frame is None:
-            frame = self._placeholder("Menunggu sumber kamera…")
+            frame = self._placeholder("Waiting for camera source...")
         ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
         return buf.tobytes() if ok else None
 
@@ -61,15 +76,25 @@ class CameraSource:
         return {
             "connected": self._connected,
             "mode": self._mode,
-            "source": settings.icam_rtsp_url or settings.icam_sim_source,
+            "source": (settings.icam_rtsp_url or settings.icam_stream_url
+                       or settings.icam_sim_source),
             "fps": round(self._fps, 1),
         }
 
     # -- internals ---------------------------------------------------------
     def _open_primary(self):
-        """Try the real RTSP stream first; return (cap, mode) or (None, ...)."""
-        if settings.icam_rtsp_url:
-            cap = cv2.VideoCapture(settings.icam_rtsp_url, cv2.CAP_FFMPEG)
+        """Try the real camera inputs first; return (cap, mode) or (None, ...).
+
+        Order: configured RTSP URL(s), then the optional HTTP stream URL
+        (MJPEG-over-HTTP opens directly in OpenCV), then simulator fallback.
+        """
+        for url in settings.rtsp_url_list:
+            cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+            if cap.isOpened():
+                return cap, "live"
+            cap.release()
+        if settings.icam_stream_url:
+            cap = cv2.VideoCapture(settings.icam_stream_url)
             if cap.isOpened():
                 return cap, "live"
             cap.release()
@@ -135,6 +160,7 @@ class CameraSource:
     def _push(self, frame):
         with self._lock:
             self._frame = frame
+            self._seq += 1
 
     @staticmethod
     def _synthetic():

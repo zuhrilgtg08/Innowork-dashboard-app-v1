@@ -11,4 +11,7 @@ python-multipart==0.0.*
 pillow==10.*
 opencv-python==4.*
 numpy==2.*
-paho-mqtt==2.*
+# NOTE: paho-mqtt intentionally absent — the production runtime no longer
+# uses MQTT (monitoring is pull-based). The only remaining MQTT touchpoint
+# is the legacy, opt-in sort_pipeline publish path (SORTING_MQTT_ENABLED),
+# which lazy-imports paho only when explicitly enabled.

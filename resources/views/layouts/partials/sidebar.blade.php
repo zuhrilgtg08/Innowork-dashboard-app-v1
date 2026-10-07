@@ -19,7 +19,7 @@
             </div>
             <div>
                 <p class="text-lg font-extrabold leading-tight text-gray-900 dark:text-white">{{ config('app.name', 'SortVision') }}</p>
-                <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400">Visual QC System</p>
+                <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400">Vision Sorting System</p>
             </div>
         </div>
 
@@ -27,9 +27,10 @@
         <nav class="scrollbar-thin flex-1 space-y-1 overflow-y-auto px-4 pb-4">
             @if ($visionMode)
             {{-- Vision Sorting demo navigation: Dashboard, Live Camera,
-                 Vision Sorting group, Model Evaluation. Legacy modules
-                 (Product, Categories, Returns, Annotation, Users, Roles)
-                 remain available by URL but are hidden here. --}}
+                 Model Evaluation. The Sorting Dashboard / Sorting Events /
+                 Device Status pages depend on the legacy MQTT arm pipeline
+                 and are hidden in demo (competition) mode for a clean demo;
+                 legacy modules remain available by URL but are hidden here. --}}
             <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Main Menu</p>
 
             @if ($user->canAccess('Dashboard'))
@@ -46,21 +47,10 @@
                 </a>
             @endif
 
-            @if ($user->canAccess('Sorting'))
-                <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Vision Sorting</p>
-                <a href="{{ route('sorting.dashboard') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.dashboard') ? 'nav-link-active' : '' }}">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2.5M4 8l-2 2m0 0l2 2m-2-2h12M4 8v8a2 2 0 0 0 2 2h2.5" /></svg>
-                    <span>Sorting Dashboard</span>
-                </a>
-                <a href="{{ route('sorting.events') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.events') ? 'nav-link-active' : '' }}">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4" /></svg>
-                    <span>Sorting Events</span>
-                </a>
-                <a href="{{ route('sorting.device-status') }}" wire:navigate class="nav-link {{ request()->routeIs('sorting.device-status') ? 'nav-link-active' : '' }}">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 5.25a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0ZM18.364 13.364a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0ZM5.636 13.364a2.25 2.25 0 1 1 3.182 0 2.25 2.25 0 0 1-3.182 0ZM12 15.75a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0ZM5.636 5.636a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0ZM18.364 5.636a2.25 2.25 0 1 0-3.182 0 2.25 2.25 0 0 0 3.182 0Z" /></svg>
-                    <span>Device Status</span>
-                </a>
-            @endif
+            {{-- Demo mode hides the legacy MQTT-driven sorting pages (Sorting
+                 Dashboard, Sorting Events, Device Status): they depend on the
+                 arm/command pipeline and would show misleading demo state.
+                 Backend routes stay registered; only this navigation is clean. --}}
 
             @if ($user->canAccess('Training'))
                 <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">AI Model</p>

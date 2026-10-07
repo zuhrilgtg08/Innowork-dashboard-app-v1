@@ -144,6 +144,116 @@ class MlClient
     }
 
     /**
+     * Full runtime health from GET /health: model/camera state plus
+     * inference telemetry (fps, latency). Null when the service is offline.
+     *
+     * @return array{status: string, model_loaded: bool, camera_connected: bool, camera_mode: string, camera_fps: float, inference_fps: float, last_inference_ms: ?float}|null
+     */
+    public function runtimeHealth(): ?array
+    {
+        try {
+            $response = $this->client(3)->get('/health');
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML runtimeHealth failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Latest continuous-inference result from GET /detections/latest.
+     * Null when offline or when the model reports MODEL_ERROR.
+     */
+    public function detectionsLatest(): ?array
+    {
+        try {
+            $response = $this->client(5)->get('/detections/latest');
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML detectionsLatest failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Runtime counters from GET /stats/summary (GREEN/YELLOW/RED counts,
+     * totals, fps, latency, uptime). Null when offline.
+     */
+    public function statsSummary(): ?array
+    {
+        try {
+            $response = $this->client(5)->get('/stats/summary');
+
+            return $response->successful() ? $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML statsSummary failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Recent confidence samples from GET /stats/confidence for graphing.
+     * Returns ['samples' => [...], 'count' => n]; empty samples when offline.
+     */
+    public function confidenceStats(int $limit = 120): array
+    {
+        try {
+            $response = $this->client(5)->get('/stats/confidence', ['limit' => $limit]);
+
+            return $response->successful() ? (array) $response->json() : ['samples' => [], 'count' => 0];
+        } catch (\Throwable $e) {
+            Log::warning('ML confidenceStats failed', ['error' => $e->getMessage()]);
+
+            return ['samples' => [], 'count' => 0];
+        }
+    }
+
+    /**
+     * Detections per time bucket from GET /stats/timeline.
+     * Returns ['bucket_seconds' => n, 'labels' => [...], 'series' => [...]];
+     * empty series when offline.
+     */
+    public function timelineStats(int $minutes = 60, int $bucketSeconds = 60): array
+    {
+        try {
+            $response = $this->client(5)->get('/stats/timeline', [
+                'minutes' => $minutes,
+                'bucket_seconds' => $bucketSeconds,
+            ]);
+
+            return $response->successful()
+                ? (array) $response->json()
+                : ['bucket_seconds' => $bucketSeconds, 'labels' => [], 'series' => []];
+        } catch (\Throwable $e) {
+            Log::warning('ML timelineStats failed', ['error' => $e->getMessage()]);
+
+            return ['bucket_seconds' => $bucketSeconds, 'labels' => [], 'series' => []];
+        }
+    }
+
+    /**
+     * The latest annotated (YOLO overlay) frame as JPEG bytes, or null when
+     * the service is unreachable or no inference has run yet.
+     */
+    public function previewFrame(): ?string
+    {
+        try {
+            $response = $this->client(5)->get('/camera/preview/frame');
+
+            return $response->successful() ? $response->body() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML previewFrame failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
      * Liveness/mode of the live camera source (ICAM-300 or simulator).
      *
      * @return array{connected: bool, mode: string, source: ?string, fps: float}|null
@@ -153,7 +263,18 @@ class MlClient
         try {
             $response = $this->client(3)->get('/camera/status');
 
-            return $response->successful() ? $response->json() : null;
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $json = $response->json();
+            // The runtime reports LIVE/SIMULATOR/OFFLINE; existing consumers
+            // compare lowercase, so normalize here and let views render labels.
+            if (is_array($json) && isset($json['mode'])) {
+                $json['mode'] = strtolower((string) $json['mode']);
+            }
+
+            return $json;
         } catch (\Throwable $e) {
             Log::warning('ML cameraStatus failed', ['error' => $e->getMessage()]);
 

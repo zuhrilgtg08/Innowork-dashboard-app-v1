@@ -5,7 +5,16 @@ Confidence convention (canonical, enforced across the stack):
   - Only internal threshold comparisons use 0–1 (sort_min_confidence,
     Setting.confidence_threshold, icam_conf), converting at the boundary.
 
-Safety properties (H-1, do not weaken):
+Model authority lives in vision_model (best.pt + exact class map); this
+module reuses it and adds the legacy actuation gates.
+
+MQTT STATUS: arm/command publishing is legacy and DISABLED by default
+(SORTING_MQTT_ENABLED=false). The continuous runtime (runtime.py) never
+publishes regardless of this flag. This per-request path keeps the publish
+code for a future re-enablement, but paho is imported lazily so the service
+runs without the broker — or without paho-mqtt installed — when disabled.
+
+Safety properties (do not weaken while MQTT is enabled):
   - Vision Sorting ALWAYS uses the configured best.pt (ICAM_MODEL_PATH),
     resolved against Laravel storage. If it is missing/invalid, or its
     classes are not HIJAU/KUNING/MERAH, the inference is rejected and
@@ -28,17 +37,23 @@ import uuid
 from pathlib import Path
 
 import httpx
-from paho.mqtt import publish as mqtt_single
 
 import infer
+import vision_model
 from config import settings
+from vision_model import SortingModelError  # noqa: F401 — re-exported for callers
 
 
-# YOLO class name → canonical color (green/yellow/red)
+# YOLO class name → canonical color (green/yellow/red). Both raw languages
+# are accepted — the authoritative model covers the three semantic colors
+# (see vision_model.RAW_TO_SEMANTIC); IDs are never assumed here.
 COLOR_ALIAS = {
     "HIJAU": "green",
+    "GREEN": "green",
     "KUNING": "yellow",
+    "YELLOW": "yellow",
     "MERAH": "red",
+    "RED": "red",
 }
 
 # Canonical color → destination bowl
@@ -48,10 +63,9 @@ DESTINATION_MAP = {
     "red": "BOWL_RED",
 }
 
-# Exact class map the authoritative Vision Sorting model must expose.
-# ID AND order are enforced (a model with the right names on the wrong IDs
-# would sort colors into the wrong bowls).
-EXPECTED_CLASS_MAP = {0: "HIJAU", 1: "KUNING", 2: "MERAH"}
+# Canonical reference class map of the production best.pt (see vision_model:
+# semantic coverage {GREEN, YELLOW, RED} is enforced, never fixed IDs).
+EXPECTED_CLASS_MAP = vision_model.EXPECTED_CLASS_MAP
 
 # Anti-duplicate state: signature of the last COMMANDED object plus the time
 # the last command was published. A stationary object keeps producing the
@@ -69,42 +83,18 @@ class SortingModelError(Exception):
 def resolve_sorting_model(explicit: str | None = None) -> str:
     """Resolve the authoritative best.pt for Vision Sorting.
 
-    An explicit request path wins (must exist); otherwise ICAM_MODEL_PATH
-    resolved against Laravel storage is used. Raises SortingModelError when
-    nothing usable is found — callers must reject the inference, never fall
-    back to another model on this path.
+    Delegates to vision_model (single source of truth). Raises
+    SortingModelError when nothing usable is found.
     """
-    rel = explicit or settings.icam_model_path
-    if not rel:
-        raise SortingModelError("no sorting model configured (ICAM_MODEL_PATH is empty)")
-    candidate = Path(rel)
-    if not candidate.is_absolute():
-        if candidate.exists():
-            return str(candidate)
-        candidate = Path(settings.laravel_storage_path) / rel
-    if not candidate.exists():
-        raise SortingModelError(f"sorting model not found: {rel}")
-    return str(candidate)
+    return vision_model.resolve_sorting_model(explicit)
 
 
 def assert_sorting_classes(model_path: str) -> dict:
     """Load the weights and verify the EXACT Vision Sorting class map.
 
-    model.names must equal {0: 'HIJAU', 1: 'KUNING', 2: 'MERAH'} — IDs and
-    order, not just name presence. Anything else raises SortingModelError
-    (wrong IDs would silently sort colors into the wrong bowls).
-    Returns the {index: name} mapping.
+    Delegates to vision_model (single source of truth).
     """
-    try:
-        model = infer._load(model_path)  # noqa: SLF001 — same service package
-    except Exception as exc:  # noqa: BLE001
-        raise SortingModelError(f"cannot load sorting model {model_path}: {exc}") from exc
-    names = {int(k): v for k, v in dict(model.names).items()}
-    if names != EXPECTED_CLASS_MAP:
-        raise SortingModelError(
-            f"sorting model class map {names} != required {EXPECTED_CLASS_MAP}"
-        )
-    return names
+    return vision_model.assert_sorting_classes(model_path)
 
 
 def in_pick_zone(nx: float, ny: float) -> bool:
@@ -139,11 +129,17 @@ def _post_signed(url: str, payload: dict) -> dict:
 def _publish_arm_command(payload: dict) -> bool:
     """Publish one command to arm/command (QoS 1, blocking single-shot).
 
+    Legacy path: only called when SORTING_MQTT_ENABLED=true. paho is
+    imported lazily so the service imports and runs without paho-mqtt
+    installed (and without a broker) when publishing is disabled.
+
     Uses paho.mqtt.publish.single so the call only returns success after the
     packet actually reached the broker — a refused/unreachable broker raises
     and we report failure instead of a phantom success. Authenticates with
     MQTT_USERNAME/MQTT_PASSWORD (+TLS) when configured.
     """
+    from paho.mqtt import publish as mqtt_single  # lazy: legacy path only
+
     try:
         auth = None
         if (settings.mqtt_username or "").strip():
@@ -184,7 +180,7 @@ def run_sort_pipeline(
     when no command is issued, a machine-readable reason:
       model_error | no_color_class | low_confidence | outside_pick_zone |
       duplicate | cooldown | ingest_failed | preflight_failed |
-      bowl_full | arm_busy | mqtt_publish_failed
+      bowl_full | arm_busy | mqtt_disabled | mqtt_publish_failed
     """
     global _last_signature, _last_command_at
 
@@ -367,9 +363,22 @@ def run_sort_pipeline(
         }
 
     # 8. Publish arm/command MQTT message (blocking; failure ≠ success).
+    # Legacy path, DISABLED unless SORTING_MQTT_ENABLED=true: production no
+    # longer uses MQTT (monitoring is pull-based). The per-request gates above
+    # still run, but without an enabled broker nothing is commanded.
     # Confidence convention: database/UI store 0-100 percent everywhere, so
     # the command carries 0-100 too (MqttListen persists it verbatim into
     # sorting_events.confidence). Only threshold comparisons use 0-1.
+    if not settings.sorting_mqtt_enabled:
+        return {
+            **result,
+            "sort_triggered": False,
+            "reason": "mqtt_disabled",
+            "event_uuid": event_uuid,
+            "detection_id": detection_id,
+            "color": color,
+        }
+
     command_payload = {
         "action": "sort",
         "event_uuid": event_uuid,

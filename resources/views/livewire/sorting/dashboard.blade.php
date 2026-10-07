@@ -21,23 +21,33 @@
 
     <!-- Primary row: live feed + current detection -->
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <!-- ICAM-300 live feed -->
-        <div class="card overflow-hidden xl:col-span-3">
+        <!-- ICAM-300 live feed (YOLO preview primary, raw secondary) -->
+        <div class="card overflow-hidden xl:col-span-3" x-data="{ feed: 'yolo' }">
             <div class="flex items-center justify-between border-b border-gray-100 p-5 dark:border-gray-700">
                 <div>
-                    <h3 class="font-bold text-gray-900 dark:text-white">ICAM-300 Live Feed</h3>
+                    <h3 class="font-bold text-gray-900 dark:text-white" x-text="feed === 'yolo' ? 'YOLO Preview' : 'Raw Camera'"></h3>
                     <p class="text-xs text-gray-400">{{ $cameraStatus['source'] ?? 'Industrial AI Camera' }}</p>
                 </div>
-                @if ($mlHealth)
-                    <x-status-badge color="green" label="Live" />
-                @else
-                    <x-status-badge color="red" label="Offline" />
-                @endif
+                <div class="flex items-center gap-2">
+                    <div class="flex overflow-hidden rounded-lg border border-gray-200 text-xs font-semibold dark:border-gray-700">
+                        <button type="button" @click="feed = 'yolo'" :class="feed === 'yolo' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-300'" class="px-3 py-1.5 transition">YOLO</button>
+                        <button type="button" @click="feed = 'raw'" :class="feed === 'raw' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-300'" class="px-3 py-1.5 transition">Raw</button>
+                    </div>
+                    @if ($mlHealth)
+                        <x-status-badge color="green" label="Live" />
+                    @else
+                        <x-status-badge color="red" label="Offline" />
+                    @endif
+                </div>
             </div>
             <div class="relative bg-gray-900">
                 @if ($streamUrl)
-                    <img src="{{ $streamUrl }}" alt="ICAM-300 live stream"
+                    <img x-show="feed === 'yolo'" src="{{ route('ml.camera.preview') }}" alt="YOLO annotated preview"
                         class="aspect-video w-full object-cover"
+                        @if (! $mlHealth) style="opacity: 0.45; filter: grayscale(1);" @endif
+                    >
+                    <img x-show="feed === 'raw'" src="{{ $streamUrl }}" alt="ICAM-300 live stream"
+                        class="aspect-video w-full object-cover" style="display: none;"
                         @if (! $mlHealth) style="opacity: 0.45; filter: grayscale(1);" @endif
                     >
                 @endif
