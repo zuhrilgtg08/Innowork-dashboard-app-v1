@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureModuleAccess;
+use App\Http\Middleware\EnsureRobotDeviceToken;
 use App\Http\Middleware\VerifyMlSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'verify.ml' => VerifyMlSignature::class,
             'module' => EnsureModuleAccess::class,
+            'robot.device' => EnsureRobotDeviceToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
