@@ -19,6 +19,7 @@ plus fixed-length metadata buffers (deque maxlen).
 """
 import threading
 import time
+from copy import deepcopy
 from collections import deque
 from datetime import datetime, timezone
 
@@ -68,6 +69,7 @@ class RuntimeState:
             "timestamp": None, "frame": {"width": 0, "height": 0},
             "detections": [], "primary": None, "inference_ms": None,
         }
+        self._result_camera_live = False
         # Cached JPEGs shared by every MJPEG viewer.
         self._raw_jpeg: bytes | None = None
         self._raw_jpeg_at: float = 0.0
@@ -114,6 +116,9 @@ class RuntimeState:
         now_iso = _utcnow_iso()
         now_mono = time.monotonic()
         with self._lock:
+            self._result_camera_live = (
+                self._camera["connected"] and self._camera["mode"].lower() == "live"
+            )
             self._result = {
                 "timestamp": now_iso,
                 "frame": {"width": int(frame_w), "height": int(frame_h)},
@@ -241,6 +246,18 @@ class RuntimeState:
                 "detections": [dict(d) for d in self._result["detections"]],
             }
             return result
+
+    def snapshot_robot_input(self) -> dict:
+        """Atomic actuation input, with monotonic age and capture provenance."""
+        with self._lock:
+            return {
+                **deepcopy(self._result),
+                "camera_live": self._result_camera_live and self._camera["connected"]
+                and self._camera["mode"].lower() == "live",
+                "model_loaded": self._model["loaded"],
+                "age_s": time.monotonic() - self._last_inference_at
+                if self._last_inference_at is not None else None,
+            }
 
     def snapshot_legacy_preview(self) -> dict:
         """Backward-compatible GET /preview/latest shape for existing clients."""

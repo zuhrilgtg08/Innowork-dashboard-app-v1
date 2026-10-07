@@ -1,6 +1,7 @@
 """Environment-driven configuration for the ML service."""
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -141,6 +142,19 @@ class Settings(BaseSettings):
     # Spatial quantization (normalized units) for the anti-duplicate latch:
     # centers falling in the same cell count as the same stationary object.
     sort_spatial_tolerance: float = 0.05
+
+    # Continuous detections -> newline-delimited TCP JSON -> ESP32.
+    # Detection x/y remain pixels; transmit millimeters using calibration:
+    # Xmm=a*x+b*y+c, Ymm=d*x+e*y+f.
+    robot_bridge_enabled: bool = False
+    robot_esp_host: str = ""
+    robot_esp_port: int = Field(default=5000, ge=1, le=65535)
+    robot_pixel_to_mm: tuple[float, float, float, float, float, float] | None = None
+    robot_min_confidence: float = Field(default=0.8, ge=0, le=1)
+    robot_max_frame_age_s: float = Field(default=1.0, gt=0)
+    robot_stream_hz: float = Field(default=10.0, gt=0, le=60)
+    robot_socket_timeout_s: float = Field(default=1.0, gt=0, le=5)
+    robot_reconnect_interval_s: float = Field(default=2.0, ge=0.1)
 
     # Mock hardware step delay (ms).
     mock_delay_ms: int = 300

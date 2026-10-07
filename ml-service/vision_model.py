@@ -207,6 +207,9 @@ def build_detection(
         "class_name": english_name(class_name_raw),
         "confidence": round(max(0.0, min(100.0, float(confidence))), 1),
         "bbox": {"x1": x1i, "y1": y1i, "x2": x2i, "y2": y2i},
+        # Direct X/Y for robot targets, in camera pixels (origin top-left).
+        "x": int(cx),
+        "y": int(cy),
         "center": {"x": int(cx), "y": int(cy)},
         "normalized": {
             "center_x": round(clamp01(cx / fw), 5),

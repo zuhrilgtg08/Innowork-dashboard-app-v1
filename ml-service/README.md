@@ -55,8 +55,10 @@ Check: `curl http://127.0.0.1:8001/health`
 - `GET  /camera/preview/frame` — latest annotated JPEG (pollable still).
 - `GET  /preview/latest` — latest snapshot (legacy shape, existing clients).
 - `GET  /detections/latest` — `{ok, timestamp, frame, detections[]}` with
-  class ids, raw + English names, 0–100 confidence, pixel bbox/center and
+  class ids, raw + English names, 0–100 confidence, direct pixel `x`/`y`, bbox/center and
   clamped 0–1 normalized geometry.
+- `GET  /robot/status` — TCP bridge state, last payload, last ESP32 reply,
+  and acknowledged frame count (receipt, not completed motion).
 - `GET  /stats/summary` — per-class counts, totals, fps, latency, uptime.
 - `GET  /stats/confidence` — recent confidence samples for graphing.
 - `GET  /stats/timeline` — detections per time bucket.
@@ -68,6 +70,14 @@ worker (`runtime.InferenceWorker`) running the shared best.pt handle. Every
 MJPEG/JSON endpoint serves the cached state — no per-request inference, no
 per-browser stream, no broker. Monitoring is pull-based; nothing POSTs per
 frame and nothing publishes `arm/command`.
+
+Optional robot forwarding runs in its own `robot_bridge.RobotBridge` thread.
+It reads the same cached detections and streams newline-delimited TCP JSON
+to the ESP32, following the supplied ICAMXYClient protocol. It starts only
+when configured with `ROBOT_BRIDGE_ENABLED=true`, `ROBOT_ESP_HOST`, and a
+measured `ROBOT_PIXEL_TO_MM` transform. See
+[YOLO to robot TCP setup](../docs/YOLO_ROBOT_TCP.md) for the wire format,
+10 Hz streaming, calibration, and local-network setup.
 
 - `ICAM_MODEL_PATH` — authoritative `models/run-100/best.pt` covering
   exactly the semantic classes `GREEN`/`YELLOW`/`RED` (currently YOLO11
