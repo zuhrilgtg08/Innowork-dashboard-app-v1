@@ -99,9 +99,10 @@ HMAC-signed). **No code runs on the camera**; it just streams.
   and never a silent simulator substitution in production/demo mode.
   (Known raw/default preview context `192.168.0.100:5001` is not assumed to
   be the YOLO frame source — keep the actual source configurable here.)
-- `ICAM_SIM_SOURCE` — fallback when RTSP is empty/unreachable: a looped video
-  file path (`samples/conveyor.mp4`) or a webcam index (`"0"`). If neither is
-  available, synthetic conveyor frames are generated.
+- `ICAM_SIM_SOURCE` — simulator source used only when RTSP is
+  empty/unreachable **and** `ICAM_ALLOW_SIMULATOR=true`: a looped video file
+  path (`samples/conveyor.mp4`) or a webcam index (`"0"`). If neither is
+  available, synthetic conveyor frames are generated (local development only).
 - `ICAM_CAMERA`, `ICAM_CONVEYOR` — labels stamped on detections.
 - `ICAM_MODEL_PATH` — authoritative `models/run-100/best.pt` (semantic
   coverage `GREEN`/`YELLOW`/`RED`; anything else ⇒ `MODEL_ERROR`).
@@ -113,7 +114,10 @@ HMAC-signed). **No code runs on the camera**; it just streams.
   `true` only for local development; simulator output is always labeled
   `SIMULATOR`, never `LIVE`.
 
-Test without hardware: leave `ICAM_RTSP_URL` empty, start the service, open
+Test without hardware (local development only): set `ICAM_RTSP_URL` empty
+**and** `ICAM_ALLOW_SIMULATOR=true` — empty URL alone does not enable the
+simulator (production/demo keeps `ICAM_ALLOW_SIMULATOR=false` and reports
+`OFFLINE`). Then start the service and open
 `http://127.0.0.1:8001/camera/preview` (annotated) or
 `http://127.0.0.1:8001/camera/raw`. Check `http://127.0.0.1:8001/health`,
 `/model/info`, `/detections/latest`, and `/stats/summary` for the runtime
