@@ -92,7 +92,8 @@
             @endif
         </div>
 
-        <!-- Model Training Panel -->
+        <!-- Model Training Panel (demo visualization; polled stepwise while active) -->
+        <div @if (in_array($trainingState, ['preparing', 'training', 'evaluating'])) wire:poll.750ms="advanceTrainingStep" @endif>
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">Model Training</h3>
             <p class="text-xs text-gray-400">Train and evaluate the Vision Sorting YOLO model. Demo metrics for presentation visualization.</p>
@@ -139,6 +140,12 @@
                         </p>
                         <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-300">mAP@50: {{ $mAP50 }}</p>
                     </div>
+                @elseif ($trainingState === 'preparing')
+                    <div class="rounded-xl bg-blue-50 p-3 dark:bg-blue-500/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Preparing Dataset</p>
+                        <p class="mt-1 font-bold text-gray-900 dark:text-white">Preparing Dataset</p>
+                        <p class="mt-1 text-gray-500 dark:text-gray-300">Progress {{ max(0, min(100, (int) $trainingProgress)) }}%</p>
+                    </div>
                 @else
                     <div class="rounded-xl bg-yellow-50 p-3 dark:bg-yellow-500/10">
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Ready</p>
@@ -166,6 +173,7 @@
                     <p class="text-gray-500">Training log is empty. Start training to generate demo log entries.</p>
                 @endforelse
             </div>
+        </div>
         </div>
 
         <!-- Annotated preview stream -->

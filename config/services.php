@@ -49,9 +49,9 @@ return [
 
     // Legacy compatibility only: MQTT broker was the production real-time
     // command bus. The active architecture no longer uses MQTT for monitoring
-    # (pull-based via /detections/latest + /stats/* endpoints). arm/command
-    # publishing is opt-in via SORTING_MQTT_ENABLED when absolutely needed.
-'mqtt' => [
+    // (pull-based via /detections/latest + /stats/* endpoints). arm/command
+    // publishing is opt-in via SORTING_MQTT_ENABLED when absolutely needed.
+    'mqtt' => [
         'host' => env('MQTT_HOST', '127.0.0.1'),
         'port' => (int) env('MQTT_PORT', 1883),
         'username' => env('MQTT_USERNAME'),
@@ -59,9 +59,9 @@ return [
         'client_id_prefix' => env('MQTT_CLIENT_ID_PREFIX', 'sortvision'),
         'use_tls' => (bool) env('MQTT_USE_TLS', false),
         // Legacy compatibility only: the active architecture no longer uses
-        # MQTT as the production real-time command bus. Monitoring is
-        # pull-based via /detections/latest + /stats/* endpoints. arm/command
-        # publishing is opt-in via SORTING_MQTT_ENABLED when absolutely needed.
+        // MQTT as the production real-time command bus. Monitoring is
+        // pull-based via /detections/latest + /stats/* endpoints. arm/command
+        // publishing is opt-in via SORTING_MQTT_ENABLED when absolutely needed.
         'legacy_only' => true,
     ],
 

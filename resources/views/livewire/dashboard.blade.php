@@ -77,9 +77,9 @@
                 <span class="separator">|</span>
                 <span class="font-medium text-blue-600 dark:text-blue-400" id="ml-camera-status">{{ $cameraConnected ? 'Camera Connected' : 'Camera Disconnected' }}</span>
                 <span class="separator">|</span>
-                <span class="font-medium text-purple-600 dark:text-purple-400" id="ml-fps">Camera FPS: {{ $cameraFps !== null ? number_format((float) $cameraFps, 1) : '—' }} / Inference FPS: {{ $inferenceFps !== null ? number_format((float) $inferenceFps, 1) : '—' }}</span>
+                <span class="font-medium text-purple-600 dark:text-purple-400" id="ml-fps">Camera FPS: {{ $stats['cameraFps'] !== null ? number_format((float) $stats['cameraFps'], 1) : '—' }} / Inference FPS: {{ $stats['inferenceFps'] !== null ? number_format((float) $stats['inferenceFps'], 1) : '—' }}</span>
                 <span class="separator">|</span>
-                <span class="font-medium text-orange-600 dark:text-orange-400" id="ml-latency">Latency: {{ $latencyMs !== null ? number_format((float) $latencyMs, 1).' ms' : '—' }}</span>
+                <span class="font-medium text-orange-600 dark:text-orange-400" id="ml-latency">Latency: {{ $stats['latencyMs'] !== null ? number_format((float) $stats['latencyMs'], 1).' ms' : '—' }}</span>
             </div>
         @else
             <div class="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-gray-900 p-6 text-center">

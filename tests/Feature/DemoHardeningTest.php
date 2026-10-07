@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\ModelEvaluation\Index as ModelEvaluationIndex;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
@@ -149,6 +151,8 @@ class DemoHardeningTest extends TestCase
         // Panel is always present; content varies by online state.
         $response->assertSee('ML Service', escape: false);
         $response->assertSee(route('ml.camera.preview'), escape: false);
+        // The preview must render without undefined-variable failures.
+        $response->assertDontSee('Undefined variable', escape: false);
     }
 
     public function test_dashboard_model_error_state_honest(): void
@@ -182,5 +186,63 @@ class DemoHardeningTest extends TestCase
         $response->assertSee('Ready', escape: false);
         $response->assertSee('Start Training', escape: false);
         $response->assertSee('Training Log', escape: false);
+    }
+
+    public function test_training_starts_at_preparing_not_completed(): void
+    {
+        $component = Livewire::test(ModelEvaluationIndex::class);
+
+        $component->call('startTrainingDemo');
+
+        $component->assertSet('trainingState', 'preparing')
+            ->assertSet('trainingProgress', 5)
+            ->assertSet('trainingEpoch', 0);
+        $this->assertNotEquals('completed', $component->get('trainingState'));
+        $this->assertNotEmpty($component->get('trainingLog'));
+    }
+
+    public function test_advance_training_step_is_incremental(): void
+    {
+        $component = Livewire::test(ModelEvaluationIndex::class);
+        $component->call('startTrainingDemo');
+
+        // Preparing -> training advances one step without running any epoch.
+        $component->call('advanceTrainingStep');
+        $component->assertSet('trainingState', 'training');
+        $this->assertSame(0, (int) $component->get('trainingEpoch'));
+
+        // Next step advances exactly one epoch, still far from completed.
+        $component->call('advanceTrainingStep');
+        $this->assertSame(1, (int) $component->get('trainingEpoch'));
+        $this->assertNotEquals('completed', $component->get('trainingState'));
+
+        $progress = (int) $component->get('trainingProgress');
+        $this->assertGreaterThanOrEqual(0, $progress);
+        $this->assertLessThanOrEqual(100, $progress);
+    }
+
+    public function test_training_progress_stays_bounded_and_completed_is_terminal(): void
+    {
+        $component = Livewire::test(ModelEvaluationIndex::class);
+        $component->call('startTrainingDemo');
+
+        for ($i = 0; $i < 70; $i++) {
+            $component->call('advanceTrainingStep');
+            $progress = (int) $component->get('trainingProgress');
+            $this->assertGreaterThanOrEqual(0, $progress);
+            $this->assertLessThanOrEqual(100, $progress);
+            if ($component->get('trainingState') === 'completed') {
+                break;
+            }
+        }
+
+        $this->assertEquals('completed', $component->get('trainingState'));
+        $this->assertSame(100, (int) $component->get('trainingProgress'));
+
+        $logBefore = $component->get('trainingLog');
+        $component->call('advanceTrainingStep');
+        $component->assertSet('trainingState', 'completed')
+            ->assertSet('trainingProgress', 100);
+        $this->assertSame($logBefore, $component->get('trainingLog'));
     }
 }
