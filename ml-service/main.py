@@ -17,6 +17,7 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import BackgroundTasks, FastAPI, Form, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -165,12 +166,40 @@ def reload_model(req: ReloadRequest | None = None):
     return {"ok": True}
 
 
+def redact_url_credentials(url: str | None) -> str:
+    """Strip username/password from a camera URL for /camera/status.
+
+    `rtsp://user:pass@host:8550/video` becomes
+    `rtsp://***:***@host:8550/video`. Non-URL values (file paths, webcam
+    indexes, empty strings) pass through unchanged. Credentials must never
+    reach the dashboard, logs, or API clients through this endpoint.
+    """
+    text = str(url or "")
+    if "://" not in text or "@" not in text:
+        return text
+    try:
+        parts = urlsplit(text)
+        if not parts.username and not parts.password:
+            return text
+        netloc = "***:***@" + (parts.hostname or "")
+        try:
+            port = parts.port
+        except ValueError:
+            port = None
+        if port:
+            netloc += f":{port}"
+        return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+    except ValueError:
+        return text
+
+
 @app.get("/camera/status")
 def camera_status():
     """Liveness/mode of the ICAM-300 (or simulator) source, for the UI.
 
     mode is one of LIVE | SIMULATOR | OFFLINE (uppercase; the dashboard must
-    never describe simulator mode as a live iCAM connection).
+    never describe simulator mode as a live iCAM connection). The source
+    URL is credential-redacted (see redact_url_credentials).
     """
     snap = runtime.state.snapshot_camera()
     frame = camera_source.latest_frame()
@@ -179,7 +208,9 @@ def camera_status():
     return {
         "connected": snap["connected"],
         "mode": snap["mode"].upper(),
-        "source": snap["source"] or settings.icam_rtsp_url or settings.icam_sim_source,
+        "source": redact_url_credentials(
+            snap["source"] or settings.icam_rtsp_url or settings.icam_sim_source
+        ),
         "fps": snap["fps"],
         "frame_width": w,
         "frame_height": h,

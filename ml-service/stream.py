@@ -1,9 +1,12 @@
 """Live camera source for the ICAM-300 integration.
 
 Pulls frames from the camera's RTSP stream (rtsp://<ip>:8550/video). When no
-RTSP URL is configured, or the stream is unreachable, it degrades to a
-simulator source (a looped sample video, a local webcam, or synthesized
-frames) so the whole pipeline is testable without the hardware.
+RTSP URL is configured, or the stream is unreachable, the source reports
+OFFLINE — a simulator source (a looped sample video, a local webcam, or
+synthesized frames) is used only when ICAM_ALLOW_SIMULATOR=true, so the
+pipeline stays testable without hardware while production/demo never
+mistake synthetic frames for the real camera. Simulator output is always
+labeled "simulator", never "live".
 
 A single background thread keeps a "latest frame" buffer that both the MJPEG
 endpoint and the periodic inference loop read from.
@@ -83,10 +86,12 @@ class CameraSource:
 
     # -- internals ---------------------------------------------------------
     def _open_primary(self):
-        """Try the real camera inputs first; return (cap, mode) or (None, ...).
+        """Try the real camera inputs; return (cap, "live") or (None, None).
 
         Order: configured RTSP URL(s), then the optional HTTP stream URL
-        (MJPEG-over-HTTP opens directly in OpenCV), then simulator fallback.
+        (MJPEG-over-HTTP opens directly in OpenCV). No simulator fallback
+        here — that decision lives in _fallback(), gated by
+        ICAM_ALLOW_SIMULATOR.
         """
         for url in settings.rtsp_url_list:
             cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
@@ -117,20 +122,37 @@ class CameraSource:
             cap.release()
         return None
 
+    def _fallback(self):
+        """Simulator fallback when the real camera is unreachable.
+
+        Returns (cap, mode). Disabled unless ICAM_ALLOW_SIMULATOR=true:
+        production then reports OFFLINE instead of a synthetic feed. A
+        simulator source is always labeled "simulator", never "live".
+        """
+        if not settings.icam_allow_simulator:
+            return None, "offline"
+        cap = self._open_simulator()
+        return (cap, "simulator") if cap is not None else (None, "offline")
+
     def _loop(self):
         """Continuously fill the frame buffer, reconnecting as needed."""
         last = time.time()
         while self._running:
             cap, mode = self._open_primary()
             if cap is None:
-                cap = self._open_simulator()
-                mode = "simulator" if cap is not None else "offline"
+                cap, mode = self._fallback()
 
             if cap is None:
-                # No source at all — emit a synthetic conveyor frame so the
-                # UI still shows something and inference has an input.
-                self._mode = "simulator"
+                # No usable source: with the simulator gate closed this is an
+                # honest OFFLINE with no synthetic frames; with it open,
+                # local development gets synthetic conveyor frames labeled
+                # SIMULATOR (never LIVE).
                 self._connected = False
+                if not settings.icam_allow_simulator:
+                    self._mode = "offline"
+                    time.sleep(1.0)
+                    continue
+                self._mode = "simulator"
                 self._push(self._synthetic())
                 time.sleep(0.1)
                 continue

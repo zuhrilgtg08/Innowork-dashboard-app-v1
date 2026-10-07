@@ -68,8 +68,17 @@ class Settings(BaseSettings):
     # falls back to the base model.
     icam_model_path: str = ""
 
-    # Confidence threshold for stream inference.
-    icam_conf: float = 0.85
+    # Confidence threshold for stream inference. Deployment default 0.60
+    # matches the current GREEN/YELLOW/RED best.pt training/runtime report;
+    # still environment-driven (ICAM_CONF overrides this).
+    icam_conf: float = 0.60
+
+    # Simulator fallback gate (local development only). When false (default,
+    # production/demo intent), an unreachable real camera reports OFFLINE and
+    # no synthetic feed is generated. When true, the looped sample video,
+    # webcam, or synthetic frames may be used — and are always labeled
+    # SIMULATOR, never LIVE.
+    icam_allow_simulator: bool = False
 
     # --- Conveyor off-flow analysis (flow.py) ------------------------------
     # When true, the stream infer loop also runs jam/off_flow detection and
