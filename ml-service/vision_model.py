@@ -17,6 +17,9 @@ actually loaded.
 
 from pathlib import Path
 
+import json
+import socket
+
 # Canonical reference class map of the production best.pt (Indonesian raws).
 # Class IDs are NOT assumed: any ID order is accepted, and English raw
 # labels (GREEN/YELLOW/RED) are accepted too — see RAW_TO_SEMANTIC.
@@ -207,6 +210,9 @@ def build_detection(
         "class_name": english_name(class_name_raw),
         "confidence": round(max(0.0, min(100.0, float(confidence))), 1),
         "bbox": {"x1": x1i, "y1": y1i, "x2": x2i, "y2": y2i},
+        # Direct X/Y for robot targets, in camera pixels (origin top-left).
+        "x": int(cx),
+        "y": int(cy),
         "center": {"x": int(cx), "y": int(cy)},
         "normalized": {
             "center_x": round(clamp01(cx / fw), 5),
@@ -222,3 +228,36 @@ def primary_detection(detections: list) -> dict | None:
     if not detections:
         return None
     return max(detections, key=lambda d: float(d.get("confidence", 0.0)))
+
+
+def build_icam_payload(detection: dict | None) -> dict:
+    """Ubah 1 deteksi jadi payload JSON untuk ESP32.
+
+    Format persis protokol robot (docs/YOLO_ROBOT_TCP.md, TCP 1 baris + '\\n'):
+        {"x": 313, "y": 56, "G": 1, "R": 0, "Y": 0}  # 5 field, tanpa "found"
+        {"found": false}                              # tidak ada objek
+    """
+    if detection is None:
+        return {"found": False}
+    color = detection.get("class_name", "")
+    return {
+        "x": int(detection["x"]),
+        "y": int(detection["y"]),
+        "G": 1 if color == "GREEN" else 0,
+        "R": 1 if color == "RED" else 0,
+        "Y": 1 if color == "YELLOW" else 0,
+    }
+
+
+def send_to_esp32(payload: dict, esp32_ip: str, port: int = 5000, timeout: float = 1.0) -> bool:
+    """Kirim payload JSON ke ESP32 via TCP. Return True kalau ESP32 jawab OK."""
+    try:
+        line = json.dumps(payload) + "\n"  # '\n' wajib: ESP32 baca per baris
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            s.connect((esp32_ip, port))
+            s.sendall(line.encode("utf-8"))
+            return s.recv(1024).decode("utf-8").strip() == "OK"
+    except Exception as exc:  # noqa: BLE001 — best-effort, cukup log
+        print(f"[TCP] gagal ke ESP32 ({esp32_ip}:{port}): {exc}")
+        return False

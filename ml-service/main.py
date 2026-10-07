@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 import callbacks
 import infer
+import robot_bridge
 import runtime
 import sort_pipeline
 import train
@@ -80,17 +81,70 @@ def _flow_loop() -> None:
 async def lifespan(app: FastAPI):
     # Start the single camera capture connection plus the single continuous
     # YOLO inference worker. Monitoring is pull-based (shared RuntimeState);
-    # nothing POSTs per frame and nothing touches MQTT.
+    # the optional robot bridge consumes snapshots in its own TCP worker.
     camera_source.start()
     runtime.start()
+    bridge = robot_bridge.RobotBridge(settings, runtime.state)
+    app.state.robot_bridge = bridge
+    bridge.start()
     if settings.flow_analysis:
         threading.Thread(target=_flow_loop, daemon=True).start()
-    yield
-    runtime.stop()
-    camera_source.stop()
+    try:
+        yield
+    finally:
+        bridge.stop()
+        runtime.stop()
+        camera_source.stop()
 
 
 app = FastAPI(title="SortVision ML Service", lifespan=lifespan)
+
+
+@app.get("/robot/status")
+def robot_status():
+    """Read-only TCP status; ACK means received, not motion complete."""
+    bridge = getattr(app.state, "robot_bridge", None)
+    if bridge is None:
+        return {"enabled": settings.robot_bridge_enabled, "state": "not_started",
+                "transport": "tcp", "coordinate_unit": "mm", "connected": False,
+                "last_payload": None, "last_response": None,
+                "acknowledged_frames": 0, "error": None}
+    return bridge.snapshot()
+
+
+class RobotSendRequest(BaseModel):
+    esp_host: str | None = None
+    esp_port: int | None = None
+
+
+@app.post("/robot/send")
+def robot_send(req: RobotSendRequest):
+    """Kirim deteksi terbaru ke ESP32 robot via TCP (pixel x,y + G/R/Y).
+
+    Ambil primary detection (confidence tertinggi) dari shared runtime,
+    bangun payload via vision_model.build_icam_payload, langsung kirim via
+    vision_model.send_to_esp32. Tanpa kalibrasi mm — x/y tetap piksel kamera,
+    sama seperti yang tampil di preview web (bbox + label x,y).
+    """
+    host = (req.esp_host or settings.robot_esp_host or "192.168.100/77").strip()
+    port = req.esp_port or settings.robot_esp_port or 5000
+    if not host:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "esp_host_required"})
+    if not 1 <= port <= 65535:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "esp_port_invalid"})
+    snap = runtime.state.snapshot_latest()
+    detections = snap.get("detections", [])
+    top = vision_model.primary_detection(detections)
+    payload = vision_model.build_icam_payload(top)
+    sent = vision_model.send_to_esp32(payload, host, port)
+    if top is not None:
+        print(f"[ROBOT-SEND] {top.get('class_name')} x={payload['x']} y={payload['y']} "
+              f"-> {host}:{port} {'OK' if sent else 'GAGAL'}", flush=True)
+    else:
+        print(f"[ROBOT-SEND] kosong -> {host}:{port} {'OK' if sent else 'GAGAL'}", flush=True)
+    return {"ok": sent, "sent": sent, "esp": f"{host}:{port}",
+            "payload": payload, "detection": top,
+            "timestamp": snap.get("timestamp")}
 
 
 class AnnotationItem(BaseModel):

@@ -79,8 +79,9 @@ class _FakeModel:
         self.names = names
         self.seen_kwargs = {}
 
-    def predict(self, source, conf, device, verbose):
-        self.seen_kwargs = {"conf": conf, "device": device, "verbose": verbose}
+    def predict(self, source, conf, device, verbose, imgsz=None, **kwargs):
+        self.seen_kwargs = {"conf": conf, "device": device,
+                            "verbose": verbose, "imgsz": imgsz}
         return [
             _FakeSegResult([
                 _FakeBox(1, 0.92, [10.0, 20.0, 50.0, 80.0]),
@@ -160,7 +161,7 @@ def test_empty_seg_result_yields_no_detections():
     worker = runtime.InferenceWorker()
 
     class _EmptyModel(_FakeModel):
-        def predict(self, source, conf, device, verbose):
+        def predict(self, source, conf, device, verbose, imgsz=None, **kwargs):
             return [_FakeEmptySegResult()]
 
     worker._model = _EmptyModel({0: "GREEN", 1: "YELLOW", 2: "RED"})
@@ -305,3 +306,20 @@ def test_core_runtime_modules_have_no_mqtt_imports(module):
     hits = re.findall(r"^\s*(?:import|from)\s+[\w.]*\b(?:paho|mqtt)\b", src,
                       re.MULTILINE | re.IGNORECASE)
     assert hits == [], hits
+
+
+# --- 11. bounding + center x,y overlay (seg weights render as boxes) --------
+
+def test_draw_annotated_marks_bbox_center_xy():
+    """Seg weights stay bounding-box only: box + center dot + x,y label."""
+    frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    det = vision_model.build_detection(0, "GREEN", 90.0, 10, 20, 50, 80, 100, 100)
+    annotated = runtime.draw_annotated(frame, [det])
+    assert annotated.shape == frame.shape
+    assert (annotated != frame).any()
+    cx, cy = det["center"]["x"], det["center"]["y"]
+    assert (cx, cy) == (30, 50)
+    # Center dot is painted (not black background).
+    assert annotated[cy, cx].any()
+    # Empty input is a no-op without crashing.
+    assert runtime.draw_annotated(frame, []).shape == frame.shape

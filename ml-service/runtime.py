@@ -19,6 +19,7 @@ plus fixed-length metadata buffers (deque maxlen).
 """
 import threading
 import time
+from copy import deepcopy
 from collections import deque
 from datetime import datetime, timezone
 
@@ -68,6 +69,7 @@ class RuntimeState:
             "timestamp": None, "frame": {"width": 0, "height": 0},
             "detections": [], "primary": None, "inference_ms": None,
         }
+        self._result_camera_live = False
         # Cached JPEGs shared by every MJPEG viewer.
         self._raw_jpeg: bytes | None = None
         self._raw_jpeg_at: float = 0.0
@@ -114,6 +116,9 @@ class RuntimeState:
         now_iso = _utcnow_iso()
         now_mono = time.monotonic()
         with self._lock:
+            self._result_camera_live = (
+                self._camera["connected"] and self._camera["mode"].lower() == "live"
+            )
             self._result = {
                 "timestamp": now_iso,
                 "frame": {"width": int(frame_w), "height": int(frame_h)},
@@ -242,6 +247,18 @@ class RuntimeState:
             }
             return result
 
+    def snapshot_robot_input(self) -> dict:
+        """Atomic actuation input, with monotonic age and capture provenance."""
+        with self._lock:
+            return {
+                **deepcopy(self._result),
+                "camera_live": self._result_camera_live and self._camera["connected"]
+                and self._camera["mode"].lower() == "live",
+                "model_loaded": self._model["loaded"],
+                "age_s": time.monotonic() - self._last_inference_at
+                if self._last_inference_at is not None else None,
+            }
+
     def snapshot_legacy_preview(self) -> dict:
         """Backward-compatible GET /preview/latest shape for existing clients."""
         with self._lock:
@@ -349,21 +366,53 @@ state = RuntimeState()
 
 
 def draw_annotated(frame_bgr: np.ndarray, detections: list) -> np.ndarray:
-    """Draw English overlay: box + GREEN/YELLOW/RED + confidence %."""
+    """Draw bounding-box overlay: box + class + confidence + center x,y.
+
+    Works for both detect and segment weights: segmentation masks (when
+    present) are deliberately ignored — only .boxes are rendered as
+    bounding boxes, each with its center dot and ``x,y`` pixel label.
+    """
     annotated = frame_bgr.copy()
+    h, w = annotated.shape[:2]
     for det in detections:
         english = det.get("class_name", "?")
         bgr = vision_model.DRAW_COLORS_BGR.get(english, vision_model.DRAW_DEFAULT_BGR)
         box = det.get("bbox", {})
-        x1, y1, x2, y2 = (box.get("x1", 0), box.get("y1", 0),
-                           box.get("x2", 0), box.get("y2", 0))
+        x1, y1, x2, y2 = (int(box.get("x1", 0)), int(box.get("y1", 0)),
+                           int(box.get("x2", 0)), int(box.get("y2", 0)))
+        # Bounding box (seg masks ignored — boxes only).
         cv2.rectangle(annotated, (x1, y1), (x2, y2), bgr, 2)
+        # Class + confidence label on top.
         text = f"{english} {det.get('confidence', 0)}%"
         (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
         y0 = max(th + 8, y1)
         cv2.rectangle(annotated, (x1, y0 - th - 8), (x1 + tw + 6, y0), bgr, -1)
         cv2.putText(annotated, text, (x1 + 3, y0 - 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        # Center point: prefer the canonical center, fall back to bbox mid.
+        center = det.get("center") or {}
+        cx = int(center.get("x", (x1 + x2) / 2))
+        cy = int(center.get("y", (y1 + y2) / 2))
+        cx = max(0, min(w - 1, cx))
+        cy = max(0, min(h - 1, cy))
+        # Crosshair through the center (clipped to frame) for readability.
+        cv2.line(annotated, (max(0, cx - 10), cy), (min(w - 1, cx + 10), cy),
+                 (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.line(annotated, (cx, max(0, cy - 10)), (cx, min(h - 1, cy + 10)),
+                 (255, 255, 255), 1, cv2.LINE_AA)
+        # Filled dot with white halo so it stays visible on any background.
+        cv2.circle(annotated, (cx, cy), 5, (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(annotated, (cx, cy), 4, bgr, -1, cv2.LINE_AA)
+        # x,y pixel label just below-right of the dot (kept inside frame).
+        xy_text = f"{cx},{cy}"
+        (ctw, cth), _ = cv2.getTextSize(xy_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        tx = min(max(0, cx + 8), max(0, w - ctw - 6))
+        ty = min(max(cth + 6, cy + 8 + cth), h - 4)
+        cv2.rectangle(annotated, (tx - 3, ty - cth - 4), (tx + ctw + 3, ty + 2),
+                      (0, 0, 0), -1)
+        cv2.putText(annotated, xy_text, (tx, ty - 1),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1,
+                    cv2.LINE_AA)
     return annotated
 
 
@@ -465,6 +514,17 @@ class InferenceWorker(threading.Thread):
             except Exception as exc:  # noqa: BLE001
                 print(f"[runtime] inference failed: {exc}", flush=True)
                 continue
+
+            # --- TAMBAHAN: Cetak x,y titik tengah ke terminal ---
+            if detections:
+                primary = vision_model.primary_detection(detections)
+                if primary:
+                    cx = primary.get("center", {}).get("x", "?")
+                    cy = primary.get("center", {}).get("y", "?")
+                    label = primary.get("class_name", "?")
+                    conf = primary.get("confidence", "?")
+                    print(f"[DETECT] {label} | center=({cx},{cy}) | conf={conf}% | n={len(detections)} obj", flush=True)
+            # ----------------------------------------------------
 
             try:
                 h, w = frame.shape[:2]

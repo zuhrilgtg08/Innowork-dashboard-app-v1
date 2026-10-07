@@ -6,6 +6,7 @@ use App\Models\Detection;
 use App\Models\Setting;
 use App\Services\MlClient;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -333,14 +334,20 @@ class Index extends Component
             ->pluck('avg_conf', 'color')
             ->toArray();
 
-        // Per-hour detections today, bucketed in PHP (database-agnostic).
-        $todayRows = Detection::query()
-            ->where('detected_at', '>=', now()->startOfDay())
-            ->select(['color', 'detected_at'])
-            ->get();
+        // Per-hour detections today, aggregated in SQL (one tiny grouped
+        // query — never fetch every row into PHP).
+        $hourExpr = DB::getDriverName() === 'pgsql'
+            ? 'EXTRACT(HOUR FROM detected_at)::int'
+            : "CAST(strftime('%H', detected_at) AS INTEGER)";
         $hourly = array_fill(0, 24, 0);
-        foreach ($todayRows as $row) {
-            $hourly[(int) $row->detected_at->format('G')]++;
+        foreach (
+            Detection::query()
+                ->where('detected_at', '>=', now()->startOfDay())
+                ->selectRaw("{$hourExpr} as h, COUNT(*) as total")
+                ->groupBy('h')
+                ->pluck('total', 'h') as $h => $total
+        ) {
+            $hourly[(int) $h] = (int) $total;
         }
 
         // Recent real detections with color context for the prediction log.

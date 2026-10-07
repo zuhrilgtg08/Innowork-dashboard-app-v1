@@ -50,6 +50,17 @@ class Index extends Component
 
     public array $runtimeTimeline = ['bucket_seconds' => 60, 'labels' => [], 'series' => []];
 
+    /** ESP32 robot target (TCP). Defaults match the ML service fallback. */
+    public string $esp32Ip = '192.168.100.77';
+
+    public int $esp32Port = 5000;
+
+    /** Result of the last manual send to the ESP32 (payload + OK/GAGAL). */
+    public ?array $lastSend = null;
+
+    /** Send history, newest first (max 10), for delivery monitoring. */
+    public array $sendHistory = [];
+
     /**
      * First paint: load runtime telemetry once so the view has data without
      * waiting for the first poll tick. Subsequent updates come only from the
@@ -94,6 +105,31 @@ class Index extends Component
 
         $this->runtimeTimeline = Cache::remember('live.runtime.timeline', now()->addSeconds(10),
             fn () => $ml->timelineStats(60, 60));
+    }
+
+    /**
+     * Kirim deteksi terbaru (yang tampil di preview + Current Detection)
+     * ke ESP32 robot via ML service. Best-effort: hasilnya tampil di UI.
+     */
+    public function sendToEsp32(): void
+    {
+        $this->validate([
+            'esp32Ip' => ['required', 'string', 'max:255'],
+            'esp32Port' => ['required', 'integer', 'min:1', 'max:65535'],
+        ]);
+
+        $result = app(MlClient::class)->sendRobotLatest($this->esp32Ip, $this->esp32Port);
+
+        $this->lastSend = $result ?? ['ok' => false, 'error' => 'ML service offline'];
+
+        array_unshift($this->sendHistory, [
+            'at' => now()->format('H:i:s'),
+            'esp' => $this->lastSend['esp'] ?? $this->esp32Ip.':'.$this->esp32Port,
+            'payload' => $this->lastSend['payload'] ?? null,
+            'ok' => (bool) ($this->lastSend['ok'] ?? false),
+            'error' => $this->lastSend['error'] ?? null,
+        ]);
+        $this->sendHistory = array_slice($this->sendHistory, 0, 10);
     }
 
     /**
@@ -177,13 +213,27 @@ class Index extends Component
     {
         // Single webcam that syncs with the dashboard — one aggregate card plus
         // the live detection feed (no multi-camera grid).
-        $today = Detection::query()->where('detected_at', '>=', now()->startOfDay());
+        $startOfDay = now()->startOfDay();
+
+        // One aggregate query (total/passed/failed/last_seen) instead of four
+        // round-trips on every poll/render, so the page stays light.
+        $failedIn = implode(',', array_map(
+            fn ($s) => "'".str_replace("'", "''", $s)."'",
+            Detection::FAILED_STATUSES
+        ));
+        $statsRow = Detection::query()
+            ->where('detected_at', '>=', $startOfDay)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) as passed")
+            ->selectRaw("SUM(CASE WHEN status IN ({$failedIn}) THEN 1 ELSE 0 END) as failed")
+            ->selectRaw('MAX(detected_at) as last_seen')
+            ->first();
 
         $stats = [
-            'total' => (clone $today)->count(),
-            'passed' => (clone $today)->where('status', 'passed')->count(),
-            'failed' => (clone $today)->whereIn('status', Detection::FAILED_STATUSES)->count(),
-            'last_seen' => (clone $today)->max('detected_at'),
+            'total' => (int) ($statsRow->total ?? 0),
+            'passed' => (int) ($statsRow->passed ?? 0),
+            'failed' => (int) ($statsRow->failed ?? 0),
+            'last_seen' => $statsRow->last_seen ?? null,
         ];
 
         $feed = Detection::query()
@@ -216,22 +266,38 @@ class Index extends Component
             : $settingSource;
 
         // Camera fleet overview: each configured camera with today's throughput.
-        $startOfDay = now()->startOfDay();
-        $fleet = Camera::query()
+        // Counts are aggregated in ONE grouped query (not 2 per camera) so the
+        // fleet grid costs the same with 2 or 20 cameras.
+        $cams = Camera::query()
             ->where('is_active', true)
             ->orderBy('position')
-            ->get()
-            ->map(function (Camera $cam) use ($startOfDay) {
-                $today = Detection::where('camera', $cam->name)->where('detected_at', '>=', $startOfDay);
+            ->get();
 
-                return [
-                    'name' => $cam->name,
-                    'mode' => $cam->mode,
-                    'fps' => number_format($cam->fps, 1),
-                    'last_seen' => (clone $today)->max('detected_at'),
-                    'detections' => (clone $today)->count(),
-                ];
-            });
+        $fleetAgg = collect();
+        if ($cams->isNotEmpty()) {
+            $fleetAgg = Detection::query()
+                ->where('detected_at', '>=', $startOfDay)
+                ->whereIn('camera', $cams->pluck('name')->all())
+                ->selectRaw('camera, COUNT(*) as total')
+                ->selectRaw("SUM(CASE WHEN status IN ({$failedIn}) THEN 1 ELSE 0 END) as failed")
+                ->selectRaw('MAX(detected_at) as last_seen')
+                ->groupBy('camera')
+                ->get()
+                ->keyBy('camera');
+        }
+
+        $fleet = $cams->map(function (Camera $cam) use ($fleetAgg) {
+            $row = $fleetAgg->get($cam->name);
+
+            return [
+                'name' => $cam->name,
+                'conveyor' => $cam->conveyor,
+                'live' => $cam->isLive(),
+                'detections' => (int) ($row->total ?? 0),
+                'failed' => (int) ($row->failed ?? 0),
+                'last_seen' => $row->last_seen ?? null,
+            ];
+        });
 
         return view('livewire.live-camera.index', [
             'stats' => $stats,

@@ -175,9 +175,8 @@ class DashboardExportTest extends TestCase
 
         $response->assertOk();
         // Same-origin proxy — never a hard-coded loopback ML address.
-        // Primary view is the YOLO annotated preview; raw is secondary.
+        // Primary view is the YOLO annotated preview (raw feed removed from UI).
         $response->assertSee(route('ml.camera.preview'), escape: false);
-        $response->assertSee(route('ml.camera.raw'), escape: false);
         $response->assertDontSee('http://127.0.0.1:8001');
         // Clean English offline state, no webcam permission errors.
         $response->assertSee('YOLO Preview', escape: false);

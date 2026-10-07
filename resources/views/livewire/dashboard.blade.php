@@ -8,7 +8,7 @@
         <div class="flex items-center gap-2">
             @php
                 $ml = app(\App\Services\MlClient::class);
-                $healthy = $ml->healthy();
+                $healthy = Cache::remember('ml.health', now()->addSeconds(10), fn () => $ml->healthy());
                 $summary = Cache::remember('ml.stats.summary', now()->addSeconds(5), fn () => $ml->statsSummary());
                 $serviceReachable = $healthy;
                 $modelLoaded = is_array($summary) && ($summary['model_loaded'] ?? false);
@@ -66,15 +66,14 @@
         </div>
         @if ($mlOnline && $modelLoaded)
             <div class="relative bg-gray-900">
-                {{-- wire:ignore keeps the MJPEG connection alive across polls: without it every
-                    poll re-morphs the <img> and the browser restarts the stream (flicker + a
-                    pinned proxy worker that also slows down menu navigation). --}}
-                <div wire:ignore>
-                    <img src="{{ route('ml.camera.preview') }}" alt="YOLO annotated preview" data-mjpeg class="aspect-[4/3] w-full object-cover">
-                </div>
+                {{-- Pollable still (refreshes with the 5s poll) instead of an MJPEG
+                    stream: an open stream pins a Laravel worker and stalls menu
+                    navigation on single-worker servers. Full stream lives on
+                    Live Camera. --}}
+                <img src="{{ route('ml.camera.preview-frame', ['t' => $generatedAt->timestamp]) }}" alt="YOLO annotated preview" class="aspect-[4/3] w-full object-cover">
                 <span class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
                     <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500"></span>
-                    <span>LIVE</span>
+                    <span>LIVE · 5s</span>
                 </span>
             </div>
             <div id="ml-preview-status" class="flex flex-wrap items-center gap-x-3 gap-y-1 p-5 text-sm text-gray-500 dark:text-gray-400">
@@ -301,15 +300,3 @@
         </div>
     </div>
 </div>
-
-@script
-<script>
-    // Abort the open MJPEG preview the moment SPA navigation starts, so the
-    // pinned Laravel proxy worker is released and the next menu paints fast.
-    document.addEventListener('livewire:navigating', () => {
-        document.querySelectorAll('img[data-mjpeg]').forEach((img) => {
-            img.removeAttribute('src');
-        });
-    }, { once: true });
-</script>
-@endscript

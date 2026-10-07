@@ -67,6 +67,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('ml/stats/summary', [CameraStreamController::class, 'statsSummary'])->name('ml.stats.summary');
     Route::get('ml/stats/confidence', [CameraStreamController::class, 'confidenceStats'])->name('ml.stats.confidence');
     Route::get('ml/stats/timeline', [CameraStreamController::class, 'timelineStats'])->name('ml.stats.timeline');
+    Route::post('ml/robot/send', [CameraStreamController::class, 'sendRobot'])->name('ml.robot.send');
 
     // Breeze profile page (kept)
     Route::view('profile', 'profile')->name('profile');

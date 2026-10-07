@@ -183,6 +183,66 @@
                             @endif
                         </div>
                     @endif
+                    <!-- Kirim ke ESP32: deteksi terbaru (x,y + G/R/Y) → TCP robot arm -->
+                    @php
+                        $espCtr = $primary['center'] ?? [];
+                        $espClass = $primary['class_name'] ?? '';
+                        $espPayload = $primary ? [
+                            'x' => (int) ($espCtr['x'] ?? 0),
+                            'y' => (int) ($espCtr['y'] ?? 0),
+                            'G' => $espClass === 'GREEN' ? 1 : 0,
+                            'R' => $espClass === 'RED' ? 1 : 0,
+                            'Y' => $espClass === 'YELLOW' ? 1 : 0,
+                        ] : ['found' => false];
+                    @endphp
+                    <div class="mt-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h4 class="font-bold text-gray-900 dark:text-white">Kirim ke ESP32</h4>
+                                <p class="font-mono text-xs text-gray-400">{{ json_encode($espPayload) }}</p>
+                            </div>
+                            @if ($lastSend)
+                                @if ($lastSend['ok'] ?? false)
+                                    <x-status-badge color="green" label="Terkirim OK" />
+                                @else
+                                    <x-status-badge color="red" label="Gagal" />
+                                @endif
+                            @endif
+                        </div>
+                        <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <input wire:model="esp32Ip" type="text" placeholder="IP ESP32"
+                                   class="w-full rounded-lg border-gray-300 font-mono text-sm dark:border-gray-600 dark:bg-gray-800 sm:max-w-[180px]" />
+                            <input wire:model="esp32Port" type="number" min="1" max="65535" placeholder="Port"
+                                   class="w-full rounded-lg border-gray-300 font-mono text-sm dark:border-gray-600 dark:bg-gray-800 sm:max-w-[110px]" />
+                            <button wire:click="sendToEsp32" wire:loading.attr="disabled" wire:target="sendToEsp32"
+                                    class="rounded-lg bg-brand-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                                <span wire:loading.remove wire:target="sendToEsp32">Kirim</span>
+                                <span wire:loading wire:target="sendToEsp32">Mengirim...</span>
+                            </button>
+                        </div>
+                        @if ($lastSend)
+                            <p class="mt-2 font-mono text-xs text-gray-500 dark:text-gray-400">→ {{ $lastSend['esp'] ?? $esp32Ip.':'.$esp32Port }} : {{ json_encode($lastSend['payload'] ?? $lastSend) }}</p>
+                            @isset($lastSend['error'])
+                                <p class="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{{ $lastSend['error'] }}</p>
+                            @endisset
+                        @endif
+                        @if (count($sendHistory) > 0)
+                            <div class="mt-3 space-y-1 border-t border-gray-100 pt-2 dark:border-gray-700">
+                                <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Riwayat kirim</p>
+                                @foreach ($sendHistory as $h)
+                                    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                                        <span class="font-mono text-gray-400">{{ $h['at'] }}</span>
+                                        <span class="font-mono text-gray-600 dark:text-gray-300">{{ json_encode($h['payload']) }}</span>
+                                        @if ($h['ok'])
+                                            <span class="font-bold text-green-600 dark:text-green-400">OK</span>
+                                        @else
+                                            <span class="font-bold text-red-600 dark:text-red-400">GAGAL{{ isset($h['error']) ? ' — '.$h['error'] : '' }}</span>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 </div>
 
                 <!-- Runtime graphs -->
@@ -247,19 +307,6 @@
                         @endif
                     </div>
                 </div>
-
-                <!-- Raw Camera (secondary, no overlay) -->
-                <details class="card overflow-hidden">
-                    <summary class="cursor-pointer p-4 font-bold text-gray-900 dark:text-white">Raw Camera <span class="ml-1 text-xs font-normal text-gray-400">— camera feed without YOLO overlay</span></summary>
-                    <div class="relative aspect-[4/3] bg-gray-900">
-                        <div wire:ignore class="absolute inset-0">
-                            <img src="{{ route('ml.camera.raw') }}" alt="Raw camera feed" data-mjpeg class="h-full w-full object-cover" loading="lazy" />
-                        </div>
-                        <span class="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">RAW</span>
-                    </div>
-                    <p class="p-4 text-xs text-gray-400">Advantech iCAM-300 — Industrial Camera · Automatic inference through the AI service.</p>
-                </details>
-            </div>
             @else
             <div class="card overflow-hidden"
                  x-data="webcam()"

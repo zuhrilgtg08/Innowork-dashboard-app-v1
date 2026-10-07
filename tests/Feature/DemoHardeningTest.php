@@ -150,7 +150,7 @@ class DemoHardeningTest extends TestCase
         $response->assertSee('YOLO Live Preview', escape: false);
         // Panel is always present; content varies by online state.
         $response->assertSee('ML Service', escape: false);
-        $response->assertSee(route('ml.camera.preview'), escape: false);
+        $response->assertSee(route('ml.camera.preview-frame'), escape: false);
         // The preview must render without undefined-variable failures.
         $response->assertDontSee('Undefined variable', escape: false);
     }

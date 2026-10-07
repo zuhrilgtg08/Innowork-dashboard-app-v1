@@ -254,6 +254,26 @@ class MlClient
     }
 
     /**
+     * Kirim deteksi terbaru (pixel x,y + G/R/Y) ke ESP32 via POST /robot/send.
+     * Return ['ok','sent','esp','payload','detection',...] atau null saat offline.
+     */
+    public function sendRobotLatest(?string $host = null, ?int $port = null): ?array
+    {
+        try {
+            $response = $this->client(10)->post('/robot/send', array_filter([
+                'esp_host' => $host,
+                'esp_port' => $port,
+            ], fn ($v) => $v !== null));
+
+            return $response->successful() ? (array) $response->json() : null;
+        } catch (\Throwable $e) {
+            Log::warning('ML sendRobotLatest failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
      * Liveness/mode of the live camera source (ICAM-300 or simulator).
      *
      * @return array{connected: bool, mode: string, source: ?string, fps: float}|null

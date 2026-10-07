@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\MlClient;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -138,6 +139,25 @@ class CameraStreamController extends Controller
     public function timelineStats(MlClient $ml): JsonResponse
     {
         return response()->json($ml->timelineStats());
+    }
+
+    /**
+     * Kirim deteksi terbaru ke ESP32 (pixel x,y + G/R/Y via ML service).
+     */
+    public function sendRobot(Request $request, MlClient $ml): JsonResponse
+    {
+        $data = $request->validate([
+            'esp_host' => ['nullable', 'string', 'max:255'],
+            'esp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+        ]);
+
+        $result = $ml->sendRobotLatest($data['esp_host'] ?? null, $data['esp_port'] ?? null);
+
+        if ($result === null) {
+            return response()->json(['ok' => false, 'error' => 'ML service offline'], 503);
+        }
+
+        return response()->json($result);
     }
 
     /**
