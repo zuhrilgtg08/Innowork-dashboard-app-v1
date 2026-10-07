@@ -117,20 +117,37 @@ class CameraSource:
             cap.release()
         return None
 
+    def _fallback(self):
+        """Simulator fallback when the real camera is unreachable.
+
+        Returns (cap, mode). Disabled unless ICAM_ALLOW_SIMULATOR=true:
+        production then reports OFFLINE instead of a synthetic feed. A
+        simulator source is always labeled "simulator", never "live".
+        """
+        if not settings.icam_allow_simulator:
+            return None, "offline"
+        cap = self._open_simulator()
+        return (cap, "simulator") if cap is not None else (None, "offline")
+
     def _loop(self):
         """Continuously fill the frame buffer, reconnecting as needed."""
         last = time.time()
         while self._running:
             cap, mode = self._open_primary()
             if cap is None:
-                cap = self._open_simulator()
-                mode = "simulator" if cap is not None else "offline"
+                cap, mode = self._fallback()
 
             if cap is None:
-                # No source at all — emit a synthetic conveyor frame so the
-                # UI still shows something and inference has an input.
-                self._mode = "simulator"
+                # No usable source: with the simulator gate closed this is an
+                # honest OFFLINE with no synthetic frames; with it open,
+                # local development gets synthetic conveyor frames labeled
+                # SIMULATOR (never LIVE).
                 self._connected = False
+                if not settings.icam_allow_simulator:
+                    self._mode = "offline"
+                    time.sleep(1.0)
+                    continue
+                self._mode = "simulator"
                 self._push(self._synthetic())
                 time.sleep(0.1)
                 continue

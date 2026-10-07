@@ -44,7 +44,8 @@ Check: `curl http://127.0.0.1:8001/health`
 - `POST /infer`  — multipart `frame` (JPEG) + `conf`, `model_path`, context;
   returns `{status, confidence, boxes}`.
 - `GET  /camera/status` — `{connected, mode, source, fps, frame_width, frame_height}`;
-  mode is `LIVE`, `SIMULATOR`, or `OFFLINE`.
+  mode is `LIVE`, `SIMULATOR`, or `OFFLINE`; `source` is credential-redacted
+  (`rtsp://user:pass@host` ⇒ `rtsp://***:***@host`).
 - `GET  /camera/stream` — raw MJPEG from the shared frame cache.
 - `GET  /camera/raw` — continuous raw MJPEG preview (no YOLO overlay).
 - `GET  /camera/frame` — latest raw JPEG (pollable still).
@@ -68,9 +69,13 @@ MJPEG/JSON endpoint serves the cached state — no per-request inference, no
 per-browser stream, no broker. Monitoring is pull-based; nothing POSTs per
 frame and nothing publishes `arm/command`.
 
-- `ICAM_MODEL_PATH` — authoritative `models/run-100/best.pt` with the exact
-  class map `{0: HIJAU, 1: KUNING, 2: MERAH}`. Any mismatch ⇒ `MODEL_ERROR`,
-  never a silent fallback.
+- `ICAM_MODEL_PATH` — authoritative `models/run-100/best.pt` covering
+  exactly the semantic classes `GREEN`/`YELLOW`/`RED` (currently YOLO11
+  segmentation, `{0: GREEN, 1: YELLOW, 2: RED}`, `imgsz=512`; Indonesian raw
+  labels and any class-ID order are also accepted). Any mismatch ⇒
+  `MODEL_ERROR`, never a silent COCO fallback. Segmentation masks are
+  ignored — the UI/API contract stays bounding-box only
+  (`class`, `confidence`, `bbox`, `center x/y`).
 - `ICAM_AUTO_INFER` / `ICAM_INFER_INTERVAL` — legacy keys, no longer used
   (the worker infers continuously; remove them from your `.env` if present).
 - `SORTING_MQTT_ENABLED` — legacy opt-in for the per-request sort-pipeline
@@ -93,9 +98,15 @@ HMAC-signed). **No code runs on the camera**; it just streams.
   file path (`samples/conveyor.mp4`) or a webcam index (`"0"`). If neither is
   available, synthetic conveyor frames are generated.
 - `ICAM_CAMERA`, `ICAM_CONVEYOR` — labels stamped on detections.
-- `ICAM_MODEL_PATH` — authoritative `models/run-100/best.pt` (exact class
-  map `{0: HIJAU, 1: KUNING, 2: MERAH}`; anything else ⇒ `MODEL_ERROR`).
-- `ICAM_CONF` — YOLO confidence threshold (0–1).
+- `ICAM_MODEL_PATH` — authoritative `models/run-100/best.pt` (semantic
+  coverage `GREEN`/`YELLOW`/`RED`; anything else ⇒ `MODEL_ERROR`).
+- `ICAM_CONF` — YOLO confidence threshold (0–1). Deployment default for the
+  current model is `0.60` (see training/runtime report); still
+  environment-driven, never hard-coded in inference code.
+- `ICAM_ALLOW_SIMULATOR` — `false` by default (production/demo intent): an
+  unreachable real camera reports `OFFLINE` with no synthetic feed. Set
+  `true` only for local development; simulator output is always labeled
+  `SIMULATOR`, never `LIVE`.
 
 Test without hardware: leave `ICAM_RTSP_URL` empty, start the service, open
 `http://127.0.0.1:8001/camera/preview` (annotated) or
@@ -110,9 +121,9 @@ services; the commands below are for a human operator validating the demo.
 
 ```bash
 # 1. Activate the ML venv (from the repo root or ml-service/)
-# 2. Validate best.pt (exact class map required)
+# 2. Validate best.pt (semantic coverage GREEN/YELLOW/RED required)
 python -c "from ultralytics import YOLO; print(YOLO('storage/app/models/run-100/best.pt').names)"
-#    expected: {0: 'HIJAU', 1: 'KUNING', 2: 'MERAH'}
+#    expected: {0: 'GREEN', 1: 'YELLOW', 2: 'RED'} (IDs may differ by build)
 # 3. Start FastAPI (foreground, for the demo check)
 uvicorn main:app --host 127.0.0.1 --port 8001
 # 4-10. In another terminal:
@@ -130,6 +141,37 @@ curl http://127.0.0.1:8001/stats/summary     # counts, fps, latency, uptime
 
 Production installs the `deploy/sortvision-ml.service.example` template
 manually (see the header comment inside that file).
+
+## VPS deployment (model update)
+
+Model location (copied separately — `*.pt` binaries are gitignored, never
+committed):
+
+```
+/var/www/sortvision/storage/app/models/run-100/best.pt
+```
+
+Environment (see `.env.example`):
+
+```
+LARAVEL_STORAGE_PATH=/var/www/sortvision/storage/app
+ICAM_MODEL_PATH=models/run-100/best.pt
+ICAM_CONF=0.60
+```
+
+Expected verification after deploy/restart (no credentials in output —
+`/camera/status` redacts RTSP userinfo):
+
+```bash
+curl http://127.0.0.1:8001/model/info     # real path, class map, file size, device
+curl http://127.0.0.1:8001/health         # model_loaded=true only if best.pt loads
+curl http://127.0.0.1:8001/camera/status  # LIVE / OFFLINE / SIMULATOR, honestly
+curl http://127.0.0.1:8001/camera/preview/frame  # latest annotated JPEG
+```
+
+The service binds privately (`127.0.0.1:8001`); browsers use the Laravel
+same-origin proxy routes, never port 8001 directly. If `best.pt` is
+missing or invalid, endpoints report `MODEL_ERROR` — no silent fallback.
 
 ## Notes
 

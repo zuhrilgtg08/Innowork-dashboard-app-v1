@@ -493,7 +493,13 @@ class InferenceWorker(threading.Thread):
         names = model.names
         detections = []
         for r in results:
-            for b in r.boxes:
+            # Segmentation (and empty detect) results may carry boxes=None;
+            # masks, when present, are ignored — the UI/API contract stays
+            # bounding-box only (class, confidence, bbox, center).
+            boxes = getattr(r, "boxes", None)
+            if boxes is None:
+                continue
+            for b in boxes:
                 cls_id = int(b.cls[0])
                 raw = str(names.get(cls_id, str(cls_id)))
                 # Authoritative model covers exactly the three semantic
