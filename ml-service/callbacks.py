@@ -8,7 +8,7 @@ import httpx
 from config import settings
 
 
-def _post(url: str, payload: dict) -> None:
+def _post(url: str, payload: dict) -> bool:
     """POST a JSON payload with an HMAC-SHA256 signature over the raw body.
 
     Best-effort: failures are swallowed so a callback hiccup never crashes the
@@ -20,7 +20,7 @@ def _post(url: str, payload: dict) -> None:
     ).hexdigest()
 
     try:
-        httpx.post(
+        response = httpx.post(
             url,
             content=body,
             headers={
@@ -30,8 +30,11 @@ def _post(url: str, payload: dict) -> None:
             },
             timeout=15,
         )
+        response.raise_for_status()
+        return True
     except Exception as exc:  # noqa: BLE001
         print(f"[callback] failed POST {url}: {exc}", flush=True)
+        return False
 
 
 def progress(callback_url: str, percent: int, epoch: int, status: str = "training") -> None:

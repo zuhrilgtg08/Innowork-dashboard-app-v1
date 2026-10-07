@@ -23,16 +23,19 @@ start_time = None
 
 # Event loop for thread-safe asyncio from paho callbacks
 _loop: asyncio.AbstractEventLoop | None = None
+_state_lock = threading.Lock()
+_sequence_future = None
+_seen_events: set[str] = set()
 
 
 def _schedule(coro):
     """Schedule a coroutine on the mock server's event loop from the paho thread."""
     global _loop
     if _loop and _loop.is_running():
-        asyncio.run_coroutine_threadsafe(coro, _loop)
+        return asyncio.run_coroutine_threadsafe(coro, _loop)
     else:
         # Fallback: run in new loop (should not happen in normal operation)
-        asyncio.run(coro)
+        return asyncio.run(coro)
 
 
 def pick_destination(color_name: str) -> str:
@@ -71,41 +74,57 @@ async def publish_status(
 def on_command(client, userdata, message):
     """Callback for incoming command messages on arm/command (runs in paho network thread)."""
     global current_state, current_color, current_detection_id, current_event_uuid, start_time, counters
+    global _sequence_future
 
     try:
         payload = json.loads(message.payload.decode())
+        if not isinstance(payload, dict):
+            return
         action = payload.get("action")
 
         if action == "sort" and settings.competition_mode:
-            current_color = payload.get("color")  # expects canonical green/yellow/red
-            destination = payload.get("destination", pick_destination(current_color))
+            color = payload.get("color")
+            event_uuid = payload.get("event_uuid")
+            if color not in counters or not isinstance(event_uuid, str) or not event_uuid:
+                return
+            with _state_lock:
+                if current_state != "ready" or event_uuid in _seen_events:
+                    return
+                _seen_events.add(event_uuid)
+                current_state = "busy"
+                current_color = color
+                current_event_uuid = event_uuid
+                current_detection_id = payload.get("detection_id")
+            destination = payload.get("destination") or pick_destination(color)
             confidence = payload.get("confidence", 100.0)  # 0-100 percent, matches arm/command
-            current_event_uuid = payload.get("event_uuid")
-            current_detection_id = payload.get("detection_id")
-
-            current_state = "busy"
             start_time = datetime.utcnow()
 
             # Execute sort sequence (schedule on our event loop)
-            _schedule(_sort_sequence(client, destination, confidence))
+            _sequence_future = _schedule(_sort_sequence(client, destination, confidence))
 
         elif action == "reset_session":
+            if _sequence_future is not None:
+                _sequence_future.cancel()
+                _sequence_future = None
             current_state = "ready"
             current_color = None
             current_detection_id = None
             current_event_uuid = None
             # Must use global keyword to modify the module-level dict
-            global counters
             counters = {"green": 0, "yellow": 0, "red": 0}
             _schedule(publish_status(client, "ready"))
             print("=== Demo session reset ===")
 
         elif action == "error":
+            if _sequence_future is not None:
+                _sequence_future.cancel()
+                _sequence_future = None
+            current_state = "error"
             detail = payload.get("detail", "unknown_error")
             _schedule(publish_status(client, "error", detail=detail))
             print(f"[MOCK] Error command received: {detail}")
 
-    except (json.JSONDecodeError, KeyError) as e:
+    except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as e:
         print(f"Error processing command: {e}")
 
 
@@ -175,8 +194,13 @@ def start_mqtt_client():
     if settings.mqtt_use_tls:
         client.tls_set()
     client.on_message = on_command
+
+    def on_connect(client, userdata, flags, reason_code, properties):
+        if not reason_code.is_failure:
+            client.subscribe("arm/command", qos=1)
+
+    client.on_connect = on_connect
     client.connect(settings.mqtt_broker, settings.mqtt_port, 60)
-    client.subscribe("arm/command")
     client.loop_start()
     return client
 
@@ -209,9 +233,9 @@ async def run_mock_server():
         # Keep running
         while True:
             await asyncio.sleep(1)
-    except KeyboardInterrupt:
-        client.loop_stop()
+    finally:
         client.disconnect()
+        client.loop_stop()
 
 
 if __name__ == "__main__":

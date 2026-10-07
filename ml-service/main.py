@@ -3,13 +3,15 @@ import base64
 import tempfile
 import threading
 import time
+from typing import Literal
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import cv2
-from fastapi import BackgroundTasks, FastAPI, Form, UploadFile
+from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+from PIL import Image, UnidentifiedImageError
 
 import callbacks
 import infer
@@ -20,17 +22,16 @@ from config import settings
 from flow import FlowAnalyzer
 from stream import camera_source
 
+_training_lock = threading.Lock()
+MAX_FRAME_BYTES = 10 * 1024 * 1024
+
 
 def _resolve_stream_model() -> str | None:
     """Resolve the configured stream model against Laravel storage."""
-    rel = settings.icam_model_path
-    if not rel:
-        return None
-    candidate = Path(settings.laravel_storage_path) / rel
-    return str(candidate) if candidate.exists() else rel
+    return infer.resolve_model_path()
 
 
-def _flow_loop() -> None:
+def _flow_loop(stop: threading.Event) -> None:
     """Continuously watch the stream for conveyor jam/off_flow anomalies.
 
     Runs faster than the infer loop (every frame it can grab) so the rolling
@@ -43,8 +44,7 @@ def _flow_loop() -> None:
         jam_motion=settings.flow_jam_motion,
         offflow_occupancy=settings.flow_offflow_occupancy,
     )
-    while True:
-        time.sleep(0.1)
+    while not stop.wait(0.1):
         frame = camera_source.latest_frame()
         if frame is None:
             continue
@@ -63,7 +63,7 @@ def _flow_loop() -> None:
         })
 
 
-def _infer_loop() -> None:
+def _infer_loop(stop: threading.Event) -> None:
     """Periodically infer on the latest frame and push a Detection to Laravel.
 
     In competition (Vision Sorting) mode each frame runs the full sort
@@ -71,9 +71,7 @@ def _infer_loop() -> None:
     gates → arm/command); otherwise the legacy plain-inference path posts a
     monitoring detection.
     """
-    model = _resolve_stream_model()
-    while True:
-        time.sleep(max(0.5, settings.icam_infer_interval))
+    while not stop.wait(max(0.5, settings.icam_infer_interval)):
         frame = camera_source.latest_frame()
         if frame is None:
             continue
@@ -90,7 +88,7 @@ def _infer_loop() -> None:
                 if not result.get("sort_triggered"):
                     print(f"[stream-sort] no command ({result.get('reason')})", flush=True)
             else:
-                result = infer.infer_frame(tmp_path, model, settings.icam_conf)
+                result = infer.infer_frame(tmp_path, _resolve_stream_model(), settings.icam_conf)
         except Exception as exc:  # noqa: BLE001
             print(f"[stream-infer] failed: {exc}", flush=True)
             continue
@@ -108,6 +106,8 @@ def _infer_loop() -> None:
             "qr_value": result.get("qr_value"),
             "boxes": result.get("boxes", []),
             "detections": result.get("detections", []),
+            "frame_width": result.get("frame_width"),
+            "frame_height": result.get("frame_height"),
             "camera": settings.icam_camera,
             "conveyor": settings.icam_conveyor,
             "frame_jpeg_b64": base64.b64encode(jpeg).decode(),
@@ -118,31 +118,50 @@ def _infer_loop() -> None:
 async def lifespan(app: FastAPI):
     # Start the camera buffer, and optionally the auto-inference loop.
     camera_source.start()
+    stop = threading.Event()
+    workers = []
     if settings.icam_auto_infer:
-        threading.Thread(target=_infer_loop, daemon=True).start()
+        workers.append(threading.Thread(target=_infer_loop, args=(stop,), daemon=True))
     if settings.flow_analysis:
-        threading.Thread(target=_flow_loop, daemon=True).start()
-    yield
-    camera_source.stop()
+        workers.append(threading.Thread(target=_flow_loop, args=(stop,), daemon=True))
+    for worker in workers:
+        worker.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        camera_source.stop()
+        for worker in workers:
+            worker.join(timeout=20)
 
 
 app = FastAPI(title="SortVision ML Service", lifespan=lifespan)
 
 
 class AnnotationItem(BaseModel):
-    image_path: str
-    label: str
-    bbox: list[float] | None = None
-    split: str = "train"
+    image_path: str = Field(min_length=1)
+    label: str = Field(min_length=1, max_length=100)
+    bbox: list[float] | None = Field(default=None, min_length=4, max_length=4)
+    split: Literal["train", "val"] = "train"
+
+    @field_validator("bbox")
+    @classmethod
+    def valid_bbox(cls, bbox):
+        if bbox is not None:
+            x, y, w, h = bbox
+            if not (0 <= x <= 1 and 0 <= y <= 1 and 0 < w <= 1 and 0 < h <= 1
+                    and x + w <= 1.000001 and y + h <= 1.000001):
+                raise ValueError("bbox must be normalized [x, y, width, height] inside the frame")
+        return bbox
 
 
 class TrainRequest(BaseModel):
-    run_id: int
-    epochs: int = 5
-    imgsz: int = 320
-    storage_path: str
-    callback_url: str
-    annotations: list[AnnotationItem] = []
+    run_id: int = Field(gt=0)
+    epochs: int = Field(default=5, ge=1, le=1000)
+    imgsz: int = Field(default=320, ge=32, le=2048)
+    storage_path: str = Field(min_length=1)
+    callback_url: str = Field(pattern=r"^https?://")
+    annotations: list[AnnotationItem] = Field(min_length=1)
 
 
 @app.get("/health")
@@ -160,7 +179,12 @@ def health():
         "camera_connected": bool(camera_source.status().get("connected", False)),
     }
     if not settings.competition_mode:
-        return {**base, "model_loaded": True, "base_model": settings.base_model}
+        try:
+            info = infer.model_info(_resolve_stream_model())
+            return {**base, "model_loaded": True, "base_model": settings.base_model,
+                    "model_path": info["path"], "classes": info["classes"]}
+        except infer.ModelError as exc:
+            return {**base, "model_loaded": False, "diagnostic": str(exc)[:200]}
     try:
         resolved = sort_pipeline.resolve_sorting_model()
         classes = sort_pipeline.assert_sorting_classes(resolved)
@@ -186,11 +210,21 @@ class ReloadRequest(BaseModel):
 
 @app.post("/reload-model")
 def reload_model(req: ReloadRequest | None = None):
-    """Drop cached YOLO weights so a newly activated model takes effect without
-    a service restart. The optional model_path is informational (logging)."""
-    infer.reload_models()
-    print(f"[reload-model] cache cleared (hint: {req.model_path if req else None})", flush=True)
-    return {"ok": True}
+    """Validate and activate weights for HTTP, stream and preview inference."""
+    with infer.MODEL_LOCK:
+        requested = req.model_path if req and req.model_path else settings.icam_model_path
+        try:
+            resolved = (sort_pipeline.resolve_sorting_model(requested)
+                        if settings.competition_mode else infer.resolve_model_path(requested))
+            infer.reload_models()
+            if settings.competition_mode:
+                sort_pipeline.assert_sorting_classes(resolved)
+            else:
+                infer.model_info(resolved)
+        except (infer.ModelError, sort_pipeline.SortingModelError) as exc:
+            raise HTTPException(503, detail={"error": "MODEL_ERROR", "message": str(exc)[:200]}) from exc
+        settings.icam_model_path = resolved
+    return {"ok": True, "model_path": resolved}
 
 
 @app.get("/camera/status")
@@ -262,8 +296,11 @@ def model_info():
             "base_model": settings.base_model,
             "conf_threshold": settings.icam_conf,
         }
-    resolved = _resolve_stream_model()
-    info = infer.model_info(resolved)
+    try:
+        resolved = _resolve_stream_model()
+        info = infer.model_info(resolved)
+    except infer.ModelError as exc:
+        return JSONResponse(status_code=503, content={"error": "MODEL_ERROR", "message": str(exc)[:200]})
     return {
         **info,
         "configured_path": settings.icam_model_path or None,
@@ -294,22 +331,30 @@ def preview_latest():
 @app.post("/train", status_code=202)
 def start_train(req: TrainRequest, background: BackgroundTasks):
     """Accept a training job and run it in the background (returns immediately)."""
-    background.add_task(
-        train.run_training,
-        req.run_id,
-        req.epochs,
-        req.imgsz,
-        req.storage_path,
-        req.callback_url,
-        [a.model_dump() for a in req.annotations],
-    )
+    if not _training_lock.acquire(blocking=False):
+        raise HTTPException(409, detail="A training run is already active")
+
+    def run_job():
+        try:
+            train.run_training(
+                req.run_id,
+                req.epochs,
+                req.imgsz,
+                req.storage_path,
+                req.callback_url,
+                [a.model_dump() for a in req.annotations],
+            )
+        finally:
+            _training_lock.release()
+
+    background.add_task(run_job)
     return {"accepted": True, "run_id": req.run_id}
 
 
 @app.post("/infer")
-async def run_infer(
+def run_infer(
     frame: UploadFile,
-    conf: float = Form(0.85),
+    conf: float = Form(0.85, ge=0, le=1),
     model_path: str | None = Form(None),
     camera: str | None = Form(None),
     conveyor: str | None = Form(None),
@@ -320,22 +365,30 @@ async def run_infer(
     When competition_mode is enabled and a color class is detected, this also
     runs the sort pipeline: signed POST to /api/camera/detection + MQTT arm/command.
     """
-    # Resolve a relative model path (models/run-x/best.pt) against Laravel storage.
-    resolved_model = None
-    if model_path:
-        candidate = Path(settings.laravel_storage_path) / model_path
-        resolved_model = str(candidate) if candidate.exists() else model_path
-
-    data = await frame.read()
+    # A synchronous endpoint runs in FastAPI's thread pool; CPU inference and
+    # network callbacks must not block health checks or the camera feed.
+    data = frame.file.read(MAX_FRAME_BYTES + 1)
+    if len(data) > MAX_FRAME_BYTES:
+        raise HTTPException(413, detail="Frame exceeds 10 MiB")
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
         tmp.write(data)
         tmp_path = tmp.name
 
     try:
+        try:
+            with Image.open(tmp_path) as uploaded:
+                uploaded.verify()
+        except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+            raise HTTPException(422, detail="Frame must be a valid image") from exc
         if settings.competition_mode:
-            result = sort_pipeline.run_sort_pipeline(tmp_path, conf, resolved_model)
+            result = sort_pipeline.run_sort_pipeline(tmp_path, conf, model_path,
+                                                     camera=camera, conveyor=conveyor)
+            if result.get("reason") == "model_error":
+                return JSONResponse(status_code=503, content=result)
         else:
-            result = infer.infer_frame(tmp_path, resolved_model, conf)
+            result = infer.infer_frame(tmp_path, model_path, conf)
+    except infer.ModelError as exc:
+        raise HTTPException(503, detail={"error": "MODEL_ERROR", "message": str(exc)[:200]}) from exc
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 

@@ -10,7 +10,7 @@ Safety properties (H-1, do not weaken):
     resolved against Laravel storage. If it is missing/invalid, or its
     classes are not HIJAU/KUNING/MERAH, the inference is rejected and
     NOTHING is published. There is deliberately NO silent yolov8n.pt
-    fallback on this path (legacy non-sorting paths in infer.py keep theirs).
+    fallback on this path.
   - arm/command is published ONLY when ALL gates pass: color class found,
     confidence gate, object center inside the configured pick zone, object
     not already commanded (dedupe latch + cooldown), bowl not full, arm
@@ -25,10 +25,9 @@ import json
 import threading
 import time
 import uuid
-from pathlib import Path
 
 import httpx
-from paho.mqtt import publish as mqtt_single
+import paho.mqtt.client as mqtt
 
 import infer
 from config import settings
@@ -58,6 +57,7 @@ EXPECTED_CLASS_MAP = {0: "HIJAU", 1: "KUNING", 2: "MERAH"}
 # same signature, so it is commanded exactly once; the latch resets when a
 # frame contains no color target (object left the view).
 _state_lock = threading.Lock()
+_pipeline_lock = threading.Lock()
 _last_signature: tuple | None = None
 _last_command_at: float = 0.0
 
@@ -77,14 +77,10 @@ def resolve_sorting_model(explicit: str | None = None) -> str:
     rel = explicit or settings.icam_model_path
     if not rel:
         raise SortingModelError("no sorting model configured (ICAM_MODEL_PATH is empty)")
-    candidate = Path(rel)
-    if not candidate.is_absolute():
-        if candidate.exists():
-            return str(candidate)
-        candidate = Path(settings.laravel_storage_path) / rel
-    if not candidate.exists():
-        raise SortingModelError(f"sorting model not found: {rel}")
-    return str(candidate)
+    try:
+        return infer.resolve_model_path(rel)
+    except infer.ModelError as exc:
+        raise SortingModelError(str(exc)) from exc
 
 
 def assert_sorting_classes(model_path: str) -> dict:
@@ -96,10 +92,11 @@ def assert_sorting_classes(model_path: str) -> dict:
     Returns the {index: name} mapping.
     """
     try:
-        model = infer._load(model_path)  # noqa: SLF001 — same service package
+        with infer.MODEL_LOCK:
+            model = infer._load(model_path)
+            names = {int(k): v for k, v in dict(model.names).items()}
     except Exception as exc:  # noqa: BLE001
         raise SortingModelError(f"cannot load sorting model {model_path}: {exc}") from exc
-    names = {int(k): v for k, v in dict(model.names).items()}
     if names != EXPECTED_CLASS_MAP:
         raise SortingModelError(
             f"sorting model class map {names} != required {EXPECTED_CLASS_MAP}"
@@ -137,34 +134,36 @@ def _post_signed(url: str, payload: dict) -> dict:
 
 
 def _publish_arm_command(payload: dict) -> bool:
-    """Publish one command to arm/command (QoS 1, blocking single-shot).
+    """Publish at QoS 1 with bounded connection and acknowledgement waits."""
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    connected = threading.Event()
+    accepted = False
 
-    Uses paho.mqtt.publish.single so the call only returns success after the
-    packet actually reached the broker — a refused/unreachable broker raises
-    and we report failure instead of a phantom success. Authenticates with
-    MQTT_USERNAME/MQTT_PASSWORD (+TLS) when configured.
-    """
+    def on_connect(client, userdata, flags, reason_code, properties):
+        nonlocal accepted
+        accepted = not reason_code.is_failure
+        connected.set()
+
+    client.on_connect = on_connect
+    client.connect_timeout = settings.mqtt_timeout
     try:
-        auth = None
         if (settings.mqtt_username or "").strip():
-            auth = {
-                "username": settings.mqtt_username,
-                "password": settings.mqtt_password or "",
-            }
-        mqtt_single.single(
-            "arm/command",
-            json.dumps(payload, separators=(",", ":")),
-            qos=1,
-            hostname=settings.mqtt_broker,
-            port=settings.mqtt_port,
-            auth=auth,
-            tls={} if settings.mqtt_use_tls else None,
-            keepalive=60,
-        )
-        return True
+            client.username_pw_set(settings.mqtt_username, settings.mqtt_password or "")
+        if settings.mqtt_use_tls:
+            client.tls_set()
+        client.connect(settings.mqtt_broker, settings.mqtt_port, keepalive=30)
+        client.loop_start()
+        if not connected.wait(settings.mqtt_timeout) or not accepted:
+            return False
+        message = client.publish("arm/command", json.dumps(payload, separators=(",", ":")), qos=1)
+        message.wait_for_publish(timeout=settings.mqtt_timeout)
+        return message.rc == mqtt.MQTT_ERR_SUCCESS and message.is_published()
     except Exception as exc:  # noqa: BLE001
         print(f"[sort_pipeline] MQTT publish failed: {exc}", flush=True)
         return False
+    finally:
+        client.disconnect()
+        client.loop_stop()
 
 
 def _quantize(v: float) -> float:
@@ -176,7 +175,17 @@ def run_sort_pipeline(
     image_path: str,
     conf: float,
     model_path: str | None = None,
+    *,
+    camera: str | None = None,
+    conveyor: str | None = None,
 ) -> dict:
+    # Serialize the complete gate/ingest/publish/latch transaction. Locking
+    # just the latch read/write allows two simultaneous frames to command it.
+    with _pipeline_lock:
+        return _run_sort_pipeline(image_path, conf, model_path, camera, conveyor)
+
+
+def _run_sort_pipeline(image_path, conf, model_path, camera, conveyor) -> dict:
     """
     Run the competition sort pipeline on a single frame.
 
@@ -209,12 +218,8 @@ def run_sort_pipeline(
     result = infer.infer_frame(image_path, resolved, conf)
 
     # 2. Find the top detection whose label maps to a competition color.
-    target = None
-    for det in result.get("detections", []):
-        label = det.get("label", "")
-        if label in COLOR_ALIAS:
-            target = det
-            break
+    target = max((det for det in result.get("detections", []) if det.get("label") in COLOR_ALIAS),
+                 key=lambda det: det["confidence"], default=None)
 
     if target is None:
         # No color target: the previous object (if any) has left the view,
@@ -263,9 +268,13 @@ def run_sort_pipeline(
         "confidence": target["confidence"],
         "qr_value": result.get("qr_value"),
         "boxes": result.get("boxes", []),
-        "detections": result.get("detections", []),
-        "camera": settings.icam_camera,
-        "conveyor": settings.icam_conveyor,
+        # The frame-level competition metadata belongs to this target only.
+        # Other boxes must not inherit its color, center or event UUID.
+        "detections": [target],
+        "camera": camera or settings.icam_camera,
+        "conveyor": conveyor or settings.icam_conveyor,
+        "frame_width": frame_w,
+        "frame_height": frame_h,
         "frame_jpeg_b64": frame_b64,
         # Competition fields
         "color": color,
@@ -282,8 +291,12 @@ def run_sort_pipeline(
         except Exception as exc:  # noqa: BLE001
             print(f"[sort_pipeline] Signed POST failed: {exc}", flush=True)
             return None
+        if not isinstance(ingest_resp, dict) or ingest_resp.get("ok") is not True:
+            return None
         detection_ids = ingest_resp.get("detection_ids", [])
-        return detection_ids[0] if detection_ids else None
+        if not isinstance(detection_ids, list) or not detection_ids:
+            return None
+        return detection_ids[0] or None
 
     if not zone_ok:
         # Visible in monitoring, but NEVER commands the arm from outside.
@@ -302,7 +315,7 @@ def run_sort_pipeline(
 
     # 5. Anti-duplicate: same object (color + quantized center) already
     # commanded → suppress; any command too recent → cooldown.
-    signature = (color, _quantize(nx), _quantize(ny))
+    signature = (camera or settings.icam_camera, color, _quantize(nx), _quantize(ny))
     now = time.monotonic()
     with _state_lock:
         latched = _last_signature is not None and _last_signature == signature
@@ -333,6 +346,10 @@ def run_sort_pipeline(
     laravel_preflight = f"{settings.laravel_url.rstrip('/')}/api/sorting/preflight"
     try:
         pre = _post_signed(laravel_preflight, {"color": color})
+        if (not isinstance(pre, dict) or pre.get("ok") is not True
+                or type(pre.get("bowl_full")) is not bool
+                or type(pre.get("arm_busy")) is not bool):
+            raise ValueError("invalid preflight response")
     except Exception as exc:  # noqa: BLE001
         print(f"[sort_pipeline] Preflight failed: {exc}", flush=True)
         return {

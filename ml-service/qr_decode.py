@@ -12,9 +12,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-_detector = cv2.QRCodeDetector()
-
-
 def _as_bgr(image: "str | Path | np.ndarray") -> np.ndarray | None:
     """Accept a file path or an already-decoded BGR frame."""
     if isinstance(image, (str, Path)):
@@ -32,11 +29,12 @@ def decode_qr_values(image: "str | Path | np.ndarray") -> list[str]:
         return []
 
     values: list[str] = []
+    detector = cv2.QRCodeDetector()
 
     # Multi-code first (OpenCV >= 4.5.3). Some builds raise cv2.error on frames
     # with no QR — treat that as "nothing found".
     try:
-        ok, decoded, _points, _straight = _detector.detectAndDecodeMulti(img)
+        ok, decoded, _points, _straight = detector.detectAndDecodeMulti(img)
         if ok and decoded is not None:
             values.extend(d for d in decoded if d)
     except cv2.error:
@@ -45,7 +43,7 @@ def decode_qr_values(image: "str | Path | np.ndarray") -> list[str]:
     # Fallback: single-code detector.
     if not values:
         try:
-            decoded, _points, _straight = _detector.detectAndDecode(img)
+            decoded, _points, _straight = detector.detectAndDecode(img)
             if decoded:
                 values.append(decoded)
         except cv2.error:

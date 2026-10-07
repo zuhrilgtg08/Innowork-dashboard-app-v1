@@ -1,6 +1,7 @@
 """Environment-driven configuration for the ML service."""
 from pathlib import Path
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,7 +48,7 @@ class Settings(BaseSettings):
     icam_sim_source: str = "samples/conveyor.mp4"
 
     # Seconds between automatic inference passes on the live stream.
-    icam_infer_interval: float = 3.0
+    icam_infer_interval: float = Field(default=3.0, gt=0)
 
     # When true, the service runs the periodic infer→POST loop on startup.
     icam_auto_infer: bool = False
@@ -61,7 +62,7 @@ class Settings(BaseSettings):
     icam_model_path: str = ""
 
     # Confidence threshold for stream inference.
-    icam_conf: float = 0.85
+    icam_conf: float = Field(default=0.85, ge=0, le=1)
 
     # --- Conveyor off-flow analysis (flow.py) ------------------------------
     # When true, the stream infer loop also runs jam/off_flow detection and
@@ -69,7 +70,7 @@ class Settings(BaseSettings):
     flow_analysis: bool = False
 
     # Rolling-window size (frames) the analyser smooths its signals over.
-    flow_window: int = 15
+    flow_window: int = Field(default=15, ge=1)
 
     # Avg edge-density occupancy above this, with motion below flow_jam_motion,
     # counts as a jam (material piled up, not advancing).
@@ -86,7 +87,8 @@ class Settings(BaseSettings):
 
     # MQTT broker for arm/command (mock_hardware consumes this).
     mqtt_broker: str = "localhost"
-    mqtt_port: int = 1883
+    mqtt_port: int = Field(default=1883, ge=1, le=65535)
+    mqtt_timeout: float = Field(default=5.0, gt=0)
 
     # MQTT authentication for the production broker. Empty username keeps
     # local anonymous compatibility; when set (VPS), both the sort pipeline
@@ -97,36 +99,38 @@ class Settings(BaseSettings):
     mqtt_use_tls: bool = False
 
     # Minimum confidence (0-1) for a detection to trigger a sort command.
-    sort_min_confidence: float = 0.5
+    sort_min_confidence: float = Field(default=0.5, ge=0, le=1)
 
     # Maximum objects per color before SORTING_COMPLETE (default 3).
     max_objects_per_color: int = 3
 
     # Cooldown between sort commands in milliseconds.
-    sort_cooldown_ms: int = 1000
+    sort_cooldown_ms: int = Field(default=1000, ge=0)
 
     # Operational pick zone, normalized 0-1 (fraction of frame width/height).
     # A sort command is issued ONLY when the detected object's center falls
     # inside this rectangle. Defaults to the central 60% of the frame.
     # The Model Evaluation preview reuses the same bounds for its overlay.
-    pick_zone_x_min: float = 0.2
-    pick_zone_x_max: float = 0.8
-    pick_zone_y_min: float = 0.2
-    pick_zone_y_max: float = 0.8
+    pick_zone_x_min: float = Field(default=0.2, ge=0, le=1)
+    pick_zone_x_max: float = Field(default=0.8, ge=0, le=1)
+    pick_zone_y_min: float = Field(default=0.2, ge=0, le=1)
+    pick_zone_y_max: float = Field(default=0.8, ge=0, le=1)
 
     # Spatial quantization (normalized units) for the anti-duplicate latch:
     # centers falling in the same cell count as the same stationary object.
-    sort_spatial_tolerance: float = 0.05
+    sort_spatial_tolerance: float = Field(default=0.05, gt=0, le=1)
 
     # Mock hardware step delay (ms).
-    mock_delay_ms: int = 300
+    mock_delay_ms: int = Field(default=300, ge=0)
+
+    @model_validator(mode="after")
+    def validate_paths_and_zone(self):
+        if self.pick_zone_x_min >= self.pick_zone_x_max or self.pick_zone_y_min >= self.pick_zone_y_max:
+            raise ValueError("pick-zone minimum must be smaller than maximum")
+        storage = Path(self.laravel_storage_path)
+        if not storage.is_absolute():
+            self.laravel_storage_path = str((Path(__file__).parent / storage).resolve())
+        return self
 
 
 settings = Settings()
-
-# Anchor a relative laravel_storage_path to the repo layout (ml-service/..),
-# so model/dataset resolution works regardless of process cwd (same class
-# of silent failure as the .env location above).
-_storage = Path(settings.laravel_storage_path)
-if not _storage.is_absolute():
-    settings.laravel_storage_path = str((Path(__file__).parent / _storage).resolve())

@@ -1,5 +1,4 @@
 """Dataset export + YOLO training loop (CPU, demo-scale)."""
-import os
 import shutil
 from pathlib import Path
 
@@ -14,7 +13,11 @@ RUNS_DIR = BASE_DIR / "runs"
 
 def _public_path(storage_path: str, image_path: str) -> Path:
     """Resolve an annotation's public-disk-relative path to an absolute file."""
-    return Path(storage_path) / "public" / image_path
+    public = (Path(storage_path) / "public").resolve()
+    image = (public / image_path).resolve()
+    if not image.is_relative_to(public):
+        raise ValueError("annotation image must be inside storage/app/public")
+    return image
 
 
 def build_dataset(run_id: int, storage_path: str, annotations: list[dict]) -> tuple[Path, list[str], int, int]:
@@ -22,7 +25,11 @@ def build_dataset(run_id: int, storage_path: str, annotations: list[dict]) -> tu
 
     Returns (dataset_dir, class_names, train_count, val_count).
     """
-    dataset_dir = RUNS_DIR / f"dataset-{run_id}"
+    if run_id <= 0:
+        raise ValueError("run_id must be positive")
+    dataset_dir = (RUNS_DIR / f"dataset-{run_id}").resolve()
+    if not dataset_dir.is_relative_to(RUNS_DIR.resolve()):
+        raise ValueError("dataset path escapes runs directory")
     if dataset_dir.exists():
         shutil.rmtree(dataset_dir)
 
@@ -35,13 +42,19 @@ def build_dataset(run_id: int, storage_path: str, annotations: list[dict]) -> tu
     class_index = {name: i for i, name in enumerate(class_names)}
 
     counts = {"train": 0, "val": 0}
-    for i, ann in enumerate(annotations):
+    # A frame can have many annotated objects. Export it once with all labels,
+    # and keep it in one split even when Laravel split annotations by row.
+    grouped = {}
+    for ann in annotations:
         src = _public_path(storage_path, ann["image_path"])
-        if not src.exists():
+        grouped.setdefault(src, []).append(ann)
+
+    for i, (src, items) in enumerate(grouped.items()):
+        if not src.is_file():
             print(f"[train] missing image, skipping: {src}", flush=True)
             continue
 
-        split = ann.get("split", "train")
+        split = "train" if any(a.get("split", "train") == "train" for a in items) else "val"
         if split not in ("train", "val"):
             split = "train"
 
@@ -49,17 +62,19 @@ def build_dataset(run_id: int, storage_path: str, annotations: list[dict]) -> tu
         dst_img = dataset_dir / "images" / split / f"{stem}{src.suffix}"
         shutil.copyfile(src, dst_img)
 
-        # bbox is [x, y, w, h] normalized (top-left origin); null = full frame.
-        bbox = ann.get("bbox")
-        if bbox and len(bbox) == 4:
-            x, y, w, h = bbox
-            xc, yc = x + w / 2, y + h / 2
-        else:
-            xc, yc, w, h = 0.5, 0.5, 1.0, 1.0
-
-        cls = class_index[ann["label"]]
+        labels = []
+        for ann in items:
+            # bbox is [x, y, w, h] normalized; null means the full frame.
+            bbox = ann.get("bbox")
+            if bbox and len(bbox) == 4:
+                x, y, w, h = bbox
+                xc, yc = x + w / 2, y + h / 2
+            else:
+                xc, yc, w, h = 0.5, 0.5, 1.0, 1.0
+            cls = class_index[ann["label"]]
+            labels.append(f"{cls} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
         label_file = dataset_dir / "labels" / split / f"{stem}.txt"
-        label_file.write_text(f"{cls} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
+        label_file.write_text("".join(labels), encoding="utf-8")
         counts[split] += 1
 
     # YOLO needs a non-empty validation set; mirror train if none was assigned.
@@ -83,9 +98,8 @@ def build_dataset(run_id: int, storage_path: str, annotations: list[dict]) -> tu
 def run_training(run_id: int, epochs: int, imgsz: int, storage_path: str,
                  callback_url: str, annotations: list[dict]) -> None:
     """Full training job: export dataset, train YOLO, emit callbacks."""
-    from ultralytics import YOLO
-
     try:
+        from ultralytics import YOLO
         if not annotations:
             callbacks.fail(callback_url, "No approved annotations to train on.")
             return
@@ -99,7 +113,10 @@ def run_training(run_id: int, epochs: int, imgsz: int, storage_path: str,
             callbacks.fail(callback_url, "No usable annotation images were found on disk.")
             return
 
-        model = YOLO(settings.base_model)
+        base = Path(settings.base_model)
+        if not base.is_absolute():
+            base = BASE_DIR / base
+        model = YOLO(str(base))
 
         def on_epoch_end(trainer):
             epoch = int(getattr(trainer, "epoch", 0)) + 1

@@ -11,6 +11,7 @@ endpoint and the periodic inference loop read from.
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import cv2
 import numpy as np
@@ -31,19 +32,29 @@ class CameraSource:
         self._connected = False     # True when a real capture is delivering
         self._mode = "offline"      # 'live' | 'simulator' | 'offline'
         self._fps = 0.0
+        self._stop = threading.Event()
 
     # -- lifecycle ---------------------------------------------------------
     def start(self):
         if self._running:
             return
+        if self._thread and self._thread.is_alive():
+            raise RuntimeError("previous camera worker is still stopping")
+        self._stop.clear()
         self._running = True
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
 
     def stop(self):
         self._running = False
+        self._stop.set()
         if self._thread:
-            self._thread.join(timeout=2)
+            self._thread.join(timeout=5)
+        with self._lock:
+            self._frame = None
+            self._connected = False
+            self._mode = "offline"
+            self._fps = 0.0
 
     # -- accessors ---------------------------------------------------------
     def latest_frame(self):
@@ -58,10 +69,14 @@ class CameraSource:
         return buf.tobytes() if ok else None
 
     def status(self) -> dict:
+        source = settings.icam_rtsp_url or settings.icam_sim_source
+        if settings.icam_rtsp_url:
+            parts = urlsplit(source)
+            source = urlunsplit(parts._replace(netloc=parts.netloc.rsplit("@", 1)[-1]))
         return {
             "connected": self._connected,
             "mode": self._mode,
-            "source": settings.icam_rtsp_url or settings.icam_sim_source,
+            "source": source,
             "fps": round(self._fps, 1),
         }
 
@@ -69,7 +84,10 @@ class CameraSource:
     def _open_primary(self):
         """Try the real RTSP stream first; return (cap, mode) or (None, ...)."""
         if settings.icam_rtsp_url:
-            cap = cv2.VideoCapture(settings.icam_rtsp_url, cv2.CAP_FFMPEG)
+            cap = cv2.VideoCapture(settings.icam_rtsp_url, cv2.CAP_FFMPEG, [
+                cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 3000,
+                cv2.CAP_PROP_READ_TIMEOUT_MSEC, 3000,
+            ])
             if cap.isOpened():
                 return cap, "live"
             cap.release()
@@ -85,7 +103,7 @@ class CameraSource:
             cap.release()
             return None
         path = src if Path(src).is_absolute() else str(BASE_DIR / src)
-        if Path(path).exists():
+        if src and Path(path).is_file():
             cap = cv2.VideoCapture(path)
             if cap.isOpened():
                 return cap
@@ -94,8 +112,8 @@ class CameraSource:
 
     def _loop(self):
         """Continuously fill the frame buffer, reconnecting as needed."""
-        last = time.time()
-        while self._running:
+        last = time.monotonic()
+        while not self._stop.is_set():
             cap, mode = self._open_primary()
             if cap is None:
                 cap = self._open_simulator()
@@ -106,31 +124,45 @@ class CameraSource:
                 # UI still shows something and inference has an input.
                 self._mode = "simulator"
                 self._connected = False
-                self._push(self._synthetic())
-                time.sleep(0.1)
+                # Retry unavailable sources every five seconds, while keeping
+                # the simulator responsive and avoiding an RTSP retry storm.
+                retry_at = time.monotonic() + 5
+                while not self._stop.is_set() and time.monotonic() < retry_at:
+                    self._push(self._synthetic())
+                    self._fps = 10.0
+                    self._stop.wait(0.1)
                 continue
 
             self._mode = mode
-            self._connected = (mode == "live")
-            while self._running and cap.isOpened():
+            self._connected = False
+            retry_at = time.monotonic() + 5
+            rewound = False
+            while not self._stop.is_set() and cap.isOpened():
+                if mode == "simulator" and settings.icam_rtsp_url and time.monotonic() >= retry_at:
+                    break
                 ok, frame = cap.read()
                 if not ok:
                     # End of a looped video file → rewind; RTSP drop → break to reconnect.
-                    if mode == "simulator" and not settings.icam_sim_source.isdigit():
+                    if mode == "simulator" and not settings.icam_sim_source.isdigit() and not rewound:
                         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        rewound = True
                         continue
                     break
+                rewound = False
+                self._connected = mode == "live"
                 self._push(frame)
-                now = time.time()
+                now = time.monotonic()
                 dt = now - last
                 if dt > 0:
                     self._fps = 0.8 * self._fps + 0.2 * (1.0 / dt)
                 last = now
                 # Cap the buffer refresh ~20fps; MJPEG/infer read independently.
-                time.sleep(0.05)
+                self._stop.wait(0.05)
             cap.release()
             self._connected = False
-            time.sleep(1)  # brief backoff before reconnecting
+            with self._lock:
+                self._frame = None
+            self._stop.wait(1)
 
     def _push(self, frame):
         with self._lock:

@@ -18,6 +18,7 @@ from pathlib import Path
 import cv2
 
 import infer
+import sort_pipeline
 from config import settings
 from stream import camera_source
 
@@ -30,9 +31,9 @@ COLOR_ALIAS = {
 
 # BGR draw colors per canonical color; anything else gets neutral blue.
 DRAW_COLORS = {
-    "green": (34, 197, 94),
-    "yellow": (234, 179, 8),
-    "red": (239, 68, 68),
+    "green": (94, 197, 34),
+    "yellow": (8, 179, 234),
+    "red": (68, 68, 239),
 }
 DRAW_DEFAULT = (96, 165, 250)
 
@@ -54,13 +55,12 @@ _latest = {
 
 
 def resolve_model() -> str | None:
-    """Same resolution as the stream infer loop: configured weights against
-    Laravel storage, falling back to the base model inside infer_frame."""
-    rel = settings.icam_model_path
-    if not rel:
-        return None
-    candidate = Path(settings.laravel_storage_path) / rel
-    return str(candidate) if candidate.exists() else rel
+    """Use the same active weights and class gate as live inference."""
+    if settings.competition_mode:
+        resolved = sort_pipeline.resolve_sorting_model()
+        sort_pipeline.assert_sorting_classes(resolved)
+        return resolved
+    return infer.resolve_model_path()
 
 
 def in_pick_zone(cx: float, cy: float, w: int, h: int) -> bool:
@@ -119,7 +119,7 @@ def annotate_frame(frame, conf: float, model: str | None):
             "in_pick_zone": in_pick_zone(cx, cy, w, h),
         })
 
-    top = dets[0] if dets else None
+    top = max(dets, key=lambda det: det["confidence"], default=None)
     snapshot = {
         "at": time.strftime("%H:%M:%S"),
         "detected_class": top["label"] if top else None,
@@ -133,6 +133,7 @@ def annotate_frame(frame, conf: float, model: str | None):
         "frame_w": w,
         "frame_h": h,
         "detections": dets,
+        "error": None,
     }
     with _latest_lock:
         _latest.update(snapshot)
@@ -152,8 +153,6 @@ def latest_snapshot() -> dict:
 def preview_frames(min_interval: float = 0.4):
     """MJPEG generator: annotated frames at ~2.5 fps (CPU-friendly)."""
     boundary = b"--frame\r\n"
-    model = resolve_model()
-    conf = settings.icam_conf
     last_jpeg = None
     while True:
         frame = camera_source.latest_frame()
@@ -163,10 +162,20 @@ def preview_frames(min_interval: float = 0.4):
             time.sleep(min_interval)
             continue
         try:
-            jpeg, _ = annotate_frame(frame.copy(), conf, model)
+            jpeg, _ = annotate_frame(frame.copy(), settings.icam_conf, resolve_model())
             last_jpeg = jpeg
         except Exception as exc:  # noqa: BLE001
             print(f"[preview] annotate failed: {exc}", flush=True)
+            with _latest_lock:
+                _latest.update(at=None, detections=[], detected_class=None, normalized_color=None,
+                               confidence=0.0, bbox=None, center_x=None, center_y=None,
+                               in_pick_zone=None, latency_ms=None, error=str(exc)[:200])
+            error_frame = frame.copy()
+            cv2.putText(error_frame, "Model unavailable - check /health", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            ok, out = cv2.imencode(".jpg", error_frame)
+            if ok:
+                yield boundary + b"Content-Type: image/jpeg\r\n\r\n" + out.tobytes() + b"\r\n"
             time.sleep(min_interval)
             continue
         yield boundary + b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
