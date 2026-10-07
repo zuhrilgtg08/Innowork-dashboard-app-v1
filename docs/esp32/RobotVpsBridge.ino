@@ -21,10 +21,16 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
-// ---- Placeholders (replace locally, never commit real secrets) ----
+// ---- Local values (replace the quoted placeholders locally) ----
+// Each tester must provide these five values; do NOT commit real secrets:
+//   WIFI_SSID          - your Wi-Fi network name
+//   WIFI_PASSWORD      - your Wi-Fi password
+//   ROBOT_API_BASE_URL - "https://armatrix1.tech/api"
+//   ROBOT_DEVICE_TOKEN - the VPS ROBOT_DEVICE_TOKEN value (ask the backend owner)
+//   DEVICE_ID          - unique per device, e.g. "esp32-01"
 #define WIFI_SSID "WIFI_SSID"
 #define WIFI_PASSWORD "WIFI_PASSWORD"
-#define ROBOT_API_BASE_URL "https://ROBOT_API_BASE_URL/api"
+#define ROBOT_API_BASE_URL "https://armatrix1.tech/api"
 #define ROBOT_DEVICE_TOKEN "ROBOT_DEVICE_TOKEN"
 #define DEVICE_ID "esp32-01"
 
@@ -34,10 +40,12 @@
 #define FAKE_EXEC_MS 1500
 
 // ---- TLS ----
-// Production: install the VPS CA certificate and validate it here.
+// Default is secure: the VPS certificate is validated. For production and
+// the final demo, install the VPS CA certificate and validate it here:
 //   client.setCACert(LETSENCRYPT_ROOT_CA);
-// Debug only: set TLS_INSECURE_DEBUG to 1 to skip verification on a test
-// network. NEVER ship insecure mode to production.
+// TLS_INSECURE_DEBUG=1 is allowed ONLY for initial connectivity testing on a
+// test network (it skips certificate verification). It MUST be 0 for the
+// production / final demo. Do NOT hardcode credentials anywhere in this file.
 #define TLS_INSECURE_DEBUG 0
 
 unsigned long lastPollMs = 0;
@@ -116,7 +124,7 @@ void pollOnce() {
   }
   StaticJsonDocument<512> doc;
   if (deserializeJson(doc, body)) { Serial.println("poll: invalid JSON"); return; }
-  if (!doc["ok"] | doc["command"].isNull()) return; // nothing pending
+  if (!doc["ok"] || doc["command"].isNull()) return; // nothing pending
 
   JsonObject cmd = doc["command"];
   handleCommand(

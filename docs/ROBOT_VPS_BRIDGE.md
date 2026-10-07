@@ -122,3 +122,11 @@ there is no heartbeat in this PR.
 - `docs/esp32/RobotVpsBridge.ino` — reference sketch: Wi-Fi, ~750 ms poll,
   ACK → EXECUTING → simulated delay → COMPLETED. Placeholders only, no
   secrets; TLS validation point is marked in the code.
+- Local values each tester must provide in the sketch (never commit them):
+  `WIFI_SSID`, `WIFI_PASSWORD`,
+  `ROBOT_API_BASE_URL=https://armatrix1.tech/api`, `ROBOT_DEVICE_TOKEN`
+  (the VPS value), and a unique `DEVICE_ID` (e.g. `esp32-01`).
+- TLS: the sketch defaults to secure certificate validation
+  (`TLS_INSECURE_DEBUG=0`). Setting it to `1` is allowed ONLY for initial
+  connectivity testing; the production / final demo must use proper CA
+  verification (`client.setCACert(...)`).
