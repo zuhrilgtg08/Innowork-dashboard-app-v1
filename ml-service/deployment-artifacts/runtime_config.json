@@ -1,0 +1,10 @@
+{
+  "model_sha256": "30e1449707b40b8ed909745cb2bc70a0fb05f5c60b83f194666aba9d609e09fa",
+  "preprocessing": "stretch_rgb_nchw_fp32",
+  "confidence": 0.6,
+  "names": {
+    "0": "GREEN",
+    "1": "YELLOW",
+    "2": "RED"
+  }
+}

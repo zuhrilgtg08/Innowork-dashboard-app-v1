@@ -56,7 +56,7 @@
         <!-- Single live camera card -->
         <div class="lg:col-span-2">
             @if ($cameraSource === 'icam')
-            <div wire:poll.5s="refreshRuntime" class="space-y-4">
+            <div wire:poll.visible.5s="refreshRuntime" class="space-y-4">
                 @php
                     $modelLoaded = (bool) ($runtime['model_loaded'] ?? false);
                     $camConnected = (bool) ($runtime['camera_connected'] ?? $runtimeCamera['connected'] ?? false);
@@ -79,11 +79,16 @@
                             <x-status-badge :color="$camConnected ? 'green' : 'gray'" :label="$camConnected ? 'Camera Connected' : 'Camera Offline'" />
                         </div>
                     </div>
-                    <div class="relative aspect-video bg-gray-900">
-                        <img src="{{ $previewUrl }}" alt="YOLO annotated preview"
-                             class="h-full w-full object-cover"
-                             x-show="streamOk"
-                             x-on:error="streamOk = false" x-on:load="streamOk = true" />
+                    <div class="relative aspect-[4/3] bg-gray-900">
+                        {{-- wire:ignore keeps the MJPEG connection alive across polls: without it
+                            every poll re-morphs the <img> and the browser restarts the stream
+                            (flicker + a pinned proxy worker that slows down menu navigation). --}}
+                        <div wire:ignore class="absolute inset-0">
+                            <img src="{{ $previewUrl }}" alt="YOLO annotated preview" data-mjpeg
+                                 class="h-full w-full object-cover"
+                                 x-show="streamOk"
+                                 x-on:error="streamOk = false" x-on:load="streamOk = true" />
+                        </div>
                         <div x-show="!streamOk" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-gray-400">
                             <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
                             <p class="text-sm font-semibold text-gray-200">Camera Stream Unavailable</p>
@@ -246,8 +251,10 @@
                 <!-- Raw Camera (secondary, no overlay) -->
                 <details class="card overflow-hidden">
                     <summary class="cursor-pointer p-4 font-bold text-gray-900 dark:text-white">Raw Camera <span class="ml-1 text-xs font-normal text-gray-400">— camera feed without YOLO overlay</span></summary>
-                    <div class="relative aspect-video bg-gray-900">
-                        <img src="{{ route('ml.camera.raw') }}" alt="Raw camera feed" class="h-full w-full object-cover" loading="lazy" />
+                    <div class="relative aspect-[4/3] bg-gray-900">
+                        <div wire:ignore class="absolute inset-0">
+                            <img src="{{ route('ml.camera.raw') }}" alt="Raw camera feed" data-mjpeg class="h-full w-full object-cover" loading="lazy" />
+                        </div>
                         <span class="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">RAW</span>
                     </div>
                     <p class="p-4 text-xs text-gray-400">Advantech iCAM-300 — Industrial Camera · Automatic inference through the AI service.</p>
@@ -267,7 +274,7 @@
                     Browser webcam access may be restricted when SortVision is embedded in IoT Suite.
                     Use the Advantech iCAM-300 server stream for production operation.
                 </div>
-                <div class="relative aspect-video bg-gray-900">
+                <div class="relative aspect-[4/3] bg-gray-900">
                     <!-- Live webcam feed -->
                     <video x-ref="video" autoplay playsinline muted
                            class="h-full w-full object-cover" x-show="active" style="display:none;"></video>
@@ -340,7 +347,7 @@
             @endif
 
             <!-- Today's aggregate for this single camera -->
-            <div class="mt-4 grid grid-cols-3 gap-4" wire:poll.5s>
+            <div class="mt-4 grid grid-cols-3 gap-4" wire:poll.visible.5s>
                 <div class="card p-4 text-center">
                     <p class="text-2xl font-extrabold text-gray-900 dark:text-white">{{ number_format($stats['total']) }}</p>
                     <p class="text-xs text-gray-400">Today's Detections</p>
@@ -473,5 +480,14 @@
             this.active = false;
         },
     }));
+
+    // Abort open MJPEG connections the moment SPA navigation starts, so the
+    // pinned Laravel proxy workers are released and the next menu paints fast.
+    // (Poll requests are also cancelled by Livewire itself on navigate.)
+    document.addEventListener('livewire:navigating', () => {
+        document.querySelectorAll('img[data-mjpeg]').forEach((img) => {
+            img.removeAttribute('src');
+        });
+    }, { once: true });
 </script>
 @endscript

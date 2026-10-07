@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     # When true, the service runs the periodic infer→POST loop on startup.
     icam_auto_infer: bool = False
 
+
     # Context stamped onto detections created from the stream.
     icam_camera: str = "ICAM-300"
     icam_conveyor: str = "LINE-A"
@@ -71,7 +72,13 @@ class Settings(BaseSettings):
     # Confidence threshold for stream inference. Deployment default 0.60
     # matches the current GREEN/YELLOW/RED best.pt training/runtime report;
     # still environment-driven (ICAM_CONF overrides this).
-    icam_conf: float = 0.60
+    icam_conf: float = 0.55
+    icam_imgsz: int = 512
+
+    icam_inference_mode: str = "roi-crop"
+    icam_roi_config: str = "mat_roi.json"
+    icam_tile_size: int = 640
+    icam_tile_overlap: float = 0.25
 
     # Simulator fallback gate (local development only). When false (default,
     # production/demo intent), an unreachable real camera reports OFFLINE and

@@ -487,6 +487,7 @@ class InferenceWorker(threading.Thread):
         # Guard against a mid-run /reload-model swap racing this predict.
         model = self._model
         results = model.predict(source=frame_bgr, conf=self._conf,
+                                imgsz=settings.icam_imgsz,
                                 device="cpu", verbose=False)
         latency_ms = (time.perf_counter() - t0) * 1000.0
         h, w = frame_bgr.shape[:2]

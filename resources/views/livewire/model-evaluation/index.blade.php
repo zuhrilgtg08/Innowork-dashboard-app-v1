@@ -1,4 +1,4 @@
-<div wire:poll.5s="refreshPreview" class="space-y-6">
+<div wire:poll.visible.5s="refreshPreview" class="space-y-6">
     <!-- Header -->
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -93,7 +93,7 @@
         </div>
 
         <!-- Model Training Panel (demo visualization; polled stepwise while active) -->
-        <div @if (in_array($trainingState, ['preparing', 'training', 'evaluating'])) wire:poll.750ms="advanceTrainingStep" @endif>
+        <div @if (in_array($trainingState, ['preparing', 'training', 'evaluating'])) wire:poll.visible.750ms="advanceTrainingStep" @endif>
         <div class="card p-5">
             <h3 class="font-bold text-gray-900 dark:text-white">Model Training</h3>
             <p class="text-xs text-gray-400">Train and evaluate the Vision Sorting YOLO model. Demo metrics for presentation visualization.</p>
@@ -191,9 +191,14 @@
             </div>
             <div class="relative bg-gray-900">
                 @if ($previewing && $previewUrl)
-                    <img src="{{ $previewUrl }}" alt="Annotated YOLO preview" class="aspect-video w-full object-cover">
+                    {{-- wire:ignore keeps the MJPEG connection alive across polls: without it every
+                        poll re-morphs the <img> and the browser restarts the stream (flicker +
+                        a pinned proxy worker that also slows down menu navigation). --}}
+                    <div wire:ignore>
+                        <img src="{{ $previewUrl }}" alt="Annotated YOLO preview" data-mjpeg class="aspect-[4/3] w-full object-cover">
+                    </div>
                 @else
-                    <div class="flex aspect-video w-full flex-col items-center justify-center gap-2 p-6 text-center">
+                    <div class="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 p-6 text-center">
                         <svg class="h-10 w-10 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
                         <p class="text-sm font-semibold text-gray-300">Preview stopped</p>
                         <p class="max-w-xs text-xs text-gray-500">Start Model Preview to watch live bounding boxes, class, and confidence overlays.</p>
@@ -536,3 +541,15 @@
         </div>
     </div>
 </div>
+
+@script
+<script>
+    // Abort the open MJPEG preview the moment SPA navigation starts, so the
+    // pinned Laravel proxy worker is released and the next menu paints fast.
+    document.addEventListener('livewire:navigating', () => {
+        document.querySelectorAll('img[data-mjpeg]').forEach((img) => {
+            img.removeAttribute('src');
+        });
+    }, { once: true });
+</script>
+@endscript

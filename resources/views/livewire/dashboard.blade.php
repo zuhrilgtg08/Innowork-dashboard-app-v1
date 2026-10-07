@@ -1,4 +1,4 @@
-<div wire:poll.5s class="space-y-6">
+<div wire:poll.visible.5s class="space-y-6">
     <!-- Header -->
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -66,7 +66,12 @@
         </div>
         @if ($mlOnline && $modelLoaded)
             <div class="relative bg-gray-900">
-                <img src="{{ route('ml.camera.preview') }}" alt="YOLO annotated preview" class="aspect-video w-full object-cover">
+                {{-- wire:ignore keeps the MJPEG connection alive across polls: without it every
+                    poll re-morphs the <img> and the browser restarts the stream (flicker + a
+                    pinned proxy worker that also slows down menu navigation). --}}
+                <div wire:ignore>
+                    <img src="{{ route('ml.camera.preview') }}" alt="YOLO annotated preview" data-mjpeg class="aspect-[4/3] w-full object-cover">
+                </div>
                 <span class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded bg-black/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
                     <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500"></span>
                     <span>LIVE</span>
@@ -82,7 +87,7 @@
                 <span class="font-medium text-orange-600 dark:text-orange-400" id="ml-latency">Latency: {{ $stats['latencyMs'] !== null ? number_format((float) $stats['latencyMs'], 1).' ms' : '—' }}</span>
             </div>
         @else
-            <div class="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-gray-900 p-6 text-center">
+            <div class="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-gray-900 p-6 text-center">
                 <p class="text-sm font-semibold text-gray-200">YOLO Preview Unavailable</p>
                 <p class="max-w-xs text-xs text-gray-500">Waiting for the ML service.</p>
             </div>
@@ -296,3 +301,15 @@
         </div>
     </div>
 </div>
+
+@script
+<script>
+    // Abort the open MJPEG preview the moment SPA navigation starts, so the
+    // pinned Laravel proxy worker is released and the next menu paints fast.
+    document.addEventListener('livewire:navigating', () => {
+        document.querySelectorAll('img[data-mjpeg]').forEach((img) => {
+            img.removeAttribute('src');
+        });
+    }, { once: true });
+</script>
+@endscript

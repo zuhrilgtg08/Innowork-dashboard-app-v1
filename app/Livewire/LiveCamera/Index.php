@@ -51,6 +51,17 @@ class Index extends Component
     public array $runtimeTimeline = ['bucket_seconds' => 60, 'labels' => [], 'series' => []];
 
     /**
+     * First paint: load runtime telemetry once so the view has data without
+     * waiting for the first poll tick. Subsequent updates come only from the
+     * explicit wire:poll target — render() stays cheap (DB only) so menu
+     * navigation never blocks on ML HTTP calls.
+     */
+    public function mount(): void
+    {
+        $this->refreshRuntime();
+    }
+
+    /**
      * Refresh live YOLO runtime telemetry (polled from the view).
      *
      * All ML calls are cached and best-effort: when the service is offline
@@ -184,9 +195,10 @@ class Index extends Component
         // Cache the health probe so wire:poll doesn't hammer the ML service.
         $mlOnline = Cache::remember('ml.health', now()->addSeconds(10), fn () => app(MlClient::class)->healthy());
 
-        // Live YOLO runtime telemetry for the preview panels (cached,
-        // best-effort; null/empty when the ML service is offline).
-        $this->refreshRuntime();
+        // Live YOLO runtime telemetry is refreshed by the explicit poll target
+        // (refreshRuntime) and seeded in mount() — never here. Calling it from
+        // render() would re-fire several ML HTTP calls on every poll/render and
+        // stall menu navigation.
 
         // Source mode: 'webcam' (browser getUserMedia) or 'icam' (ICAM-300 RTSP
         // relayed as MJPEG through the same-origin Laravel proxy).
