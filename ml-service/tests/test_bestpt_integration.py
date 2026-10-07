@@ -262,6 +262,41 @@ def test_preview_endpoint_takes_no_side_effect_params():
     assert list(inspect.signature(main.camera_preview).parameters) == []
 
 
+# --- iCAM endpoint: env-driven, never hard-coded ---------------------------
+
+def test_realtime_endpoint_not_hardcoded_in_python_source():
+    needle = "192.168.0.100" + ":8550"
+    root = Path(__file__).resolve().parent.parent
+    hits = []
+    for path in sorted(root.rglob("*.py")):
+        if "tests" in path.parts:
+            continue
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if needle in line:
+                hits.append(f"{path.name}:{lineno}")
+    assert hits == []
+
+
+def test_env_example_documents_expected_icam_endpoint():
+    from urllib.parse import urlsplit
+
+    env_example = Path(__file__).resolve().parent.parent.joinpath(".env.example").read_text()
+    match = re.search(r"^ICAM_RTSP_URL=(.*)$", env_example, re.MULTILINE)
+    assert match is not None
+    parts = urlsplit(match.group(1).strip())
+    assert parts.scheme == "rtsp"
+    assert parts.hostname == "192.168.0.100"
+    assert parts.port == 8550
+    assert parts.path == "/video"
+
+
+def test_camera_source_stays_env_driven_by_default(monkeypatch):
+    from config import Settings
+
+    monkeypatch.delenv("ICAM_RTSP_URL", raising=False)
+    assert Settings(_env_file=None).icam_rtsp_url == ""
+
+
 # --- 10. no MQTT imports introduced ----------------------------------------
 
 @pytest.mark.parametrize("module", ["vision_model", "runtime", "stream", "infer", "config", "main"])

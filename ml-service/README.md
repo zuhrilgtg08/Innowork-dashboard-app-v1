@@ -91,7 +91,12 @@ HMAC-signed). **No code runs on the camera**; it just streams.
 
 `.env` keys:
 
-- `ICAM_RTSP_URL` — real camera URL. **Leave empty for simulator mode.**
+- `ICAM_RTSP_URL` — project camera `rtsp://192.168.0.100:8550/video` for
+  local integration testing (runtime stays environment-driven; the address
+  is never hard-coded in Python source). Leave empty only for local
+  development with `ICAM_ALLOW_SIMULATOR=true`. An unreachable source
+  reports `camera_connected=false` and `camera_mode=OFFLINE` — never `LIVE`
+  and never a silent simulator substitution in production/demo mode.
   (Known raw/default preview context `192.168.0.100:5001` is not assumed to
   be the YOLO frame source — keep the actual source configurable here.)
 - `ICAM_SIM_SOURCE` — fallback when RTSP is empty/unreachable: a looped video
